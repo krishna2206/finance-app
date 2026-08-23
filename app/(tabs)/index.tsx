@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,26 +10,68 @@ import { VoiceRecordButton } from '../../src/components/voice/VoiceRecordButton'
 import { useWalletStore } from '../../src/stores/useWalletStore';
 import { useBudgetStore } from '../../src/stores/useBudgetStore';
 import { useTransactionStore } from '../../src/stores/useTransactionStore';
+import { calculateCadenceMetrics } from '../../src/services/burnRateCalculator';
 import { Plus, Camera, ArrowRight, ShieldAlert, Smartphone } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadWallets = useWalletStore(state => state.loadWallets);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
 
   const transactions = useTransactionStore(state => state.transactions);
-  const metrics = useBudgetStore(state => state.getMetrics(transactions));
+  const categories = useBudgetStore(state => state.categories);
+  const wallets = useWalletStore(state => state.wallets);
+  const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
+
+  const metrics = useMemo(() => {
+    const expenseCategories = categories.filter(c => c.type === 'EXPENSE');
+    const totalBudget = expenseCategories.reduce((sum, c) => sum + c.monthlyBudget, 0);
+    const spendableBalance = Object.values(wallets)
+      .filter(w => w.isSpendable)
+      .reduce((sum, w) => sum + w.balance, 0);
+
+    const currentYearMonth = new Date().toISOString().slice(0, 7);
+    const spendingMap: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.flow === 'DEBIT' && t.date.startsWith(currentYearMonth)) {
+        spendingMap[t.categoryId] = (spendingMap[t.categoryId] || 0) + t.totalImpact;
+      }
+    });
+
+    let totalSpent = 0;
+    let fixedChargesRemaining = 0;
+    expenseCategories.forEach(c => {
+      const spent = spendingMap[c.id] || 0;
+      totalSpent += spent;
+      if (c.isEssential && spent < c.monthlyBudget) {
+        fixedChargesRemaining += (c.monthlyBudget - spent);
+      }
+    });
+
+    const savingsVaultBalance = wallets.SAVINGS_VAULT?.balance || 0;
+    const remainingSavings = Math.max(0, monthlySavingsTarget - savingsVaultBalance);
+
+    return calculateCadenceMetrics(
+      totalBudget,
+      totalSpent,
+      spendableBalance,
+      remainingSavings,
+      fixedChargesRemaining
+    );
+  }, [transactions, categories, wallets, monthlySavingsTarget]);
 
   const recentTransactions = transactions.slice(0, 5);
 
   // Calculate monthly total fees
   const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthlyFees = transactions
-    .filter(t => t.date.startsWith(currentMonth))
-    .reduce((sum, t) => sum + (t.feeAmount || 0), 0);
+  const monthlyFees = useMemo(() => {
+    return transactions
+      .filter(t => t.date.startsWith(currentMonth))
+      .reduce((sum, t) => sum + (t.feeAmount || 0), 0);
+  }, [transactions, currentMonth]);
 
   const onRefresh = async () => {
     setRefreshing(true);

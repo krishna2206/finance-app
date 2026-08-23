@@ -1,11 +1,16 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text } from 'react-native';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { Smartphone, Banknote, ShieldCheck } from 'lucide-react-native';
 
 export function WalletBalanceCard() {
   const wallets = useWalletStore(state => state.wallets);
-  const totalSpendable = useWalletStore(state => state.getTotalSpendableBalance());
+
+  const totalSpendable = useMemo(() => {
+    return Object.values(wallets)
+      .filter(w => w.isSpendable)
+      .reduce((sum, w) => sum + w.balance, 0);
+  }, [wallets]);
 
   const mvolaBalance = wallets.MVOLA?.balance || 0;
   const cashBalance = wallets.CASH?.balance || 0;

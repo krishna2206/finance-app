@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBudgetStore } from '../../src/stores/useBudgetStore';
@@ -11,7 +11,17 @@ export default function BudgetsScreen() {
   const categories = useBudgetStore(state => state.categories);
   const updateCategoryBudget = useBudgetStore(state => state.updateCategoryBudget);
   const transactions = useTransactionStore(state => state.transactions);
-  const spendingMap = useBudgetStore(state => state.getCategorySpendingMap(transactions));
+
+  const spendingMap = useMemo(() => {
+    const currentYearMonth = new Date().toISOString().slice(0, 7);
+    const map: Record<string, number> = {};
+    transactions.forEach(t => {
+      if (t.flow === 'DEBIT' && t.date.startsWith(currentYearMonth)) {
+        map[t.categoryId] = (map[t.categoryId] || 0) + t.totalImpact;
+      }
+    });
+    return map;
+  }, [transactions]);
 
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [budgetInput, setBudgetInput] = useState('');
