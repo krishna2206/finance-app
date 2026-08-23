@@ -50,12 +50,12 @@ export function App() {
           )}
         </main>
 
-        {/* Floating Bottom Bar (Locked inside Mobile Frame) */}
-        <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex justify-between items-center">
-          <div className="pointer-events-auto">
+        {/* Floating Bottom Bar (Dynamically adapts on all screen sizes with guaranteed gap) */}
+        <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex items-center gap-3">
+          <div className="flex-1 min-w-0 pointer-events-auto">
             <FloatingTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
           </div>
-          <div className="pointer-events-auto">
+          <div className="shrink-0 pointer-events-auto">
             <FloatingActionStack onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
           </div>
         </div>
