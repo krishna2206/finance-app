@@ -7,6 +7,7 @@ import { WalletBalanceCard } from '../cards/WalletBalanceCard';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
+import { formatDateGroupLabel } from '../../utils/formatters';
 import { QueueListIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 interface DashboardViewProps {
@@ -22,7 +23,17 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
 
-  const recentTransactions = useMemo(() => transactions.slice(0, 7), [transactions]);
+  // Group top recent transactions by date
+  const groupedRecentTransactions = useMemo(() => {
+    const recent = transactions.slice(0, 8);
+    const groups: Record<string, typeof transactions> = {};
+    recent.forEach(t => {
+      const dateKey = t.date.split('T')[0];
+      if (!groups[dateKey]) groups[dateKey] = [];
+      groups[dateKey].push(t);
+    });
+    return groups;
+  }, [transactions]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -64,7 +75,7 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
           </button>
         </div>
 
-        {recentTransactions.length === 0 ? (
+        {Object.keys(groupedRecentTransactions).length === 0 ? (
           <InsetGroupedCard className="p-8 text-center bg-white border-zinc-200/80">
             <p className="text-xs text-zinc-400 font-medium">
               Aucune transaction enregistrée pour le moment.<br />
@@ -72,15 +83,24 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
             </p>
           </InsetGroupedCard>
         ) : (
-          <InsetGroupedCard>
-            {recentTransactions.map(txn => (
-              <TransactionRow
-                key={txn.id}
-                transaction={txn}
-                onClick={() => onSelectTransaction(txn)}
-              />
+          <div className="space-y-3">
+            {Object.entries(groupedRecentTransactions).map(([dateKey, txns]) => (
+              <div key={dateKey} className="space-y-1.5">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1 block capitalize">
+                  {formatDateGroupLabel(dateKey)}
+                </span>
+                <InsetGroupedCard>
+                  {txns.map(txn => (
+                    <TransactionRow
+                      key={txn.id}
+                      transaction={txn}
+                      onClick={() => onSelectTransaction(txn)}
+                    />
+                  ))}
+                </InsetGroupedCard>
+              </div>
             ))}
-          </InsetGroupedCard>
+          </div>
         )}
       </div>
     </div>

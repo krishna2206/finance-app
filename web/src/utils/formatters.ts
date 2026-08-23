@@ -66,3 +66,19 @@ export function formatWalletName(wallet: string | null | undefined): string {
   return WALLET_LABELS[wallet] || wallet;
 }
 
+/**
+ * Retourne le libellé de regroupement par date pour les listes de transactions.
+ * Exemples : "Aujourd'hui", "Hier", "mercredi 20 août"
+ */
+export function formatDateGroupLabel(dateStr: string): string {
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  if (dateStr === today) return "Aujourd'hui";
+  if (dateStr === yesterday) return "Hier";
+
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+

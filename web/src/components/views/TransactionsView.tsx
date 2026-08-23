@@ -3,6 +3,7 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
+import { formatDateGroupLabel } from '../../utils/formatters';
 
 interface TransactionsViewProps {
   onSelectTransaction: (txn: Transaction) => void;
@@ -31,17 +32,6 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
     });
     return groups;
   }, [filteredTransactions]);
-
-  const formatDateLabel = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-
-    if (dateStr === today) return "Aujourd'hui";
-    if (dateStr === yesterday) return "Hier";
-
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  };
 
   return (
     <div className="space-y-4 pb-20">
@@ -87,7 +77,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
         Object.entries(groupedTransactions).map(([dateKey, txns]) => (
           <div key={dateKey} className="space-y-1.5">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1 block capitalize">
-              {formatDateLabel(dateKey)}
+              {formatDateGroupLabel(dateKey)}
             </span>
             <InsetGroupedCard>
               {txns.map(t => (

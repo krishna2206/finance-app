@@ -14,7 +14,7 @@ import {
   BanknotesIcon,
   BuildingLibraryIcon,
   TagIcon,
-  DocumentTextIcon,
+  ShoppingBagIcon,
   ShoppingCartIcon,
   HomeIcon,
   TruckIcon,
@@ -183,7 +183,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           {transaction.items && transaction.items.length > 0 && (
             <InsetGroupedCard className="p-4 mb-4">
               <div className="flex items-center gap-1.5 mb-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
-                <DocumentTextIcon className="w-4 h-4 text-emerald-500" />
+                <ShoppingBagIcon className="w-4 h-4 text-emerald-500" />
                 <span>Articles du Ticket ({transaction.items.length})</span>
               </div>
 

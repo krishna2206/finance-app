@@ -1,6 +1,5 @@
 import { Transaction } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
-import { LocationBadge } from './LocationBadge';
 import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
 import {
   ShoppingCartIcon,
@@ -12,7 +11,7 @@ import {
   CreditCardIcon,
   ShieldCheckIcon,
   TagIcon,
-  DocumentTextIcon,
+  ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 
 interface TransactionRowProps {
@@ -60,7 +59,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
         onClick ? 'cursor-pointer hover:bg-zinc-50 active:bg-zinc-100' : ''
       }`}
     >
-      <div className="flex items-center gap-3 flex-1 pr-3">
+      <div className="flex items-center gap-3 flex-1 min-w-0 pr-3">
         {/* Category Icon (Clean monochrome, no colored box) */}
         <div className="w-7 h-7 flex items-center justify-center shrink-0">
           {renderCategoryIcon()}
@@ -68,34 +67,30 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
         {/* Details */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm font-semibold text-zinc-900 truncate">
               {transaction.title}
             </span>
 
-            {/* Receipt Items Badge */}
+            {/* Receipt Items Indicator (Clean grey text + shopping bag icon, no colored border/frame) */}
             {hasItems && (
-              <span className="inline-flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                <DocumentTextIcon className="w-3 h-3" />
+              <span className="inline-flex items-center gap-0.5 text-zinc-400 text-xs font-medium shrink-0">
+                <ShoppingBagIcon className="w-3.5 h-3.5 text-zinc-400 stroke-[2]" />
                 <span>{transaction.items?.length}</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
-            <span>{category?.name || 'Catégorie'}</span>
-            <span className="text-zinc-300">•</span>
-            <span className="text-zinc-400 font-medium">{formatWalletName(transaction.wallet)}</span>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5 truncate">
+            <span className="truncate">{category?.name || 'Catégorie'}</span>
+            <span className="text-zinc-300 shrink-0">•</span>
+            <span className="text-zinc-400 font-medium shrink-0">{formatWalletName(transaction.wallet)}</span>
           </div>
-
-          {transaction.location?.placeName && (
-            <LocationBadge placeName={transaction.location.placeName} />
-          )}
         </div>
       </div>
 
       {/* Amount & Fees formatted uniformly */}
-      <div className="text-right shrink-0">
+      <div className="text-right shrink-0 whitespace-nowrap pl-2">
         <div className={`text-sm font-bold tabular-nums ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
           {formatSignedAmount(transaction.amount, isDebit)}
         </div>
