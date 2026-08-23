@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Finance App",
+    "slug": "finance-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "financeapp",
+    "splash": {
+      "backgroundColor": "#090A0C"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#090A0C"
+      },
+      "package": "com.financeapp.mobile",
+      "permissions": [
+        "RECEIVE_SMS",
+        "READ_SMS",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-updates",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Autoriser l'application à utiliser le microphone pour la saisie vocale des dépenses."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autoriser l'application à lire les photos de tickets de caisse.",
+          "cameraPermission": "Autoriser l'application à scanner les reçus de caisse."
+        }
+      ]
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/finance-app-project-id"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
