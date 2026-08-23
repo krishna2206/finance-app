@@ -277,59 +277,200 @@ export interface AppSettings {
 | `Voaray ny... avy tamin'ny... Salaire` | `SALARY` | `CREDIT` | Frais = 0 Ar | MVola: `+Montant` | *"Revenus / Salaire"* |
 | `Voaray ny... avy tamin'ny [Numéro]...` | `INCOME_TRANSFER` | `CREDIT` | Frais = 0 Ar | MVola: `+Montant` | 1. Mémoire Tiers si connu<br>2. Sinon *"Revenus / Entrées Diverses"* |
 
-## 6. Architecture Web App PWA (Vite + React 19 + Tailwind v4)
+## 6. Architecture & Choix Technologiques du Frontend Web App PWA (`web/`)
+
+### 6.1 Description & Rôle du Module Web
+L'application Web PWA constitue l'interface utilisateur principale du système. Elle est conçue pour fonctionner avec un niveau de fluidité identique aux applications natives iOS/macOS :
+- **Accessible Immédiatement** : Accessible depuis n'importe quel navigateur moderne (Chrome, Zen, Safari, Firefox) sur ordinateur et smartphone sans installation obligatoire.
+- **Installable en PWA (Progressive Web App)** : Grâce au `manifest.json`, l'utilisateur peut ajouter l'application sur l'écran d'accueil de son smartphone ou dans son dock macOS (mode *standalone* plein écran sans barre d'URL ni interface de navigateur).
+- **Zéro Friction & Réactivité Immédiate** : Démarrage instantané via Vite, rendu visuel sombre feutré (style Linear / Apple Wallet), et synchronisation en direct via Server-Sent Events (SSE).
 
 ```
 +-----------------------------------------------------------------------------------+
 |                        APPLICATION WEB PWA (Vite + React 19)                      |
 |                                                                                   |
-|  - Framework UI        : React 19 + TypeScript + Tailwind CSS v4                  |
-|  - Animations & Ressorts: Framer Motion (Physique iOS, transitions feutrées)      |
-|  - Graphiques Dégradés : Recharts / SVG interactif avec gradients estompés        |
-|  - Gestion d'État      : Zustand v5 (Stores réactifs ultra-légers)                |
-|  - Persistance Locale  : IndexedDB (Dexie.js / LocalStorage) pour mode offline   |
-|  - Audio & Voix        : Web Audio API / MediaRecorder -> Gemini 3.1 Flash Lite   |
-|  - Vision / Scan Reçus : HTML5 File / Camera Capture -> Gemini 3.1 Flash Lite     |
-|  - Temps Réel SSE      : EventSource connecté sur `GET /api/events` (Toast instant)|
-|  - Notifications Push  : Service Worker (Web Push API + actions directes)         |
+|  [ COUCHE PRÉSENTATION & UI ]                                                     |
+|  - React 19 + TypeScript + Tailwind CSS v4                                        |
+|  - Framer Motion (Physique de ressorts iOS, transitions de pages et modales)      |
+|  - Lucide React (Icônes vectorielles cohérentes)                                  |
+|  - Recharts / Custom SVG (Courbes financières avec dégradés estompés)             |
+|                                                                                   |
+|  [ COUCHE ÉTAT & CAPTURE MULTIMODALE ]                                            |
+|  - Zustand v5 (Stores réactifs en mémoire : wallets, budgets, txns, ai)           |
+|  - Web Audio API (Enregistrement micro pour la saisie vocale Gemini)             |
+|  - HTML5 Camera & File API (Capture de tickets SCORE pour la vision Gemini)      |
+|                                                                                   |
+|  [ COUCHE TEMPS RÉEL & OFFLINE ]                                                  |
+|  - Client SSE (EventSource) connecté sur `GET /api/events` (Toast SMS instantané) |
+|  - Service Worker (`sw.js`) pour la réception des Web Push et le cache hors-ligne|
 +-----------------------------------------------------------------------------------+
 ```
 
-### Caractéristiques de la Web App PWA
-- **Installable en 1 Clic** : Installable sur l'écran d'accueil du smartphone (iOS/Android) et sur macOS/Windows via le `manifest.json` (mode standalone plein écran, zéro barre d'URL).
-- **Zéro Latence de Saisie** : Toutes les écritures sont enregistrées instantanément en local et synchronisées avec le backend.
-- **Réception SSE en Direct** : Dès qu'un SMS MVola est reçu par le backend, un événement SSE réveille l'écran et fait descendre le toast animé avec les boutons de catégorisation 1-tap.
-- **Service Worker pour Push d'Arrière-Plan** : Même si le navigateur est fermé ou l'application réduite, le Service Worker intercepte les pushs et affiche les alertes de dépenses sur l'écran de verrouillage.
+### 6.2 Choix Technologiques & Justifications (Frontend Web)
 
-## 7. Architecture Backend API, SSE & Web Push (Hono / Bun)
+| Composant Web | Technologie Choisie | Rôle & Justification Technique |
+| :--- | :--- | :--- |
+| **Bundler & Dev Server** | **Vite 6** | Démarrage en moins de 100 ms, Hot Module Replacement (HMR) ultra-rapide (< 20 ms), zéro blocage de compilation. |
+| **Framework UI** | **React 19 + TypeScript** | Standard moderne du web, typage strict des modèles de données (UUID v4, Transactions, Wallets). |
+| **Moteur de Styling** | **Tailwind CSS v4** | Configuration de thème sombre direct (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`) et zéro overhead JS. |
+| **Moteur d'Animation** | **Framer Motion** | Physique des ressorts fluide (`type: "spring"`, `stiffness: 300`, `damping: 24`) pour les modales glissantes, bottom sheets et bannières toast. |
+| **Graphiques & Gradients** | **Recharts & Custom SVG Gradients** | Graphiques vectoriels nets avec dégradés verticaux estompés (`#34D399` vers transparent) et curseur interactif au survol. |
+| **Gestion d'État** | **Zustand v5** | Gestion d'état légère (< 1 Ko), atomique et découplée, évitant tout re-render superflu. |
+| **Entrée Vocale** | **Web Audio API (`MediaRecorder`)** | Capture directe du microphone dans le navigateur, encodage audio et transmission au backend sans plugin natif. |
+| **Entrée Reçus** | **HTML5 File / Camera API** | Prise de photo ou glisser-déposer de tickets de caisse avec compression locale avant analyse IA. |
+| **Temps Réel** | **Server-Sent Events (`EventSource`)** | Connexion unidirectionnelle ultra-légère réveillant l'écran dès qu'un SMS MVola est reçu par le serveur. |
+| **Service Worker & PWA** | **Standard Web Push API + Cache API** | Permet l'installation plein écran et l'affichage des notifications sur l'écran de verrouillage même quand le navigateur est fermé. |
+
+### 6.3 Structure Détaillée du Répertoire `web/`
+
+```
+web/
+├── index.html                              # Point d'entrée HTML avec meta tags PWA
+├── vite.config.ts                          # Configuration Vite + Tailwind v4 + Proxy API
+├── package.json                            # Dépendances React 19, Tailwind, Framer Motion, Zustand
+├── tsconfig.json                           # Configuration TypeScript stricte
+│
+├── public/                                 # Assets statiques et configuration PWA
+│   ├── manifest.json                       # Métadonnées PWA (Nom, icônes, standalone, dark theme)
+│   ├── service-worker.js                   # Service Worker pour Web Push & cache offline
+│   ├── icons/                              # Icônes PWA (192x192, 512x512, maskable)
+│   └── favicon.ico
+│
+└── src/
+    ├── main.tsx                            # Montage de l'application React
+    ├── App.tsx                             # Navigation par onglets (Dashboard, Transac, Budget, AI) & Modales
+    │
+    ├── styles/
+    │   └── global.css                      # Thème Tailwind CSS v4 (Obsidienne feutrée, accents sobres)
+    │
+    ├── types/                              # Types TypeScript partagés avec le backend
+    │   ├── models.ts                       # Wallet, Transaction, Category, TransactionItem
+    │   ├── sms.ts                          # Événements SMS parsés
+    │   └── ai.ts                           # AI Assistant messages et scan de reçu
+    │
+    ├── stores/                             # Gestion d'état réactive Zustand
+    │   ├── useWalletStore.ts               # Soldes des portefeuilles et solde réel total
+    │   ├── useTransactionStore.ts          # Liste des transactions, filtres et pending SMS
+    │   ├── useBudgetStore.ts               # Enveloppes budgétaires, épargne et reste à vivre journalier
+    │   └── useAiAssistantStore.ts          # Chat IA, statut de transcription vocale et historique
+    │
+    ├── services/                           # Services réseau et intégrations Web
+    │   ├── api.ts                          # Client HTTP vers le backend (/api/*)
+    │   ├── sseClient.ts                    # Écouteur Server-Sent Events pour alertes SMS en temps réel
+    │   ├── pushSubscription.ts             # Enregistrement du Service Worker auprès des clés VAPID
+    │   └── audioRecorder.ts                # Capture audio via Web Audio API (Microphone)
+    │
+    └── components/                         # Composants UI React
+        ├── cards/
+        │   ├── WalletBalanceCard.tsx       # Carte triptyque Solde Réel (MVola vs Espèces)
+        │   ├── DailyBurnCard.tsx           # Carte du Reste à Vivre Journalier dynamique
+        │   └── SavingsTargetCard.tsx       # Jauge de progression de l'objectif d'épargne
+        ├── charts/
+        │   ├── CadenceProgressBar.tsx      # Jauge avec marqueur temporel vertical Jour J (`|`)
+        │   └── SpendingGradientChart.tsx   # Courbe Recharts avec dégradé émeraude estompé
+        ├── transactions/
+        │   ├── TransactionRow.tsx          # Ligne de transaction avec badge `🧾 N` et icône
+        │   ├── TransactionItemRow.tsx      # Ligne d'article individuel (quantité, prix)
+        │   ├── LocationBadge.tsx           # Badge du lieu / quartier (`📍`)
+        │   └── TransactionDetailModal.tsx  # Fiche détaillée avec accordéon des articles
+        ├── modals/
+        │   ├── QuickAddModal.tsx           # Formulaire de saisie flash (< 3s) avec calcul frais MVola
+        │   ├── ScanReceiptModal.tsx        # Viseur caméra / dropzone pour tickets SCORE
+        │   └── PasteSmsModal.tsx           # Simulateur et test de parsing SMS en direct
+        ├── feedback/
+        │   └── SmsToastBanner.tsx          # Toast animé Framer Motion avec sélecteur de catégorie 1-tap
+        └── voice/
+            └── VoiceRecordButton.tsx       # Bouton micro avec onde sonore et transcription Gemini
+```
+
+## 7. Architecture & Choix Technologiques du Backend API & SSE (`backend/`)
+
+### 7.1 Description & Rôle du Module Backend
+Le backend agit comme la colonne vertébrale du système. Il garantit la persistance des données, la réception des flux externes et la diffusion en temps réel :
+- **Passerelle Webhook SMS (H24)** : Reçoit les requêtes HTTP envoyées par le smartphone Android lors de l'arrivée d'un SMS MVola / Airtel.
+- **Source de Vérité Unique (SQLite)** : Centralise l'état des comptes pour que l'ordinateur et le smartphone soient toujours parfaitement synchronisés.
+- **Diffuseur Temps Réel (SSE)** : Alerte instantanément la Web App ouverte sur l'écran dès qu'un transfert ou un débit est détecté.
+- **Émetteur Web Push (VAPID)** : Réveille les appareils lorsque l'application est fermée ou en arrière-plan.
+- **Hôte Sécurisé pour l'IA** : Conserve la clé API Google Gemini 3.1 Flash Lite et exécute les requêtes de Tool Calling.
 
 ```
 +-----------------------------------------------------------------------------------+
 |                          BACKEND API (Hono / Bun + SQLite)                        |
 |                                                                                   |
-|  - Framework Serveur   : Hono (TypeScript, ultra-léger, < 1ms d'overhead)         |
-|  - Runtime & BDD       : Bun + bun:sqlite (Performances maximales, transactions)  |
-|  - Base de Données     : SQLite locale (`finance.db`) avec UUID v4 immuables      |
+|  [ COUCHE HTTP & STREAMING ]                                                      |
+|  - Serveur Hono (TypeScript) sur runtime Bun                                      |
+|  - Router REST (/api/transactions, /api/wallets, /api/budgets, /api/ai)           |
+|  - Broadcaster SSE (/api/events) pour diffusion temps réel vers les clients web   |
 |                                                                                   |
-|  [ ENDPOINTS CLÉS ]                                                               |
-|  - `POST /api/sms/webhook` : Point d'entrée pour la passerelle SMS (MacroDroid/Tasker)
-|  - `GET  /api/events`      : Flux Server-Sent Events (SSE) temps réel             |
-|  - `POST /api/push/subscribe` : Enregistrement des souscriptions Web Push VAPID  |
-|  - `GET/POST /api/transactions` : Synchronisation et CRUD transactions            |
-|  - `GET/POST /api/wallets`      : Gestion des soldes (MVola, Cash, Banque)        |
-|  - `GET/POST /api/budgets`      : Enveloppes budgétaires et objectif épargne      |
-|  - `POST /api/ai/chat`          : Agent Gemini 3.1 Flash Lite avec Tool Calling   |
+|  [ COUCHE LOGIQUE MÉTIER & PARSERS ]                                              |
+|  - Parseur Regex MVola / Airtel (`smsParser.ts`)                                  |
+|  - Moteur d'Auto-Catégorisation en 3 Niveaux (`categoryResolution.ts`)            |
+|  - Moteur de Réconciliation et Fusion Anti-Doublon (`receiptReconciliation.ts`)   |
+|  - Calculateur officiel des frais MVola (`mvolaFeeCalculator.ts`)                 |
+|  - Calculateur de Reste à Vivre journalier & Cadence (`burnRateCalculator.ts`)    |
+|                                                                                   |
+|  [ COUCHE DONNÉES & NOTIFICATIONS ]                                               |
+|  - Base de données SQLite locale via `bun:sqlite` (UUID v4 immuables)             |
+|  - Service Web Push VAPID (`web-push`) pour alertes sur écran de verrouillage     |
+|  - Client Gemini 3.1 Flash Lite (Transcription STT, Vision OCR, Tool Calling)     |
 +-----------------------------------------------------------------------------------+
 ```
 
-### Mécanique de la Passerelle SMS & Push
-1. **Interception Mobile** : Une règle simple sur le smartphone (via MacroDroid ou Tasker) écoute les SMS de `MVOLA` / `TELMA` et effectue un `POST` HTTP vers `/api/sms/webhook` avec le texte du message.
-2. **Traitement Backend Instantané** :
-   - Le backend exécute le parseur regex (`smsParser.ts`) et le moteur d'auto-catégorisation en 3 niveaux (`categoryResolution.ts`).
-   - Il insère la transaction et met à jour le solde dans la base SQLite locale.
-3. **Diffusion Double-Canal** :
-   - **Canal 1 (Écran Actif)** : Émission d'un événement SSE vers la Web App PWA ouverte pour déclencher le toast in-app.
-   - **Canal 2 (App Réduite / Écran Éteint)** : Envoi d'une notification Web Push chiffrée (VAPID) réveillant le Service Worker sur le téléphone.
+### 7.2 Choix Technologiques & Justifications (Backend API)
+
+| Composant Backend | Technologie Choisie | Rôle & Justification Technique |
+| :--- | :--- | :--- |
+| **Runtime** | **Bun** | Démarrage à froid en < 10 ms, exécution TypeScript native sans compilation préalable, pilote SQLite le plus rapide du marché. |
+| **Framework HTTP** | **Hono** | Framework web moderne ultra-léger (< 1 ms d'overhead), typage de bout en bout partagé avec le client. |
+| **Base de Données** | **SQLite (`bun:sqlite`)** | Base de données locale relationnelle fiable, zéro configuration serveur, transactions ACID, vitesse maximale. |
+| **Flux Temps Réel** | **Server-Sent Events (SSE)** | Protocole standard HTTP unidirectionnel sans la complexité ni le surcoût de maintien d'une connexion WebSocket. |
+| **Notifications Push** | **`web-push` (Standard VAPID)** | Envoi de messages chiffrés aux passerelles Google FCM / Apple / Mozilla avec rétention TTL pour livraison au rallumage. |
+| **Moteur IA** | **Google Gemini 3.1 Flash Lite SDK** | Exécution sécurisée côté serveur pour la transcription audio, la vision de tickets et l'exécution d'outils SQLite. |
+
+### 7.3 Structure Détaillée du Répertoire `backend/`
+
+```
+backend/
+├── package.json                            # Dépendances Hono, bun:sqlite, web-push, @google/genai
+├── tsconfig.json                           # Configuration TypeScript
+├── .env.example                            # Variables d'environnement (GEMINI_API_KEY, VAPID_KEYS, PORT)
+│
+└── src/
+    ├── index.ts                            # Point d'entrée du serveur Hono + Middleware CORS & Logger
+    │
+    ├── db/                                 # Couche Persistance SQLite native
+    │   ├── database.ts                     # Initialisation de la base SQLite locale (finance.db)
+    │   ├── schema.ts                       # DDL des tables (wallets, categories, transactions, recipients)
+    │   └── repositories/                   # Requêtes SQL relationnelles
+    │       ├── walletRepository.ts         # Gestion des soldes (MVola, Cash, Airtel, Banque)
+    │       ├── categoryRepository.ts       # Enveloppes de budget et catégories
+    │       ├── transactionRepository.ts    # CRUD des transactions, items et lieux
+    │       └── recipientRepository.ts      # Mémoire apprenante des numéros de téléphone
+    │
+    ├── services/                           # Moteurs de calcul et logique métier
+    │   ├── smsParser.ts                    # Parseur regex MVola / Airtel (Débits, Crédits, Retraits, Frais)
+    │   ├── categoryResolution.ts           # Moteur d'auto-catégorisation en 3 niveaux
+    │   ├── receiptReconciliation.ts        # Moteur anti-doublon et fusion SMS / Tickets de caisse
+    │   ├── mvolaFeeCalculator.ts           # Grille tarifaire officielle des frais MVola
+    │   ├── burnRateCalculator.ts           # Calcul du reste à vivre journalier et cadence
+    │   ├── sseBroadcaster.ts               # Gestionnaire des connexions SSE actives et émission d'événements
+    │   └── pushNotificationService.ts      # Gestionnaire des souscriptions et envoi Web Push VAPID
+    │
+    ├── ai/                                 # Orchestration Gemini 3.1 Flash Lite
+    │   ├── client.ts                       # Client SDK Gemini
+    │   ├── agentHarness.ts                 # Contexte dynamique (soldes réels, budgets, date)
+    │   ├── tools.ts                        # Définitions des outils Tool Calling SQLite
+    │   ├── sttPrompt.ts                    # Prompt système de transcription verbatim
+    │   └── visionPrompt.ts                 # Prompt extraction JSON structuré pour tickets SCORE
+    │
+    └── routes/                             # Routes API exposées
+        ├── sms.ts                          # `POST /api/sms/webhook` & `GET /api/events` (SSE)
+        ├── push.ts                         # `POST /api/push/subscribe` (Enregistrement Web Push)
+        ├── wallets.ts                      # `GET/POST /api/wallets` (Soldes et réajustements)
+        ├── categories.ts                   # `GET/POST /api/categories` (Budgets et enveloppes)
+        ├── transactions.ts                 # `GET/POST /api/transactions` (CRUD & enrichissement)
+        └── ai.ts                           # `POST /api/ai/chat`, `POST /api/ai/transcribe`, `POST /api/ai/scan-receipt`
+```
 
 ## 8. Choix Technologiques & Justifications
 
@@ -544,6 +685,7 @@ finance-app/
 | **1.8.0** | 21/08/2026 | Suppression des mentions d'identité visuelle pour conserver une spécification 100% technique et fonctionnelle. |
 | **1.9.0** | 21/08/2026 | Standardisation de la terminologie en **Tool Calling** et renommage en **AI Assistant**. |
 | **2.0.0** | 21/08/2026 | **Pivot Architectural Majeur** : Restructuration en monorepo (`mobile/`, `web/`, `backend/`). Formalisation de la **Web App PWA** (Vite + React 19 + Tailwind v4 + Framer Motion) et du **Backend API** (Hono / Bun + SQLite + Webhook SMS + SSE temps réel + Web Push VAPID). |
+| **2.1.0** | 21/08/2026 | Spécification exhaustive et détaillée des choix technologiques, de l'architecture et de l'arborescence des dossiers pour le frontend Web App PWA (`web/`) et le backend API / SSE (`backend/`). |
 
 
 
