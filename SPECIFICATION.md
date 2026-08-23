@@ -280,29 +280,29 @@ export interface AppSettings {
 ## 6. Architecture & Choix Technologiques du Frontend Web App PWA (`web/`)
 
 ### 6.1 Description & Rôle du Module Web
-L'application Web PWA constitue l'interface utilisateur principale du système. Elle est conçue pour fonctionner avec un niveau de fluidité identique aux applications natives iOS/macOS :
-- **Accessible Immédiatement** : Accessible depuis n'importe quel navigateur moderne (Chrome, Zen, Safari, Firefox) sur ordinateur et smartphone sans installation obligatoire.
-- **Installable en PWA (Progressive Web App)** : Grâce au `manifest.json`, l'utilisateur peut ajouter l'application sur l'écran d'accueil de son smartphone ou dans son dock macOS (mode *standalone* plein écran sans barre d'URL ni interface de navigateur).
-- **Zéro Friction & Réactivité Immédiate** : Démarrage instantané via Vite, rendu visuel sombre feutré (style Linear / Apple Wallet), et synchronisation en direct via Server-Sent Events (SSE).
+L'application Web PWA constitue l'interface utilisateur principale du système. Elle est conçue pour fonctionner avec un niveau de fluidité et d'élégance maximal :
+- **Accessible Immédiatement** : Utilisable directement depuis n'importe quel navigateur web moderne (Chrome, Zen, Safari, Firefox) sur ordinateur et smartphone.
+- **Installable en PWA (Progressive Web App)** : Grâce au `manifest.json`, l'utilisateur peut installer l'application sur l'écran d'accueil de son smartphone ou dans son dock macOS (mode *standalone* plein écran, sans barre d'URL ni interface de navigateur).
+- **Design System Moderne & Épuré** : Construit avec **HeroUI** et le pack d'icônes **Heroicons**, sur une base Tailwind CSS v4 en thème sombre feutré (style Linear / Apple Wallet).
 
 ```
 +-----------------------------------------------------------------------------------+
 |                        APPLICATION WEB PWA (Vite + React 19)                      |
 |                                                                                   |
 |  [ COUCHE PRÉSENTATION & UI ]                                                     |
-|  - React 19 + TypeScript + Tailwind CSS v4                                        |
-|  - Framer Motion (Physique de ressorts iOS, transitions de pages et modales)      |
-|  - Lucide React (Icônes vectorielles cohérentes)                                  |
-|  - Recharts / Custom SVG (Courbes financières avec dégradés estompés)             |
+|  - React 19 + TypeScript + Vite 6                                                 |
+|  - HeroUI (@heroui/react) : Composants accessibles et modernes (Cards, Buttons,   |
+|    Modals, Progress, Inputs, Chips)                                               |
+|  - Heroicons (@heroicons/react) : Pack d'icônes vectorielles officiel             |
+|  - Tailwind CSS v4 : Variables de thème sombre et chiffres tabulaires             |
+|  - Framer Motion : Transitions fluides et physique de ressorts                    |
+|  - Recharts / Custom SVG : Graphiques financiers avec dégradés estompés           |
 |                                                                                   |
-|  [ COUCHE ÉTAT & CAPTURE MULTIMODALE ]                                            |
-|  - Zustand v5 (Stores réactifs en mémoire : wallets, budgets, txns, ai)           |
-|  - Web Audio API (Enregistrement micro pour la saisie vocale Gemini)             |
-|  - HTML5 Camera & File API (Capture de tickets SCORE pour la vision Gemini)      |
-|                                                                                   |
-|  [ COUCHE TEMPS RÉEL & OFFLINE ]                                                  |
-|  - Client SSE (EventSource) connecté sur `GET /api/events` (Toast SMS instantané) |
-|  - Service Worker (`sw.js`) pour la réception des Web Push et le cache hors-ligne|
+|  [ COUCHE ÉTAT & SERVICES ]                                                       |
+|  - Zustand v5 : Stores réactifs en mémoire (wallets, budgets, transactions, ai)   |
+|  - Client HTTP Fetcher : Communication avec l'API backend (/api/*)                |
+|  - Client SSE : Écoute en direct des événements de transaction                    |
+|  - Service Worker : Mode offline et Web Push notifications                        |
 +-----------------------------------------------------------------------------------+
 ```
 
@@ -310,16 +310,17 @@ L'application Web PWA constitue l'interface utilisateur principale du système. 
 
 | Composant Web | Technologie Choisie | Rôle & Justification Technique |
 | :--- | :--- | :--- |
-| **Bundler & Dev Server** | **Vite 6** | Démarrage en moins de 100 ms, Hot Module Replacement (HMR) ultra-rapide (< 20 ms), zéro blocage de compilation. |
-| **Framework UI** | **React 19 + TypeScript** | Standard moderne du web, typage strict des modèles de données (UUID v4, Transactions, Wallets). |
-| **Moteur de Styling** | **Tailwind CSS v4** | Configuration de thème sombre direct (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`) et zéro overhead JS. |
-| **Moteur d'Animation** | **Framer Motion** | Physique des ressorts fluide (`type: "spring"`, `stiffness: 300`, `damping: 24`) pour les modales glissantes, bottom sheets et bannières toast. |
-| **Graphiques & Gradients** | **Recharts & Custom SVG Gradients** | Graphiques vectoriels nets avec dégradés verticaux estompés (`#34D399` vers transparent) et curseur interactif au survol. |
-| **Gestion d'État** | **Zustand v5** | Gestion d'état légère (< 1 Ko), atomique et découplée, évitant tout re-render superflu. |
-| **Entrée Vocale** | **Web Audio API (`MediaRecorder`)** | Capture directe du microphone dans le navigateur, encodage audio et transmission au backend sans plugin natif. |
-| **Entrée Reçus** | **HTML5 File / Camera API** | Prise de photo ou glisser-déposer de tickets de caisse avec compression locale avant analyse IA. |
-| **Temps Réel** | **Server-Sent Events (`EventSource`)** | Connexion unidirectionnelle ultra-légère réveillant l'écran dès qu'un SMS MVola est reçu par le serveur. |
-| **Service Worker & PWA** | **Standard Web Push API + Cache API** | Permet l'installation plein écran et l'affichage des notifications sur l'écran de verrouillage même quand le navigateur est fermé. |
+| **Bundler & Dev Server** | **Vite 6** | Démarrage instantané (< 100 ms), Hot Module Replacement (HMR) ultra-rapide (< 20 ms). |
+| **Framework UI** | **React 19 + TypeScript** | Modèle déclaratif avec typage strict de bout en bout. |
+| **Bibliothèque de Composants** | **HeroUI (`@heroui/react`)** | Composants pré-conçus accessibles, modernes et hautement personnalisables (Cards, Modals, Buttons, Progress). |
+| **Pack d'Icônes** | **Heroicons (`@heroicons/react`)** | Icônes SVG légères et cohérentes (styles Outline et Solid). |
+| **Moteur de Styling** | **Tailwind CSS v4** | Thème sombre direct (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`). |
+| **Moteur d'Animation** | **Framer Motion** | Physique de ressorts fluide (`type: "spring"`) pour les modales et interactions. |
+| **Graphiques & Gradients** | **Recharts & Custom SVG** | Courbes financières nettes avec dégradés verticaux estompés (`#34D399` vers transparent). |
+| **Gestion d'État** | **Zustand v5** | Stores atomiques légers (< 1 Ko) en mémoire, zéro re-renders superflus. |
+| **Entrée Vocale (Phase 3)** | **Web Audio API (`MediaRecorder`)** | Capture du microphone dans le navigateur pour la transcription Gemini. |
+| **Scan de Reçus (Phase 3)** | **HTML5 File & Camera API** | Prise de photo ou drag & drop de tickets de caisse pour la vision Gemini. |
+| **PWA & Offline** | **Service Worker & Manifest** | Installation plein écran et notifications push d'arrière-plan. |
 
 ### 6.3 Structure Détaillée du Répertoire `web/`
 
@@ -327,17 +328,16 @@ L'application Web PWA constitue l'interface utilisateur principale du système. 
 web/
 ├── index.html                              # Point d'entrée HTML avec meta tags PWA
 ├── vite.config.ts                          # Configuration Vite + Tailwind v4 + Proxy API
-├── package.json                            # Dépendances React 19, Tailwind, Framer Motion, Zustand
+├── package.json                            # Dépendances React 19, HeroUI, Heroicons, Tailwind, Zustand
 ├── tsconfig.json                           # Configuration TypeScript stricte
 │
 ├── public/                                 # Assets statiques et configuration PWA
-│   ├── manifest.json                       # Métadonnées PWA (Nom, icônes, standalone, dark theme)
+│   ├── manifest.json                       # Métadonnées PWA (Standalone plein écran, thème sombre)
 │   ├── service-worker.js                   # Service Worker pour Web Push & cache offline
-│   ├── icons/                              # Icônes PWA (192x192, 512x512, maskable)
-│   └── favicon.ico
+│   └── icons/                              # Icônes PWA (192x192, 512x512)
 │
 └── src/
-    ├── main.tsx                            # Montage de l'application React
+    ├── main.tsx                            # Montage de l'application React avec HeroUI Provider
     ├── App.tsx                             # Navigation par onglets (Dashboard, Transac, Budget, AI) & Modales
     │
     ├── styles/
@@ -352,15 +352,14 @@ web/
     │   ├── useWalletStore.ts               # Soldes des portefeuilles et solde réel total
     │   ├── useTransactionStore.ts          # Liste des transactions, filtres et pending SMS
     │   ├── useBudgetStore.ts               # Enveloppes budgétaires, épargne et reste à vivre journalier
-    │   └── useAiAssistantStore.ts          # Chat IA, statut de transcription vocale et historique
+    │   └── useAiAssistantStore.ts          # Chat IA et historique
     │
     ├── services/                           # Services réseau et intégrations Web
     │   ├── api.ts                          # Client HTTP vers le backend (/api/*)
-    │   ├── sseClient.ts                    # Écouteur Server-Sent Events pour alertes SMS en temps réel
-    │   ├── pushSubscription.ts             # Enregistrement du Service Worker auprès des clés VAPID
-    │   └── audioRecorder.ts                # Capture audio via Web Audio API (Microphone)
+    │   ├── sseClient.ts                    # Écouteur Server-Sent Events pour alertes temps réel
+    │   └── pushSubscription.ts             # Enregistrement du Service Worker auprès des clés VAPID
     │
-    └── components/                         # Composants UI React
+    └── components/                         # Composants UI React basés sur HeroUI & Heroicons
         ├── cards/
         │   ├── WalletBalanceCard.tsx       # Carte triptyque Solde Réel (MVola vs Espèces)
         │   ├── DailyBurnCard.tsx           # Carte du Reste à Vivre Journalier dynamique
@@ -375,12 +374,11 @@ web/
         │   └── TransactionDetailModal.tsx  # Fiche détaillée avec accordéon des articles
         ├── modals/
         │   ├── QuickAddModal.tsx           # Formulaire de saisie flash (< 3s) avec calcul frais MVola
-        │   ├── ScanReceiptModal.tsx        # Viseur caméra / dropzone pour tickets SCORE
-        │   └── PasteSmsModal.tsx           # Simulateur et test de parsing SMS en direct
+        │   └── ScanReceiptModal.tsx        # Viseur caméra / upload pour tickets SCORE (Phase 3)
         ├── feedback/
-        │   └── SmsToastBanner.tsx          # Toast animé Framer Motion avec sélecteur de catégorie 1-tap
+        │   └── SmsToastBanner.tsx          # Toast animé avec sélecteur de catégorie 1-tap (Phase 2)
         └── voice/
-            └── VoiceRecordButton.tsx       # Bouton micro avec onde sonore et transcription Gemini
+            └── VoiceRecordButton.tsx       # Bouton micro avec transcription Gemini (Phase 3)
 ```
 
 ## 7. Architecture & Choix Technologiques du Backend API & SSE (`backend/`)
@@ -647,28 +645,43 @@ finance-app/
 
 ## 12. Feuille de Route d'Implémentation
 
-### Phase 1 : Backend API & Webhook SMS (`backend/`)
-- Setup serveur Hono sur runtime Bun avec base SQLite locale (`bun:sqlite`).
-- Implémentation du webhook entrant `POST /api/sms/webhook` et du flux SSE `GET /api/events`.
-- Intégration du parseur SMS MVola/Airtel et du moteur d'auto-catégorisation en 3 niveaux.
+### Étape 1 : Cœur de Gestion Financière & MVP Local (Web & Backend)
+- **Objectif** : Avoir un système de pilotage budgétaire 100% fonctionnel et visuellement impeccable en local, sans friction d'IA ni de configuration mobile.
+- **Livrables Backend (`backend/`)** :
+  1. Serveur HTTP Hono sur runtime Bun avec base SQLite locale (`bun:sqlite` - `finance.db`).
+  2. Tables de données avec UUID v4 immuables (`wallets`, `categories`, `transactions`, `recipients`, `settings`).
+  3. Endpoints REST pour la lecture et mise à jour des soldes, enveloppes budgétaires, transactions et calculs.
+  4. Moteurs de calcul partagés : grille des frais MVola (`mvolaFeeCalculator.ts`) et reste à vivre journalier (`burnRateCalculator.ts`).
+- **Livrables Frontend Web (`web/`)** :
+  1. Application Vite 6 + React 19 + **HeroUI** (`@heroui/react`) + **Heroicons** (`@heroicons/react`) + Tailwind CSS v4.
+  2. Thème sombre obsidienne (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`).
+  3. Dashboard : Solde Réel Total, Reste à Vivre Journalier, **Barre de Cadence Budgétaire avec Seuil Jour J (`|`)**.
+  4. Saisie Flash Manuelle (< 3s) avec calcul automatique des frais MVola.
+  5. Écran Historique chronologique avec filtres (`[ Tous | Dépenses | Entrées | Transferts ]`).
+  6. Écran Budgets & Épargne sanctuarisée (`SAVINGS_VAULT`) avec édition rapide des plafonds.
 
-### Phase 2 : Frontend Web PWA (`web/`)
-- Setup Vite + React 19 + Tailwind CSS v4 + Framer Motion.
-- Dashboard interactif (Solde Réel, Reste à Vivre, Barre de Cadence Jour J `|`).
-- Écouteur SSE en temps réel pour faire descendre le toast dès réception d'un SMS.
-- Saisie Flash (< 3s) avec calculateur de frais MVola et modal de scan de tickets SCORE.
+### Étape 2 : Automatisation SMS en Temps Réel (Passerelle Mobile -> Web SSE)
+- **Objectif** : Automatiser la capture des dépenses Mobile Money sans ouvrir l'application.
+- **Livrables** :
+  1. Endpoint webhook `POST /api/sms/webhook` sur le backend avec parseur regex MVola/Airtel et moteur d'auto-catégorisation en 3 niveaux (`RecipientMapping`).
+  2. Règle MacroDroid sur Android pour router automatiquement les SMS entrants vers le webhook.
+  3. Flux Server-Sent Events (SSE) `GET /api/events` pour pousser l'événement en temps réel vers la Web App.
+  4. Bannière toast interactive descendante (`SmsToastBanner`) avec sélecteur 1-tap de catégorie.
 
-### Phase 3 : AI Assistant & Voix (Gemini 3.1 Flash Lite)
-- Intégration de la Web Audio API pour enregistrer la voix directement dans le navigateur.
-- Pipeline Gemini STT verbatim + Tool Calling pour manipuler SQLite via le chat.
-- Scanner de tickets SCORE avec OCR multimodal et réconciliation anti-doublon.
+### Étape 3 : IA Multimodale 100% Gemini (Vocal, Scan de Reçus & AI Assistant)
+- **Objectif** : Enrichir le système avec la saisie vocale naturelle et le scan de tickets SCORE.
+- **Livrables** :
+  1. Intégration du SDK Google Gemini 3.1 Flash Lite sur le backend (`/api/ai/*`).
+  2. Saisie Vocale : Enregistrement micro via Web Audio API -> Transcription verbatim STT -> Tool Calling SQLite.
+  3. Scan de Tickets SCORE : Upload / capture de photo -> Extraction des articles (`TransactionItem`) + Moteur de réconciliation anti-doublon.
+  4. AI Assistant conversationnel : Discussion avec contexte financier dynamique (solde, budgets, date) et exécution d'outils.
+  5. Fiche détaillée de transaction avec accordéon des articles (`🧾 N`) et lieu (`📍`).
 
-### Phase 4 : PWA & Web Push Notifications
-- Configuration du `manifest.json` pour installation plein écran sur mobile et desktop.
-- Mise en place du Service Worker et de la passerelle Web Push VAPID pour alertes d'arrière-plan.
-
-### Phase 5 : Passerelle Mobile Native (`mobile/`)
-- Configuration de la passerelle Android légère (ou règle MacroDroid) pour router automatiquement les SMS reçus vers le webhook du backend.
+### Étape 4 : Installabilité PWA & Web Push d'Arrière-Plan
+- **Objectif** : Transformer la Web App en application autonome sur smartphone et ordinateur.
+- **Livrables** :
+  1. Configuration du `manifest.json` pour installation 1-clic plein écran (*standalone*) sans interface de navigateur.
+  2. Service Worker (`sw.js`) pour mise en cache offline des assets et réception des notifications Web Push VAPID même lorsque l'application est fermée.
 
 ## 13. Journal des Évolutions (Changelog)
 
@@ -684,8 +697,10 @@ finance-app/
 | **1.7.0** | 21/08/2026 | Ajout de la feuille de route structurée en jalons (Milestones). |
 | **1.8.0** | 21/08/2026 | Suppression des mentions d'identité visuelle pour conserver une spécification 100% technique et fonctionnelle. |
 | **1.9.0** | 21/08/2026 | Standardisation de la terminologie en **Tool Calling** et renommage en **AI Assistant**. |
-| **2.0.0** | 21/08/2026 | **Pivot Architectural Majeur** : Restructuration en monorepo (`mobile/`, `web/`, `backend/`). Formalisation de la **Web App PWA** (Vite + React 19 + Tailwind v4 + Framer Motion) et du **Backend API** (Hono / Bun + SQLite + Webhook SMS + SSE temps réel + Web Push VAPID). |
-| **2.1.0** | 21/08/2026 | Spécification exhaustive et détaillée des choix technologiques, de l'architecture et de l'arborescence des dossiers pour le frontend Web App PWA (`web/`) et le backend API / SSE (`backend/`). |
+| **2.0.0** | 21/08/2026 | **Pivot Architectural Majeur** : Restructuration en monorepo (`mobile/`, `web/`, `backend/`). Formalisation de la **Web App PWA** et du **Backend API** (Hono / Bun + SQLite + Webhook SMS + SSE temps réel + Web Push VAPID). |
+| **2.1.0** | 21/08/2026 | Spécification exhaustive des choix technologiques et de l'arborescence des dossiers pour `web/` et `backend/`. |
+| **2.2.0** | 21/08/2026 | Adoption officielle de **HeroUI** (`@heroui/react`) et **Heroicons** (`@heroicons/react`) pour le Web. Réajustement des étapes d'implémentation (Étape 1 : Cœur financier pur sans simulateur SMS ni IA, Étape 2 : Passerelle SMS & SSE, Étape 3 : IA Gemini Multimodale, Étape 4 : PWA Push). |
+
 
 
 
