@@ -1,0 +1,52 @@
+import { Bars3Icon, UserCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+
+interface DashboardHeaderProps {
+  userName?: string;
+  userEmail?: string;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+}
+
+export function DashboardHeader({
+  userName = 'Rakoto Rabe',
+  userEmail = 'solde@finance.mg',
+  onRefresh,
+  isRefreshing = false,
+}: DashboardHeaderProps) {
+  return (
+    <header className="flex items-center justify-between py-2 mb-4">
+      {/* Left profile info */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-700">
+          <Bars3Icon className="w-5 h-5 stroke-[2]" />
+        </div>
+
+        <div>
+          <h1 className="text-sm font-bold text-zinc-900 tracking-tight leading-tight">
+            {userName}
+          </h1>
+          <p className="text-[11px] text-zinc-500 font-medium leading-tight">
+            {userEmail}
+          </p>
+        </div>
+      </div>
+
+      {/* Right action icons */}
+      <div className="flex items-center gap-2">
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            title="Rafraîchir les données"
+            className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer"
+          >
+            <ArrowPathIcon className={`w-4 h-4 stroke-[2] ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
+          </button>
+        )}
+
+        <div className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600">
+          <UserCircleIcon className="w-5 h-5 stroke-[1.8]" />
+        </div>
+      </div>
+    </header>
+  );
+}

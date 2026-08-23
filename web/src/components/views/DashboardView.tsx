@@ -1,16 +1,17 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
-import { WalletBalanceCard } from '../cards/WalletBalanceCard';
-import { DailyBurnCard } from '../cards/DailyBurnCard';
-import { CadenceProgressBar } from '../charts/CadenceProgressBar';
-import { SavingsTargetCard } from '../cards/SavingsTargetCard';
-import { MonthlyFeesCard } from '../cards/MonthlyFeesCard';
+import { DashboardHeader } from '../dashboard/DashboardHeader';
+import { CacheBalanceCard } from '../dashboard/CacheBalanceCard';
+import { CacheBudgetCard } from '../dashboard/CacheBudgetCard';
+import { CacheObligationsCard } from '../dashboard/CacheObligationsCard';
+import { CacheCoverageCard } from '../dashboard/CacheCoverageCard';
+import { ReviewBannerCard } from '../dashboard/ReviewBannerCard';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { QueueListIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 interface DashboardViewProps {
   onSelectTransaction: (txn: Transaction) => void;
@@ -18,10 +19,16 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ onSelectTransaction, onNavigateToTransactions }: DashboardViewProps) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const transactions = useTransactionStore(state => state.transactions);
   const categories = useBudgetStore(state => state.categories);
   const wallets = useWalletStore(state => state.wallets);
   const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
+
+  const loadWallets = useWalletStore(state => state.loadWallets);
+  const loadBudgets = useBudgetStore(state => state.loadBudgets);
+  const loadTransactions = useTransactionStore(state => state.loadTransactions);
 
   const metrics = useMemo(() => {
     return useBudgetStore.getState().getMetrics(transactions);
@@ -29,67 +36,60 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
 
   const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
 
-  // Monthly fees calculation
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const monthlyFees = useMemo(() => {
-    return transactions
-      .filter(t => t.date.startsWith(currentMonth))
-      .reduce((sum, t) => sum + (t.feeAmount || 0), 0);
-  }, [transactions, currentMonth]);
-
-  const currentDateFormatted = new Date().toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([loadWallets(), loadBudgets(), loadTransactions()]);
+    setIsRefreshing(false);
+  };
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Header */}
-      <div className="py-1">
-        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest block capitalize">
-          {currentDateFormatted}
-        </span>
-        <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
-          Aperçu Financier
-        </h1>
+      {/* 1. Header (User profile & refresh) */}
+      <DashboardHeader
+        userName="Rakoto Rabe"
+        userEmail="rakoto@finance.mg"
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+      />
+
+      {/* 2. 2x2 Grid of Stat Cards (Cache Layout) */}
+      <div className="grid grid-cols-2 gap-3">
+        <CacheBalanceCard />
+        <CacheBudgetCard metrics={metrics} />
+        <CacheObligationsCard />
+        <CacheCoverageCard metrics={metrics} />
       </div>
 
-      {/* 1. Dedicated Card: Solde Réel Disponible */}
-      <WalletBalanceCard />
+      {/* 3. Review Banner Card (Votre mois en revue) */}
+      <ReviewBannerCard
+        transactionCount={transactions.length}
+        onViewMore={onNavigateToTransactions}
+      />
 
-      {/* 2. Dedicated Card: Reste à Vivre Journalier */}
-      <DailyBurnCard metrics={metrics} />
-
-      {/* 3. Dedicated Card: Cadence Budgétaire (Barre avec Seuil Jour J) */}
-      <CadenceProgressBar metrics={metrics} />
-
-      {/* 4. Dedicated Card: Objectif Épargne du Mois */}
-      <SavingsTargetCard />
-
-      {/* 5. Dedicated Card: Pertes en Frais Mobile Money (si > 0) */}
-      <MonthlyFeesCard fees={monthlyFees} />
-
-      {/* 6. Section Activités Récentes (Inset Grouped Card) */}
+      {/* 4. Transactions Récentes Section */}
       <div className="pt-1">
         <div className="flex justify-between items-center mb-2 px-1">
-          <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-            Activités Récentes
-          </span>
+          <div className="flex items-center gap-1.5 text-zinc-500">
+            <QueueListIcon className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Transactions Récentes
+            </span>
+          </div>
+
           <button
             onClick={onNavigateToTransactions}
-            className="flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
           >
             <span>Voir tout</span>
-            <ArrowRightIcon className="w-3.5 h-3.5" />
+            <ArrowRightIcon className="w-3 h-3" />
           </button>
         </div>
 
         {recentTransactions.length === 0 ? (
-          <InsetGroupedCard className="p-8 text-center">
+          <InsetGroupedCard className="p-8 text-center bg-white border-zinc-200/80">
             <p className="text-xs text-zinc-400 font-medium">
-              Aucune dépense enregistrée ce mois-ci.<br />
-              Clique sur le bouton <strong className="text-zinc-900">(+)</strong> pour ajouter ta première transaction !
+              Aucune transaction enregistrée ce mois-ci.<br />
+              Clique sur le bouton <strong className="text-zinc-900">(+)</strong> pour ajouter ta première dépense !
             </p>
           </InsetGroupedCard>
         ) : (

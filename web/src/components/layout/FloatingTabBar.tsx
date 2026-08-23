@@ -39,7 +39,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
   ];
 
   return (
-    <nav className="bg-white/90 backdrop-blur-xl border border-zinc-200/90 p-1 rounded-full shadow-lg shadow-zinc-900/10 flex items-center gap-1">
+    <nav className="h-14 bg-white/90 backdrop-blur-xl border border-zinc-200/90 px-2 rounded-full shadow-xl shadow-zinc-900/10 flex items-center gap-1">
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         const Icon = isActive ? tab.solidIcon : tab.outlineIcon;
@@ -47,14 +47,14 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
           <button
             key={tab.id}
             onClick={() => onChangeTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full transition-all duration-150 cursor-pointer ${
+            className={`h-10 flex items-center gap-2 px-4 rounded-full transition-all duration-150 cursor-pointer ${
               isActive
                 ? 'bg-zinc-900 text-white font-medium shadow-xs'
-                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/80'
             }`}
           >
             <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
-            <span className="text-[11px]">{tab.label}</span>
+            <span className="text-xs font-semibold">{tab.label}</span>
           </button>
         );
       })}
