@@ -30,7 +30,7 @@
       "expo-sqlite",
       "expo-updates",
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Autoriser l'application à utiliser le microphone pour la saisie vocale des dépenses."
         }
@@ -41,7 +41,8 @@
           "photosPermission": "Autoriser l'application à lire les photos de tickets de caisse.",
           "cameraPermission": "Autoriser l'application à scanner les reçus de caisse."
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "updates": {
       "url": "https://u.expo.dev/finance-app-project-id"
