@@ -72,48 +72,46 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <HeroUINativeProvider>
-          <RootErrorBoundary>
-            <StatusBar style="light" />
-            <SmsToastBanner />
-            <Stack
-              screenOptions={{
+        <RootErrorBoundary>
+          <StatusBar style="light" />
+          <SmsToastBanner />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#090A0C' },
+            }}
+          >
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="(modals)/quick-add"
+              options={{
+                presentation: 'modal',
                 headerShown: false,
-                contentStyle: { backgroundColor: '#090A0C' },
               }}
-            >
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="(modals)/quick-add"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="(modals)/scan-receipt"
-                options={{
-                  presentation: 'fullScreenModal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="(modals)/paste-sms"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-              <Stack.Screen
-                name="transaction/[id]"
-                options={{
-                  presentation: 'modal',
-                  headerShown: false,
-                }}
-              />
-            </Stack>
-          </RootErrorBoundary>
-        </HeroUINativeProvider>
+            />
+            <Stack.Screen
+              name="(modals)/scan-receipt"
+              options={{
+                presentation: 'fullScreenModal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="(modals)/paste-sms"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="transaction/[id]"
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+          </Stack>
+        </RootErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
