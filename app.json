@@ -16,13 +16,16 @@
       },
       "package": "com.financeapp.mobile",
       "permissions": [
-        "RECEIVE_SMS",
-        "READ_SMS",
-        "RECORD_AUDIO",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "POST_NOTIFICATIONS"
+        "android.permission.RECEIVE_SMS",
+        "android.permission.READ_SMS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "plugins": [
@@ -45,10 +48,17 @@
       "expo-status-bar"
     ],
     "updates": {
-      "url": "https://u.expo.dev/finance-app-project-id"
+      "url": "https://u.expo.dev/42d70fc4-f650-4278-80f5-fc995bc8676a"
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "42d70fc4-f650-4278-80f5-fc995bc8676a"
+      }
+    },
+    "owner": "krishna2206"
   }
 }
