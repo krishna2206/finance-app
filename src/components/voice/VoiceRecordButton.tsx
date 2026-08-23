@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useAudioRecorder, RecordingPresets, requestRecordingPermissionsAsync } from 'expo-audio';
+import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Mic, Square } from 'lucide-react-native';
 import { useAiAssistantStore } from '../../stores/useAiAssistantStore';
@@ -12,34 +11,53 @@ interface VoiceRecordButtonProps {
 
 export function VoiceRecordButton({ onTranscriptionComplete, size = 'md' }: VoiceRecordButtonProps) {
   const [isRecording, setIsRecording] = useState(false);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  let AudioModule: any = null;
+  try {
+    AudioModule = require('expo-audio');
+  } catch (e) {
+    AudioModule = null;
+  }
 
   const isTranscribing = useAiAssistantStore(state => state.isTranscribing);
   const processAudioVoiceMemo = useAiAssistantStore(state => state.processAudioVoiceMemo);
   const sendMessage = useAiAssistantStore(state => state.sendMessage);
 
+  // Lazy recorder setup
+  const [recorderInstance, setRecorderInstance] = useState<any>(null);
+
   const startRecording = async () => {
     try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) return;
+      if (!AudioModule?.requestRecordingPermissionsAsync) {
+        Alert.alert('Microphone', 'Module audio en cours de configuration sur cet appareil.');
+        return;
+      }
 
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const permission = await AudioModule.requestRecordingPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission requise', 'Veuillez autoriser l accès au microphone.');
+        return;
+      }
+
+      const recorder = new AudioModule.AudioRecorder(AudioModule.RecordingPresets.HIGH_QUALITY);
       await recorder.prepareToRecordAsync();
       recorder.record();
+      setRecorderInstance(recorder);
       setIsRecording(true);
     } catch (err) {
       console.log('Failed to start recording', err);
+      setIsRecording(false);
     }
   };
 
   const stopRecording = async () => {
-    if (!isRecording) return;
+    if (!isRecording || !recorderInstance) return;
 
     try {
       await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      await recorder.stop();
+      await recorderInstance.stop();
       setIsRecording(false);
-      const uri = recorder.uri;
+      const uri = recorderInstance.uri;
 
       if (uri) {
         // Read audio file as base64
