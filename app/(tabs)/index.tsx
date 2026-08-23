@@ -10,7 +10,7 @@ import { VoiceRecordButton } from '../../src/components/voice/VoiceRecordButton'
 import { useWalletStore } from '../../src/stores/useWalletStore';
 import { useBudgetStore } from '../../src/stores/useBudgetStore';
 import { useTransactionStore } from '../../src/stores/useTransactionStore';
-import { Plus, Camera, ArrowRight, ShieldAlert } from 'lucide-react-native';
+import { Plus, Camera, ArrowRight, ShieldAlert, Smartphone } from 'lucide-react-native';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -67,10 +67,10 @@ export default function DashboardScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push('/(modals)/quick-add')}
-            className="flex-1 mr-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl py-3.5 px-4 flex-row items-center justify-center"
+            className="flex-1 mr-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl py-3.5 px-2 flex-row items-center justify-center"
           >
-            <Plus size={18} color="#34D399" />
-            <Text className="text-xs font-bold text-emerald-400 ml-2">
+            <Plus size={16} color="#34D399" />
+            <Text className="text-xs font-bold text-emerald-400 ml-1.5">
               Dépense
             </Text>
           </TouchableOpacity>
@@ -78,11 +78,22 @@ export default function DashboardScreen() {
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => router.push('/(modals)/scan-receipt')}
-            className="flex-1 ml-2 bg-zinc-900 border border-white/10 rounded-2xl py-3.5 px-4 flex-row items-center justify-center"
+            className="flex-1 mx-1.5 bg-zinc-900 border border-white/10 rounded-2xl py-3.5 px-2 flex-row items-center justify-center"
           >
-            <Camera size={18} color="#F4F4F5" />
-            <Text className="text-xs font-semibold text-zinc-100 ml-2">
+            <Camera size={16} color="#F4F4F5" />
+            <Text className="text-xs font-semibold text-zinc-100 ml-1.5">
               Scan Reçu
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push('/(modals)/paste-sms')}
+            className="flex-1 ml-1.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl py-3.5 px-2 flex-row items-center justify-center"
+          >
+            <Smartphone size={16} color="#FBBF24" />
+            <Text className="text-xs font-semibold text-amber-400 ml-1.5">
+              Simuler SMS
             </Text>
           </TouchableOpacity>
         </View>

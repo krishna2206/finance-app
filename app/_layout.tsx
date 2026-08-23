@@ -49,6 +49,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="(modals)/paste-sms"
+            options={{
+              presentation: 'modal',
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
             name="transaction/[id]"
             options={{
               presentation: 'modal',
