@@ -37,30 +37,30 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex justify-center items-end sm:items-center">
+      <div className="fixed inset-0 z-50 flex justify-center items-end pointer-events-none">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/75 backdrop-blur-sm cursor-pointer"
+          className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-pointer pointer-events-auto"
         />
 
-        {/* Bottom Sheet Card */}
+        {/* Native Bottom Sheet Card - Anchored Flush at Bottom, Matching Mobile Frame Width (max-w-[430px]) */}
         <motion.div
-          initial={{ y: '100%', opacity: 0.5 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 280 }}
-          className="relative w-full max-w-lg bg-[#13151A] rounded-t-[32px] sm:rounded-[32px] border border-white/10 p-6 shadow-2xl z-10 max-h-[90vh] overflow-y-auto"
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+          className="relative w-full max-w-[430px] mx-auto bg-[#13151A] rounded-t-[32px] rounded-b-none border-t border-x border-white/10 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto"
         >
-          {/* Mobile Grabber */}
-          <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-4 sm:hidden" />
+          {/* Grabber */}
+          <div className="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-4" />
 
           {/* Header */}
-          <div className="flex justify-between items-center pb-4 border-b border-white/5 mb-5">
-            <h2 className="text-lg font-bold text-zinc-50 tracking-tight">
+          <div className="flex justify-between items-center pb-3.5 border-b border-white/5 mb-4">
+            <h2 className="text-base font-bold text-zinc-50 tracking-tight">
               Détail de l'opération
             </h2>
             <div className="flex items-center gap-1">
@@ -69,11 +69,11 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                 title="Supprimer la transaction"
                 className="p-1.5 rounded-full hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer"
               >
-                <TrashIcon className="w-5 h-5" />
+                <TrashIcon className="w-4 h-4" />
               </button>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-white/5 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
+                className="p-1 rounded-full hover:bg-white/5 text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -81,12 +81,12 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           </div>
 
           {/* Hero Amount */}
-          <div className="text-center py-6 bg-[#090A0C] rounded-3xl border border-white/5 mb-5">
+          <div className="text-center py-5 bg-[#090A0C] rounded-2xl border border-white/5 mb-4">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider block mb-1">
               {transaction.title}
             </span>
-            <div className={`text-4xl font-bold tracking-tight tabular-nums mb-1 ${isDebit ? 'text-zinc-50' : 'text-emerald-400'}`}>
-              {isDebit ? '-' : '+'}{transaction.amount.toLocaleString('fr-FR')} <span className="text-2xl font-semibold">Ar</span>
+            <div className={`text-3xl font-bold tracking-tight tabular-nums mb-1 ${isDebit ? 'text-zinc-50' : 'text-emerald-400'}`}>
+              {isDebit ? '-' : '+'}{transaction.amount.toLocaleString('fr-FR')} <span className="text-xl font-semibold">Ar</span>
             </div>
 
             {transaction.feeAmount > 0 && (
@@ -103,9 +103,9 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           </div>
 
           {/* Metadata Inset Grouped Card */}
-          <InsetGroupedCard className="mb-5">
+          <InsetGroupedCard className="mb-4">
             <InsetGroupedRow>
-              <div className="flex items-center gap-2.5 text-zinc-400 text-xs font-medium">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
                 <TagIcon className="w-4 h-4" />
                 <span>Catégorie</span>
               </div>
@@ -113,7 +113,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2.5 text-zinc-400 text-xs font-medium">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
                 <DevicePhoneMobileIcon className="w-4 h-4" />
                 <span>Moyen de paiement</span>
               </div>
@@ -121,7 +121,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2.5 text-zinc-400 text-xs font-medium">
+              <div className="flex items-center gap-2 text-zinc-400 text-xs font-medium">
                 <CalendarIcon className="w-4 h-4" />
                 <span>Date & Heure</span>
               </div>
@@ -133,8 +133,8 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
           {/* Itemized List if available */}
           {transaction.items && transaction.items.length > 0 && (
-            <InsetGroupedCard className="p-5 mb-5">
-              <div className="flex items-center gap-2 mb-3 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+            <InsetGroupedCard className="p-4 mb-4">
+              <div className="flex items-center gap-2 mb-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
                 <DocumentTextIcon className="w-4 h-4" />
                 <span>Articles du Ticket ({transaction.items.length})</span>
               </div>
@@ -147,7 +147,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
           {/* Raw SMS text if present */}
           {transaction.rawSmsText && (
-            <div className="p-4 bg-[#090A0C] border border-white/5 rounded-2xl mb-4">
+            <div className="p-3.5 bg-[#090A0C] border border-white/5 rounded-2xl mb-2">
               <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
                 SMS Original Reçu
               </span>
