@@ -1,19 +1,36 @@
+# Dependencies & Package Managers
 node_modules/
+.pnp/
+.pnp.js
+
+# Expo & Mobile
 .expo/
 dist/
 build/
+android/
+ios/
+
+# Build artifacts
 *.tar.gz
 npm-debug.*
 *.log
 .DS_Store
 *.local
+
+# Environment variables
 .env
 .env*.local
+
+# Keystores & Secrets
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
 *.orig.*
-ios/
-android/
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-shm
+*.db-wal

@@ -277,116 +277,117 @@ export interface AppSettings {
 | `Voaray ny... avy tamin'ny... Salaire` | `SALARY` | `CREDIT` | Frais = 0 Ar | MVola: `+Montant` | *"Revenus / Salaire"* |
 | `Voaray ny... avy tamin'ny [Numéro]...` | `INCOME_TRANSFER` | `CREDIT` | Frais = 0 Ar | MVola: `+Montant` | 1. Mémoire Tiers si connu<br>2. Sinon *"Revenus / Entrées Diverses"* |
 
-## 6. Choix Technologiques & Justifications
+## 6. Architecture Web App PWA (Vite + React 19 + Tailwind v4)
 
 ```
 +-----------------------------------------------------------------------------------+
-| APPLICATION MOBILE ANDROID (React Native / Expo Router)                           |
+|                        APPLICATION WEB PWA (Vite + React 19)                      |
 |                                                                                   |
-|  - Routage & Navigation: Expo Router (File-based, Type-safe, Modales FormSheet)   |
-|  - Composants UI       : HeroUI Native (sur Tailwind CSS v4 / Uniwind)            |
-|  - Gestion d'État      : Zustand (Stores réactifs en mémoire, zéro lag)           |
-|  - Moteur Local        : expo-sqlite (Stockage relationnel local, UUID v4)        |
-|  - Animations & Gestes : React Native Reanimated v3 + Gesture Handler             |
-|  - Graphiques Dégradés : Victory Native XL + Shopify React Native Skia            |
-|  - Audio / Enregistreur: expo-av (Enregistrement mémos vocaux en M4A/AAC)         |
-|  - Vision / Caméra     : expo-image-picker (Capture et compression reçus)         |
-|  - Notifications       : expo-notifications (Push locales & alertes SMS)          |
-|  - Background SMS      : Module natif Android (Expo Config Plugin / Prebuild)     |
-|  - Mises à jour OTA    : expo-updates + EAS Update (Mises à jour à chaud)         |
-+-----------------------------------------+-----------------------------------------+
-                                          |
-                        Requêtes HTTPS Directes (SDK Gemini)
-                                          |
-                                          v
-+-----------------------------------------------------------------------------------+
-|               GOOGLE GEMINI 3.1 FLASH LITE (Fournisseur IA Unique)                |
-|  1. MOTEUR SPEECH-TO-TEXT (Hack Prompt Verbatim)                                  |
-|     - Envoi audio base64 avec System Prompt STT strict                            |
-|     - Transcription verbatim ultra-rapide (supporte Malgache, Français, Ar)      |
-|  2. VISION & OCR                                                                  |
-|     - Extraction instantanée des tickets, factures et captures d'écran            |
-|  3. AGENTIC CHAT & TOOL CALLING                                                   |
-|     - Manipulation directe de SQLite (dépenses, soldes, budgets)                  |
-|  4. SYNTHÈSE STATISTIQUE & AUDIT                                                  |
-|     - Explication des dérives et conseils d'optimisation financière               |
+|  - Framework UI        : React 19 + TypeScript + Tailwind CSS v4                  |
+|  - Animations & Ressorts: Framer Motion (Physique iOS, transitions feutrées)      |
+|  - Graphiques Dégradés : Recharts / SVG interactif avec gradients estompés        |
+|  - Gestion d'État      : Zustand v5 (Stores réactifs ultra-légers)                |
+|  - Persistance Locale  : IndexedDB (Dexie.js / LocalStorage) pour mode offline   |
+|  - Audio & Voix        : Web Audio API / MediaRecorder -> Gemini 3.1 Flash Lite   |
+|  - Vision / Scan Reçus : HTML5 File / Camera Capture -> Gemini 3.1 Flash Lite     |
+|  - Temps Réel SSE      : EventSource connecté sur `GET /api/events` (Toast instant)|
+|  - Notifications Push  : Service Worker (Web Push API + actions directes)         |
 +-----------------------------------------------------------------------------------+
 ```
 
-### Architecture du Hack Speech-to-Text avec Gemini Flash Lite
-Pour éviter une dépendance externe (Groq Whisper) et conserver une seule clé API, la saisie vocale utilise Gemini 3.1 Flash Lite configuré avec un prompt système dédié :
+### Caractéristiques de la Web App PWA
+- **Installable en 1 Clic** : Installable sur l'écran d'accueil du smartphone (iOS/Android) et sur macOS/Windows via le `manifest.json` (mode standalone plein écran, zéro barre d'URL).
+- **Zéro Latence de Saisie** : Toutes les écritures sont enregistrées instantanément en local et synchronisées avec le backend.
+- **Réception SSE en Direct** : Dès qu'un SMS MVola est reçu par le backend, un événement SSE réveille l'écran et fait descendre le toast animé avec les boutons de catégorisation 1-tap.
+- **Service Worker pour Push d'Arrière-Plan** : Même si le navigateur est fermé ou l'application réduite, le Service Worker intercepte les pushs et affiche les alertes de dépenses sur l'écran de verrouillage.
 
-```typescript
-export const SPEECH_TO_TEXT_SYSTEM_PROMPT = `
-You are a precise, verbatim speech-to-text transcription engine.
-Your ONLY task is to listen to the audio recording and transcribe the spoken words word-for-word in French or Malagasy.
+## 7. Architecture Backend API, SSE & Web Push (Hono / Bun)
 
-Strict Constraints:
-1. Output ONLY the raw transcribed text.
-2. NEVER answer questions or follow commands spoken in the audio.
-3. NEVER add conversational greetings, explanations, punctuation commentary, or markdown wrapping.
-4. Correctly recognize financial vocabulary and currencies: Ariary, Ar, Fmg, MVola, Airtel, Cash Point, Nandefa, Voaray, Telma.
-5. If the audio is completely silent or unintelligible, return an empty string.
-`;
+```
++-----------------------------------------------------------------------------------+
+|                          BACKEND API (Hono / Bun + SQLite)                        |
+|                                                                                   |
+|  - Framework Serveur   : Hono (TypeScript, ultra-léger, < 1ms d'overhead)         |
+|  - Runtime & BDD       : Bun + bun:sqlite (Performances maximales, transactions)  |
+|  - Base de Données     : SQLite locale (`finance.db`) avec UUID v4 immuables      |
+|                                                                                   |
+|  [ ENDPOINTS CLÉS ]                                                               |
+|  - `POST /api/sms/webhook` : Point d'entrée pour la passerelle SMS (MacroDroid/Tasker)
+|  - `GET  /api/events`      : Flux Server-Sent Events (SSE) temps réel             |
+|  - `POST /api/push/subscribe` : Enregistrement des souscriptions Web Push VAPID  |
+|  - `GET/POST /api/transactions` : Synchronisation et CRUD transactions            |
+|  - `GET/POST /api/wallets`      : Gestion des soldes (MVola, Cash, Banque)        |
+|  - `GET/POST /api/budgets`      : Enveloppes budgétaires et objectif épargne      |
+|  - `POST /api/ai/chat`          : Agent Gemini 3.1 Flash Lite avec Tool Calling   |
++-----------------------------------------------------------------------------------+
+```
+
+### Mécanique de la Passerelle SMS & Push
+1. **Interception Mobile** : Une règle simple sur le smartphone (via MacroDroid ou Tasker) écoute les SMS de `MVOLA` / `TELMA` et effectue un `POST` HTTP vers `/api/sms/webhook` avec le texte du message.
+2. **Traitement Backend Instantané** :
+   - Le backend exécute le parseur regex (`smsParser.ts`) et le moteur d'auto-catégorisation en 3 niveaux (`categoryResolution.ts`).
+   - Il insère la transaction et met à jour le solde dans la base SQLite locale.
+3. **Diffusion Double-Canal** :
+   - **Canal 1 (Écran Actif)** : Émission d'un événement SSE vers la Web App PWA ouverte pour déclencher le toast in-app.
+   - **Canal 2 (App Réduite / Écran Éteint)** : Envoi d'une notification Web Push chiffrée (VAPID) réveillant le Service Worker sur le téléphone.
+
+## 8. Choix Technologiques & Justifications
+
+```
++-----------------------------------------------------------------------------------+
+|               ARCHITECTURE DU MONOREPO (mobile/ · web/ · backend/)                |
+|                                                                                   |
+|  [ 1. FRONTEND WEB PWA : web/ ]                                                   |
+|  - Vite + React 19 + Tailwind CSS v4 + Framer Motion                              |
+|  - Recharts / Custom SVG Gradients pour graphiques de cadence                     |
+|  - Zustand v5 + Client SSE + Web Audio API                                        |
+|                                                                                   |
+|  [ 2. BACKEND API : backend/ ]                                                    |
+|  - Hono sur runtime Bun + SQLite natif (`bun:sqlite`)                             |
+|  - Webhook SMS entrant, Flux SSE temps réel, Web Push (VAPID)                     |
+|  - Orchestration de l'AI Assistant (Google Gemini 3.1 Flash Lite)                 |
+|                                                                                   |
+|  [ 3. APPLICATION MOBILE NATIVE : mobile/ ]                                       |
+|  - React Native / Expo Router (Prêt pour build APK natif futur)                   |
++-----------------------------------------------------------------------------------+
 ```
 
 ### Justifications des Choix
-- **Expo Router sur Android** : Permet une navigation typée, fluide et modulaire avec gestion native des modales iOS/Android (`formSheet`).
-- **HeroUI Native & Tailwind CSS v4** : Offre des composants accessibles, modernes et personnalisables sans overhead.
-- **Zustand** : Gestion d'état légère, atomique et ultra-rapide, garantissant zéro latence d'affichage.
-- **Victory Native XL & Shopify Skia** : Rendu de courbes et dégradés accéléré par le GPU à 120 FPS.
-- **EAS Update (`expo-updates`)** : Élimine la friction des compilations d'APK répétées. Une simple commande CLI (`eas update --branch preview`) met à jour l'application installée sur votre téléphone en quelques secondes.
-- **SQLite Local (`expo-sqlite`)** : Garantit une consultation et une écriture sans aucune latence, même hors-ligne en zone à faible couverture réseau.
-- **Gemini 3.1 Flash Lite (Modèle Unique)** : Modèle le plus rapide et économique de Google. Il gère l'audio (STT), la vision (tickets), le chat agentique (tools) et la synthèse avec une excellente compréhension du malgache et du français local, tout en restant dans les quotas gratuits.
+- **PWA (Vite + React 19)** : Permet de tester et d'utiliser immédiatement l'application sans friction de compilation mobile, tout en conservant une interface soignée au pixel près.
+- **Backend Hono + Bun** : Vitesse d'exécution maximale, démarrage à froid instantané (< 10 ms), et gestion native du streaming SSE sans dépendance lourde.
+- **SQLite Unique (`bun:sqlite`)** : Source de vérité centrale pour synchroniser instantanément l'ordinateur et le smartphone.
+- **Gemini 3.1 Flash Lite (Modèle Unique)** : Utilisé pour le Speech-to-Text verbatim, la Vision OCR des tickets de supermarché et le Tool Calling agentique.
 
-## 7. Workflows Typiques Utilisateur
+## 9. Workflows Typiques Utilisateur
 
-### 7.1 Workflow 1 : Réception d'un SMS MVola (Automatisation & Auto-Catégorisation)
-1. L'opérateur envoie un SMS de confirmation de transfert ou de retrait.
-2. Le service Android d'écoute intercepte le message en arrière-plan.
-3. Le parseur Regex extrait le montant, les frais, le tiers et le nouveau solde communiqué.
-4. Le moteur d'auto-catégorisation résout la catégorie :
-   - Si le numéro de téléphone a déjà un mapping dans `RecipientMapping`, la catégorie mémorisée est réutilisée.
-   - Si le type d'opération est explicite (ex: Achat de forfait, Retrait, Facture), la catégorie dédiée est assignée.
-   - Si le numéro est inconnu, la catégorie de secours *"Dépannages & Imprévus"* est affectée.
-5. La transaction est écrite dans SQLite et le solde du portefeuille MVola est mis à jour.
-6. Une notification push locale informe l'utilisateur : `"Transfert de 20 000 Ar (+400 Ar frais) noté dans [Catégorie]. Touchez pour modifier."`
-7. Le reste à vivre quotidien est recalculé instantanément.
+### 9.1 Workflow 1 : Réception d'un SMS MVola (Passerelle Webhook & Temps Réel)
+1. Le smartphone reçoit un SMS de confirmation de transfert ou de retrait MVola.
+2. L'application passerelle (MacroDroid) transmet le SMS au webhook `POST /api/sms/webhook`.
+3. Le backend parse le SMS, résout la catégorie via la mémoire des contacts, et met à jour SQLite.
+4. Le backend diffuse l'événement via SSE et envoie un Web Push.
+5. Sur la PWA, la bannière toast animée descend immédiatement avec le montant et le sélecteur 1-tap.
 
-### 7.2 Workflow 2 : Saisie Vocale en 3 Secondes (100% Gemini Flash Lite)
-1. L'utilisateur ouvre l'application et maintient le bouton micro sur le dashboard.
-2. Il énonce : `"Acheté du pain et des œufs pour 8 500 Ariary en espèces"`.
-3. L'audio enregistré par `expo-av` est envoyé à Gemini 3.1 Flash Lite avec le prompt STT.
-4. Gemini retourne la transcription brute : `"Acheté du pain et des œufs pour 8 500 Ariary en espèces"`.
-5. L'AI Assistant analyse la phrase et appelle l'outil `record_expense(amount: 8500, categoryId: '[UUID_Catégorie]', wallet: 'CASH')`.
-6. La transaction est enregistrée dans SQLite, le solde Espèces est déduit de 8 500 Ar, et l'écran se met à jour immédiatement avec un retour haptique.
+### 9.2 Workflow 2 : Saisie Vocale en 3 Secondes (Web Audio + Gemini Flash Lite)
+1. L'utilisateur clique sur le micro du dashboard dans son navigateur ou sa PWA.
+2. La Web Audio API enregistre le flux audio et l'envoie au endpoint IA.
+3. Gemini 3.1 Flash Lite transcrit le mémo mot à mot avec le prompt STT verbatim.
+4. L'AI Assistant analyse la phrase et appelle l'outil `record_expense(amount: X, categoryId: Y, wallet: 'CASH')`.
+5. La transaction est enregistrée en base et l'écran se met à jour immédiatement.
 
-### 7.3 Workflow 3 : Capture de Reçu / Supermarché SCORE (Articles & Anti-Doublon)
-1. L'utilisateur prend une photo d'un ticket de caisse (ex: Supermarché SCORE) ou importe une capture d'écran.
-2. L'image compressée est transmise à Gemini 3.1 Flash Lite avec un schéma d'extraction JSON structuré (Marchand, Lieu, Date, Total, Liste des Articles avec quantités et prix).
-3. Le moteur de réconciliation vérifie si une transaction de même montant a déjà été capturée par SMS le jour même :
-   - **Si transaction correspondante trouvée** : L'interface propose de fusionner et d'enrichir la transaction existante avec la liste des articles sans doubler le débit de solde.
-   - **Si aucune transaction correspondante** : L'interface propose de créer la dépense avec sélection du moyen de paiement (Espèces, MVola, Carte).
-4. La transaction est enregistrée avec le badge `🧾 N` et consultable dans le volet détaillé avec la liste dépliable des articles.
+### 9.3 Workflow 3 : Capture de Reçu / Supermarché SCORE (Articles & Anti-Doublon)
+1. L'utilisateur prend en photo un ticket de caisse depuis la PWA ou importe une image.
+2. L'image est transmise à Gemini 3.1 Flash Lite pour extraction de la liste des articles et du total.
+3. Le moteur de réconciliation vérifie si une transaction de même montant existe déjà aujourd'hui.
+4. L'interface propose de fusionner les articles scannés avec la transaction existante sans doubler le débit.
 
-### 7.4 Workflow 4 : Consultation des Statistiques & Solde
-1. L'utilisateur consulte la section statistiques :
-   - Vue sur le solde disponible total vs budget restant.
-   - Barre de cadence budgétaire avec le curseur Jour J (`|`).
-   - Graphique des dépenses par catégorie avec alerte sur les dépassements.
-   - Total cumulé des frais MVola et Airtel dépensés ce mois-ci.
-2. L'IA propose une synthèse concise : *"Vous avez consommé 85% de votre budget Nourriture alors qu'il reste 12 jours dans le mois. Votre reste à vivre quotidien est réajusté à 12 000 Ar/jour."*
+### 9.4 Workflow 4 : Consultation du Reste à Vivre & Cadence Budgétaire
+1. L'utilisateur ouvre le Dashboard sur mobile ou ordinateur.
+2. Il consulte le Solde Réel Disponible, le Reste à Vivre Quotidien calculé en temps réel, et la Barre de Cadence Budgétaire avec son marqueur Jour J (`|`).
+3. L'AI Assistant propose une synthèse concise des axes d'optimisation financière.
 
-### 7.5 Workflow 5 : Mise à Jour OTA à Chaud (Cycle d'Itération Rapide)
-1. De nouvelles fonctionnalités ou correctifs sont développés dans le code TypeScript.
-2. Une mise à jour est publiée sur le canal EAS Update (`eas update --branch preview --message "Ajout stats frais"`).
-3. L'application sur le téléphone Android détecte et télécharge le nouveau bundle en arrière-plan.
-4. Une bannière in-app s'affiche : *"Mise à jour v1.X disponible [Relancer l'app]"*.
-5. L'utilisateur clique sur le bouton, l'app recharge instantanément le nouveau code sans réinstallation d'APK.
+## 10. Formules & Règles de Calcul Métier
 
-## 8. Formules & Règles de Calcul Métier
-
-### 8.1 Calcul du Reste à Vivre Journalier
+### 10.1 Calcul du Reste à Vivre Journalier
 ```
 Jours_Restants = Nombre de jours entre aujourd'hui et le dernier jour du mois inclus
 Solde_Disponible_Total = Somme(Soldes des portefeuilles avec isSpendable = true)
@@ -396,7 +397,7 @@ Charges_Fixes_Restantes = Somme des charges fixes non encore débitées dans le 
 Reste_Journalier = (Solde_Disponible_Total - Epargne_Cible_Restante - Charges_Fixes_Restantes) / Jours_Restants
 ```
 
-### 8.2 Calcul de la Trajectoire & Cadence Budgétaire (Barre avec Seuil Jour J)
+### 10.2 Calcul de la Trajectoire & Cadence Budgétaire (Barre avec Seuil Jour J)
 ```
 Budget_Total_Mois = Somme(Budgets des catégories de type 'EXPENSE')
 Dépenses_Cumulées = Somme(Débits réels + Frais du mois)
@@ -409,7 +410,7 @@ Ecart_Cadence = Consommation_Budget_Pct - Progression_Mois_Pct
 - Si Ecart_Cadence > 0  : Zone Rouge (Surconsommation par rapport à la date, risque de découvert)
 ```
 
-### 8.3 Algorithme de Réconciliation & Fusion Anti-Doublon (SMS / Ticket de Caisse)
+### 10.3 Algorithme de Réconciliation & Fusion Anti-Doublon (SMS / Ticket de Caisse)
 ```
 Pour chaque Scan de Ticket entrant (Total_Ticket, Date_Ticket, Marchand_Ticket) :
 1. Rechercher dans SQLite les transactions DEBIT de la même journée (Date_Transaction == Date_Ticket)
@@ -424,7 +425,7 @@ Pour chaque Scan de Ticket entrant (Total_Ticket, Date_Ticket, Marchand_Ticket) 
    - Créer une nouvelle Transaction standard avec débit immédiat du portefeuille choisi.
 ```
 
-### 8.4 Algorithme d'Auto-Catégorisation des SMS en 3 Niveaux
+### 10.4 Algorithme d'Auto-Catégorisation des SMS en 3 Niveaux
 ```
 Fonction resoudreCategorie(SMS_Data) :
   // Niveau 1 : Mémoire des contacts
@@ -442,150 +443,107 @@ Fonction resoudreCategorie(SMS_Data) :
   Retourner Categorie_Imprevus.id (avec déclenchement du sélecteur 1-tap)
 ```
 
-## 9. Structure du Répertoire Projet
+## 11. Structure Globale du Répertoire
 
 ```
 finance-app/
-├── app/                                    # Routes de l'application (Expo Router)
-│   ├── _layout.tsx                         # Root Layout (Providers Zustand, HeroUI Native, SQLite init)
-│   ├── (tabs)/                             # Navigation principale par onglets inférieurs
-│   │   ├── _layout.tsx                     # Configuration de la barre d'onglets flottante
-│   │   ├── index.tsx                       # Écran Dashboard (Soldes, Reste à vivre, Cadence)
-│   │   ├── transactions.tsx                # Écran Historique chronologique avec filtres
-│   │   ├── budgets.tsx                     # Écran Enveloppes de dépenses & Objectif Épargne
-│   │   └── assistant.tsx                   # Écran AI Assistant (Chat agentique & Vocal)
-│   ├── (modals)/                           # Écrans modaux (Présentation FormSheet iOS)
-│   │   ├── quick-add.tsx                   # Saisie flash manuelle (< 3s) & micro vocal
-│   │   └── scan-receipt.tsx                # Caméra / OCR pour tickets de supermarché SCORE
-│   └── transaction/
-│       └── [id].tsx                        # Fiche détaillée (Articles scannés, Lieu, Frais)
+├── SPECIFICATION.md                        # Document de référence exhaustif (ce fichier)
+├── README.md                               # Point d'entrée de documentation
+├── .gitignore                              # Configuration globale git
 │
-├── src/
-│   ├── ai/                                 # Moteur IA (100% Gemini 3.1 Flash Lite)
-│   │   ├── client.ts                       # Client API Google Gemini 3.1 Flash Lite
-│   │   ├── agentHarness.ts                 # Injection du contexte financier (Soldes, Budgets, Date)
-│   │   ├── tools.ts                        # Définitions des outils Tool Calling SQLite
-│   │   ├── sttPrompt.ts                    # Prompt système transcription verbatim (STT)
-│   │   └── visionPrompt.ts                 # Prompt extraction structurée tickets SCORE
-│   │
-│   ├── db/                                 # Couche Base de Données Locale (expo-sqlite)
-│   │   ├── database.ts                     # Initialisation & migrations SQLite
-│   │   ├── schema.ts                       # Définitions des tables DDL avec UUID v4 immuables
-│   │   └── repositories/                   # Requêtes SQL relationnelles
-│   │       ├── walletRepository.ts         # Gestion des soldes (MVola, Cash, Airtel, Bank)
-│   │       ├── transactionRepository.ts    # CRUD transactions, items et localisation
-│   │       ├── categoryRepository.ts       # Gestion catégories et enveloppes de budget
-│   │       └── recipientRepository.ts      # Mémoire des numéros tiers (Mapping catégorie)
-│   │
-│   ├── stores/                             # Gestion d'État Réactive (Zustand)
-│   │   ├── useWalletStore.ts               # État des soldes et calcul du solde réel total
-│   │   ├── useTransactionStore.ts          # Liste des transactions, filtres et pending SMS
-│   │   ├── useBudgetStore.ts               # Plafonds, jauge d'épargne et reste à vivre journalier
-│   │   └── useAiAssistantStore.ts          # Historique du chat, statut d'enregistrement vocal
-│   │
-│   ├── services/                           # Logique Métier & Moteurs de Calcul
-│   │   ├── smsParser.ts                    # Détection regex SMS (MVola, Airtel, Telma)
-│   │   ├── categoryResolution.ts           # Moteur d'auto-catégorisation en 3 niveaux
-│   │   ├── receiptReconciliation.ts        # Moteur anti-doublon et fusion SMS / Tickets
-│   │   ├── mvolaFeeCalculator.ts           # Grille tarifaire officielle des frais MVola
-│   │   ├── burnRateCalculator.ts           # Moteur du reste à vivre et cadence budgétaire
-│   │   ├── notificationService.ts          # Notifications push locales Android
-│   │   └── updateService.ts                # Gestion des mises à jour OTA à chaud (EAS Update)
-│   │
-│   ├── components/                         # Composants UI Réutilisables
-│   │   ├── cards/
-│   │   │   ├── WalletBalanceCard.tsx       # Carte triptyque Solde Réel (MVola vs Espèces)
-│   │   │   ├── DailyBurnCard.tsx           # Carte d'affichage du reste à vivre journalier
-│   │   │   └── SavingsTargetCard.tsx       # Jauge de progression de l'épargne sanctuarisée
-│   │   ├── charts/
-│   │   │   ├── CadenceProgressBar.tsx      # Jauge avec marqueur de seuil temporel Jour J (`|`)
-│   │   │   └── SpendingGradientChart.tsx   # Courbe Victory Native XL + Shopify Skia avec dégradé
-│   │   ├── transactions/
-│   │   │   ├── TransactionRow.tsx          # Ligne de transaction avec badge `🧾 N` et icône
-│   │   │   ├── TransactionItemRow.tsx      # Rangée d'article individuel (quantité, prix)
-│   │   │   └── LocationBadge.tsx           # Badge du lieu / commerce (`📍`)
-│   │   ├── feedback/
-│   │   │   ├── SmsToastBanner.tsx          # Toast animé in-app avec sélecteur de catégorie 1-tap
-│   │   │   └── UpdateBanner.tsx            # Bannière de rechargement à chaud (EAS Update)
-│   │   └── voice/
-│   │       └── VoiceRecordButton.tsx       # Bouton micro pulsant avec retours haptiques
-│   │
-│   ├── types/                              # Définitions TypeScript Globales
-│   │   ├── models.ts                       # Interfaces Wallet, Transaction, Category, Item
-│   │   ├── sms.ts                          # Types des événements SMS parsés
-│   │   └── ai.ts                           # Types des requêtes et outils Tool Calling
-│   │
-│   └── styles/
-│       └── global.css                      # Thème Tailwind CSS v4 & configuration HeroUI Native
+├── web/                                    # Frontend Web App PWA (Vite + React 19)
+│   ├── index.html
+│   ├── vite.config.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── public/
+│   │   ├── manifest.json                   # Configuration PWA Installable
+│   │   ├── service-worker.js               # Service Worker (Web Push & Offline)
+│   │   └── icons/
+│   └── src/
+│       ├── main.tsx
+│       ├── App.tsx                         # Navigation & Layout principal
+│       ├── styles/                         # Tailwind CSS v4 & variables de thème
+│       ├── stores/                         # Stores Zustand (wallets, transactions, budgets, ai)
+│       ├── services/                       # Client SSE, Web Push subscriber, API client
+│       ├── components/                     # Composants UI (Cards, Charts, Modals, Voice, Toast)
+│       └── types/                          # Types TypeScript
 │
-├── assets/                                 # Icônes, polices et assets graphiques
-├── app.json                                # Configuration Expo & Permissions Android SMS/Audio
-├── eas.json                                # Profils de build APK et canaux EAS Update
-├── package.json                            # Dépendances du projet
-├── tailwind.config.js                      # Configuration NativeWind / Tailwind
-├── tsconfig.json                           # Configuration TypeScript stricte
-├── SPECIFICATION.md                        # Document de spécification exhaustif de référence
-└── README.md                               # Point d'entrée de documentation
+├── backend/                                # Backend API, SSE & Webhook (Hono / Bun)
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts                        # Serveur HTTP Hono + SSE broadcaster
+│       ├── db/
+│       │   ├── schema.ts                   # Tables SQLite avec UUID v4
+│       │   ├── database.ts                 # Connexion native bun:sqlite
+│       │   └── repositories/               # CRUD wallets, transactions, categories, recipients
+│       ├── services/
+│       │   ├── smsParser.ts                # Parseur regex MVola / Airtel
+│       │   ├── categoryResolution.ts       # Moteur d'auto-catégorisation 3 niveaux
+│       │   ├── receiptReconciliation.ts    # Fusion anti-doublon SMS/Tickets
+│       │   ├── mvolaFeeCalculator.ts       # Grille tarifaire des frais
+│       │   ├── burnRateCalculator.ts       # Calcul reste à vivre et cadence
+│       │   └── pushNotificationService.ts  # Envoi des Web Push VAPID
+│       ├── ai/
+│       │   ├── client.ts                   # SDK Gemini 3.1 Flash Lite
+│       │   ├── agentHarness.ts             # Contexte dynamique pour l'AI Assistant
+│       │   └── tools.ts                    # Outils Tool Calling
+│       └── routes/
+│           ├── sms.ts                      # Webhook entrant + SSE stream
+│           ├── transactions.ts             # CRUD transactions & enrichissement
+│           ├── wallets.ts                  # Soldes
+│           ├── budgets.ts                  # Budgets & épargne
+│           └── ai.ts                       # Chat agentique & vocal
+│
+└── mobile/                                 # Application Mobile Native (React Native / Expo)
+    ├── package.json
+    ├── app.json
+    ├── eas.json
+    ├── app/                                # Routes Expo Router
+    └── src/                                # Composants et logique mobile native
 ```
 
-## 10. Feuille de Route & Jalons d'Implémentation (Milestones)
+## 12. Feuille de Route d'Implémentation
 
-### Milestone 1 : Fondations & Moteur Local (MVP Core)
-- **Objectif** : Disposer d'une application fonctionnelle localement pour enregistrer des transactions et suivre ses soldes.
-- **Livrables** :
-  1. Initialisation du projet Expo avec TypeScript, Expo Router, HeroUI Native, Zustand et SQLite (`expo-sqlite`).
-  2. Tables de base de données relationnelle (`wallets`, `categories`, `transactions`, `recipients`) avec identifiants UUID v4 immuables.
-  3. Formulaire de saisie manuelle flash (< 3 secondes) avec sélection en 1 tap et calculateur automatique des frais MVola.
-  4. Liste des transactions groupées par jour avec badge d'icône hérité de la catégorie.
+### Phase 1 : Backend API & Webhook SMS (`backend/`)
+- Setup serveur Hono sur runtime Bun avec base SQLite locale (`bun:sqlite`).
+- Implémentation du webhook entrant `POST /api/sms/webhook` et du flux SSE `GET /api/events`.
+- Intégration du parseur SMS MVola/Airtel et du moteur d'auto-catégorisation en 3 niveaux.
 
-### Milestone 2 : Capture Automatique des SMS Android & Auto-Catégorisation
-- **Objectif** : Éliminer la friction de saisie pour l'ensemble des opérations Mobile Money.
-- **Livrables** :
-  1. Configuration du plugin natif Android SMS Receiver (`RECEIVE_SMS` / `READ_SMS`).
-  2. Parseur Regex MVola / Airtel (Débits, Crédits, Salaires, Retraits Cash Point, Achats de forfaits, Factures).
-  3. Moteur d'auto-catégorisation en 3 niveaux (Mémoire des contacts `RecipientMapping`, Opérations explicites, Fallback Imprévus).
-  4. Bannière toast interactive in-app (`SmsToastBanner`) avec sélecteur 1-tap de catégorie et notifications push locales.
-  5. Calibrage automatique de la source de vérité du solde MVola depuis les mentions `"Solde restant: X Ar"`.
+### Phase 2 : Frontend Web PWA (`web/`)
+- Setup Vite + React 19 + Tailwind CSS v4 + Framer Motion.
+- Dashboard interactif (Solde Réel, Reste à Vivre, Barre de Cadence Jour J `|`).
+- Écouteur SSE en temps réel pour faire descendre le toast dès réception d'un SMS.
+- Saisie Flash (< 3s) avec calculateur de frais MVola et modal de scan de tickets SCORE.
 
-### Milestone 3 : Moteur IA Multimodal 100% Gemini (Vocal, Vision & AI Assistant)
-- **Objectif** : Transformer la voix et les photos de reçus en transactions précises avec gestion anti-doublon.
-- **Livrables** :
-  1. Client API unique pour Google Gemini 3.1 Flash Lite.
-  2. Pipeline Vocal : Enregistrement micro (`expo-av`) -> Prompt STT verbatim (`sttPrompt.ts`) -> Tool Calling SQLite.
-  3. Scanner de tickets (Supermarché SCORE) : extraction multimodale du marchand, du lieu, du total et de la liste des articles (`TransactionItem`).
-  4. Moteur de réconciliation et fusion anti-doublon (`receiptReconciliation.ts`) reliant le scan d'un ticket au débit SMS existant.
-  5. AI Assistant agentique (`app/(tabs)/assistant.tsx`) avec injection du contexte financier dynamique et exécution d'outils en temps réel.
+### Phase 3 : AI Assistant & Voix (Gemini 3.1 Flash Lite)
+- Intégration de la Web Audio API pour enregistrer la voix directement dans le navigateur.
+- Pipeline Gemini STT verbatim + Tool Calling pour manipuler SQLite via le chat.
+- Scanner de tickets SCORE avec OCR multimodal et réconciliation anti-doublon.
 
-### Milestone 4 : Dashboard de Pilotage, Cadence Budgétaire & Épargne
-- **Objectif** : Offrir une visibilité immédiate sur le reste à vivre et piloter l'épargne sanctuarisée pour sortir du rouge.
-- **Livrables** :
-  1. Carte des 3 Totaux majeurs (Solde Réel Disponible, Budget Restant, Total Dépensé).
-  2. Calculateur dynamique du **Reste à Vivre Journalier** (`burnRateCalculator.ts`).
-  3. **Barre de Cadence Budgétaire avec Seuil Jour J** (`CadenceProgressBar.tsx`) avec repérage visuel avance (vert) / surconsommation (rouge).
-  4. Module d'Épargne intégré dans l'écran Budget ("Se payer en premier") déduisant immédiatement l'objectif du reste à vivre.
-  5. Graphique de dépenses dégradé Victory Native XL + Shopify Skia et rapport des frais invisibles.
+### Phase 4 : PWA & Web Push Notifications
+- Configuration du `manifest.json` pour installation plein écran sur mobile et desktop.
+- Mise en place du Service Worker et de la passerelle Web Push VAPID pour alertes d'arrière-plan.
 
-### Milestone 5 : Déploiement APK & Mises à Jour OTA à Chaud (EAS Update)
-- **Objectif** : Déployer l'application sur smartphone Android physique et valider le cycle de mise à jour instantanée sans réinstallation.
-- **Livrables** :
-  1. Configuration des profils de build dans `eas.json` et génération de l'APK Android initial.
-  2. Intégration de `expo-updates` et du composant `UpdateBanner.tsx` pour rechargement à chaud en 1 seconde.
-  3. Validation des tests en conditions réelles (marché, transferts MVola réels, scan de tickets SCORE).
+### Phase 5 : Passerelle Mobile Native (`mobile/`)
+- Configuration de la passerelle Android légère (ou règle MacroDroid) pour router automatiquement les SMS reçus vers le webhook du backend.
 
-## 11. Journal des Évolutions (Changelog)
+## 13. Journal des Évolutions (Changelog)
 
 | Version | Date | Description des Modifications |
 | :--- | :--- | :--- |
 | **1.0.0** | 21/08/2026 | Création initiale de la spécification complète. |
-| **1.1.0** | 21/08/2026 | Retrait du moteur de gamification (streaks). Ajout de la gestion explicite des soldes par portefeuille (MVola, Airtel, Cash, Banque) aux côtés du budget et des dépenses (Triptyque Fondamental). Intégration d'un module de statistiques claires (trajectoire, répartition des dépenses, rapport des frais). |
-| **1.2.0** | 21/08/2026 | Intégration du système de mises à jour Over-The-Air (OTA) à chaud via EAS Update (`expo-updates`). Ajout du composant `UpdateBanner`, du service `updateService.ts`, du workflow d'itération rapide sans réinstallation d'APK et de la configuration `eas.json`. |
-| **1.3.0** | 21/08/2026 | Unification du modèle Catégories / Budgets (1 élément de budget = 1 catégorie de dépense). Implémentation de l'héritage d'icône intelligent. Intégration du module d'épargne dans la section Budget ("Se payer en premier") avec déduction sur le reste à vivre. Formalisation de la barre de cadence budgétaire avec marqueur de seuil Jour J (`|`). |
-| **1.4.0** | 21/08/2026 | Unification de la couche IA sur **Google Gemini 3.1 Flash Lite** comme unique modèle (Chat, Vision, Synthèse). Intégration du hack Speech-to-Text par prompt système verbatim (suppression de Groq Whisper et simplification à une seule clé API). |
-| **1.5.0** | 21/08/2026 | Clés primaires UUID v4 immuables pour les catégories et transactions. Ajout du modèle des articles détaillés (`TransactionItem`) avec badge `🧾 N` et panneau de détails (style Zen/Cache). Ajout du traçage de la localisation (`TransactionLocation`). Implémentation du moteur de réconciliation et fusion anti-doublon (SMS + Scan de tickets de caisse). |
-| **1.6.0** | 21/08/2026 | Intégration du moteur d'auto-catégorisation des SMS en 3 niveaux (Niveau 1: Mémoire apprenante des contacts `RecipientMapping`, Niveau 2: Détection par opération explicite, Niveau 3: Fallback Imprévus + Sélecteur 1-tap push/toast). Ajout du repository `recipientMappingRepository` et du service `categoryResolution`. |
-| **1.7.0** | 21/08/2026 | Ajout de la section 10 : Feuille de route & Jalons d'implémentation (Milestones 1 à 5) pour structurer le développement et la validation itérative. |
-| **1.8.0** | 21/08/2026 | Suppression complète des mentions d'identité visuelle / branding dans la spécification pour conserver un document 100% technique, fonctionnel et architectural. |
-| **1.9.0** | 21/08/2026 | Standardisation de la terminologie IA en **Tool Calling** (au lieu de Function Calling). Renommage du module en **AI Assistant** (`app/(tabs)/assistant.tsx`, `useAiAssistantStore.ts`). Mise à jour de la structure du projet avec **Expo Router**, **HeroUI Native**, **Zustand**, et **Victory Native XL / Shopify Skia**. |
+| **1.1.0** | 21/08/2026 | Retrait du moteur de gamification. Ajout de la gestion explicite des soldes par portefeuille (MVola, Airtel, Cash, Banque). |
+| **1.2.0** | 21/08/2026 | Intégration du système de mises à jour OTA via EAS Update. |
+| **1.3.0** | 21/08/2026 | Unification du modèle Catégories/Budgets, héritage d'icônes, module d'épargne sanctuarisée et barre de cadence avec seuil Jour J. |
+| **1.4.0** | 21/08/2026 | Unification de la couche IA sur Google Gemini 3.1 Flash Lite avec hack Speech-to-Text verbatim. |
+| **1.5.0** | 21/08/2026 | Clés primaires UUID v4, articles détaillés de tickets SCORE (`TransactionItem`) et moteur de réconciliation anti-doublon. |
+| **1.6.0** | 21/08/2026 | Moteur d'auto-catégorisation des SMS en 3 niveaux (`RecipientMapping`, Opérations explicites, Fallback Imprévus). |
+| **1.7.0** | 21/08/2026 | Ajout de la feuille de route structurée en jalons (Milestones). |
+| **1.8.0** | 21/08/2026 | Suppression des mentions d'identité visuelle pour conserver une spécification 100% technique et fonctionnelle. |
+| **1.9.0** | 21/08/2026 | Standardisation de la terminologie en **Tool Calling** et renommage en **AI Assistant**. |
+| **2.0.0** | 21/08/2026 | **Pivot Architectural Majeur** : Restructuration en monorepo (`mobile/`, `web/`, `backend/`). Formalisation de la **Web App PWA** (Vite + React 19 + Tailwind v4 + Framer Motion) et du **Backend API** (Hono / Bun + SQLite + Webhook SMS + SSE temps réel + Web Push VAPID). |
 
 
 
