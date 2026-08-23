@@ -4,6 +4,7 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { SavingsTargetCard } from '../cards/SavingsTargetCard';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Category } from '../../types/models';
+import { formatCurrency } from '../../utils/formatters';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 
 interface BudgetsViewProps {
@@ -90,10 +91,10 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
                 {/* Amounts */}
                 <div className="flex justify-between items-baseline text-xs text-zinc-500 my-1">
                   <span>
-                    Dépensé : <strong className="text-zinc-800 tabular-nums">{spent.toLocaleString('fr-FR')} Ar</strong>
+                    Dépensé : <strong className="text-zinc-800 tabular-nums">{formatCurrency(spent)}</strong>
                   </span>
                   <span>
-                    Plafond : <strong className="text-zinc-800 tabular-nums">{cat.monthlyBudget.toLocaleString('fr-FR')} Ar</strong>
+                    Plafond : <strong className="text-zinc-800 tabular-nums">{formatCurrency(cat.monthlyBudget)}</strong>
                   </span>
                 </div>
 
@@ -115,8 +116,8 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
                   </span>
                   <span className={`font-semibold tabular-nums ${isOverBudget ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {isOverBudget
-                      ? `Dépassement de ${Math.abs(remaining).toLocaleString('fr-FR')} Ar`
-                      : `Reste : ${remaining.toLocaleString('fr-FR')} Ar`}
+                      ? `Dépassement de ${formatCurrency(Math.abs(remaining))}`
+                      : `Reste : ${formatCurrency(remaining)}`}
                   </span>
                 </div>
               </InsetGroupedCard>

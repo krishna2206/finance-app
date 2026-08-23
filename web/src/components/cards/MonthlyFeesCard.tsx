@@ -1,5 +1,6 @@
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { ExclamationCircleIcon } from '@heroicons/react/24/solid';
+import { formatCurrency } from '../../utils/formatters';
 
 interface MonthlyFeesCardProps {
   fees: number;
@@ -18,7 +19,7 @@ export function MonthlyFeesCard({ fees }: MonthlyFeesCardProps) {
           </span>
         </div>
         <span className="text-xs font-bold text-amber-700 tabular-nums">
-          {fees.toLocaleString('fr-FR')} Ar
+          {formatCurrency(fees)}
         </span>
       </div>
     </InsetGroupedCard>

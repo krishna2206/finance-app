@@ -5,13 +5,24 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionItemRow } from '../transactions/TransactionItemRow';
 import { LocationBadge } from '../transactions/LocationBadge';
 import { InsetGroupedCard, InsetGroupedRow } from '../common/InsetGroupedCard';
+import { formatAmount, formatCurrency, formatWalletName } from '../../utils/formatters';
 import {
   XMarkIcon,
   TrashIcon,
   CalendarIcon,
   DevicePhoneMobileIcon,
+  BanknotesIcon,
+  BuildingLibraryIcon,
   TagIcon,
   DocumentTextIcon,
+  ShoppingCartIcon,
+  HomeIcon,
+  TruckIcon,
+  SignalIcon,
+  SparklesIcon,
+  ExclamationTriangleIcon,
+  CreditCardIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 
 interface TransactionDetailBottomSheetProps {
@@ -33,6 +44,43 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
       await deleteTransaction(transaction.id);
       onClose();
     }
+  };
+
+  const renderCategoryIcon = () => {
+    const iconName = category?.icon || 'TagIcon';
+    const color = category?.color || '#10B981';
+    const props = { className: 'w-4 h-4', style: { color } };
+
+    switch (iconName) {
+      case 'ShoppingCartIcon':
+        return <ShoppingCartIcon {...props} />;
+      case 'HomeIcon':
+        return <HomeIcon {...props} />;
+      case 'TruckIcon':
+        return <TruckIcon {...props} />;
+      case 'SignalIcon':
+        return <SignalIcon {...props} />;
+      case 'SparklesIcon':
+        return <SparklesIcon {...props} />;
+      case 'ExclamationTriangleIcon':
+        return <ExclamationTriangleIcon {...props} />;
+      case 'CreditCardIcon':
+        return <CreditCardIcon {...props} />;
+      case 'ShieldCheckIcon':
+        return <ShieldCheckIcon {...props} />;
+      default:
+        return <TagIcon {...props} />;
+    }
+  };
+
+  const renderWalletIcon = () => {
+    const w = transaction.wallet;
+    if (w === 'MVOLA') return <DevicePhoneMobileIcon className="w-4 h-4 text-amber-500" />;
+    if (w === 'AIRTEL_MONEY') return <DevicePhoneMobileIcon className="w-4 h-4 text-rose-500" />;
+    if (w === 'CASH') return <BanknotesIcon className="w-4 h-4 text-emerald-500" />;
+    if (w === 'BANK') return <BuildingLibraryIcon className="w-4 h-4 text-blue-500" />;
+    if (w === 'SAVINGS_VAULT') return <ShieldCheckIcon className="w-4 h-4 text-teal-500" />;
+    return <DevicePhoneMobileIcon className="w-4 h-4 text-zinc-500" />;
   };
 
   return (
@@ -86,12 +134,12 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
               {transaction.title}
             </span>
             <div className={`text-3xl font-bold tracking-tight tabular-nums mb-1 ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
-              {isDebit ? '-' : '+'}{transaction.amount.toLocaleString('fr-FR')} <span className="text-xl font-semibold">Ar</span>
+              {isDebit ? '-' : '+'}{formatAmount(transaction.amount)} <span className="text-xl font-semibold">Ar</span>
             </div>
 
             {transaction.feeAmount > 0 && (
               <div className="text-xs text-amber-700 font-medium tabular-nums mt-0.5">
-                +{transaction.feeAmount.toLocaleString('fr-FR')} Ar frais inclus (Total : {transaction.totalImpact.toLocaleString('fr-FR')} Ar)
+                +{formatAmount(transaction.feeAmount)} Ar frais inclus (Total : {formatCurrency(transaction.totalImpact)})
               </div>
             )}
 
@@ -105,24 +153,24 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           {/* Metadata Inset Grouped Card */}
           <InsetGroupedCard className="mb-4">
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium">
-                <TagIcon className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+                {renderCategoryIcon()}
                 <span>Catégorie</span>
               </div>
               <span className="text-xs font-semibold text-zinc-900">{category?.name || 'Inconnue'}</span>
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium">
-                <DevicePhoneMobileIcon className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+                {renderWalletIcon()}
                 <span>Moyen de paiement</span>
               </div>
-              <span className="text-xs font-semibold text-zinc-900">{transaction.wallet}</span>
+              <span className="text-xs font-semibold text-zinc-900">{formatWalletName(transaction.wallet)}</span>
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-500 text-xs font-medium">
-                <CalendarIcon className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+                <CalendarIcon className="w-4 h-4 text-indigo-500" />
                 <span>Date & Heure</span>
               </div>
               <span className="text-xs font-semibold text-zinc-900">
@@ -135,7 +183,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           {transaction.items && transaction.items.length > 0 && (
             <InsetGroupedCard className="p-4 mb-4">
               <div className="flex items-center gap-1.5 mb-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
-                <DocumentTextIcon className="w-4 h-4" />
+                <DocumentTextIcon className="w-4 h-4 text-emerald-500" />
                 <span>Articles du Ticket ({transaction.items.length})</span>
               </div>
 

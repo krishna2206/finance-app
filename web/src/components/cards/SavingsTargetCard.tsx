@@ -2,6 +2,7 @@ import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 export function SavingsTargetCard() {
   const savingsVaultBalance = useWalletStore(state => state.wallets.SAVINGS_VAULT?.balance || 0);
@@ -26,7 +27,7 @@ export function SavingsTargetCard() {
       </div>
 
       <div className="text-2xl font-bold text-zinc-900 tracking-tight tabular-nums my-1.5">
-        {savingsVaultBalance.toLocaleString('fr-FR')} <span className="text-sm text-zinc-500 font-normal">/ {monthlySavingsTarget.toLocaleString('fr-FR')} Ar</span>
+        {formatAmount(savingsVaultBalance)} <span className="text-sm text-zinc-500 font-normal">/ {formatCurrency(monthlySavingsTarget)}</span>
       </div>
 
       {/* Progress */}

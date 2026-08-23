@@ -1,4 +1,5 @@
 import { TransactionItem } from '../../types/models';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 interface TransactionItemRowProps {
   item: TransactionItem;
@@ -13,13 +14,13 @@ export function TransactionItemRow({ item }: TransactionItemRowProps) {
         </div>
         {item.unitPrice && (
           <div className="text-xs text-zinc-500 mt-0.5 tabular-nums">
-            {item.quantity}x {item.unitPrice.toLocaleString('fr-FR')} Ar {item.unit ? `/${item.unit}` : ''}
+            {item.quantity}x {formatAmount(item.unitPrice)} Ar {item.unit ? `/${item.unit}` : ''}
           </div>
         )}
       </div>
 
       <div className="text-sm font-semibold text-zinc-900 tabular-nums">
-        {item.totalPrice.toLocaleString('fr-FR')} Ar
+        {formatCurrency(item.totalPrice)}
       </div>
     </div>
   );

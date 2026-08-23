@@ -1,5 +1,6 @@
 import { CadenceMetrics } from '../../types/models';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 interface CadenceProgressBarProps {
   metrics: CadenceMetrics;
@@ -23,7 +24,7 @@ export function CadenceProgressBar({ metrics }: CadenceProgressBarProps) {
           Cadence du Budget Mensuel
         </span>
         <span className="text-xs font-medium text-zinc-700 tabular-nums">
-          {totalSpent.toLocaleString('fr-FR')} / {totalBudget.toLocaleString('fr-FR')} Ar
+          {formatAmount(totalSpent)} / {formatCurrency(totalBudget)}
         </span>
       </div>
 

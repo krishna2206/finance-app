@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
+import { formatAmount } from '../../utils/formatters';
 import { CalendarDaysIcon } from '@heroicons/react/24/outline';
 
 export function CacheObligationsCard() {
@@ -47,7 +48,7 @@ export function CacheObligationsCard() {
         </div>
 
         <div className="text-xl font-bold text-zinc-900 tracking-tight tabular-nums">
-          {totalObligationsRemaining.toLocaleString('fr-FR')} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
+          {formatAmount(totalObligationsRemaining)} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
         </div>
         <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
           Dépenses fixes restantes ce mois-ci

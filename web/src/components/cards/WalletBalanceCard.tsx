@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { CreditCardIcon } from '@heroicons/react/24/outline';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 export function WalletBalanceCard() {
   const wallets = useWalletStore(state => state.wallets);
@@ -30,7 +31,7 @@ export function WalletBalanceCard() {
 
         {/* Total Balance */}
         <div className="text-xl font-bold text-zinc-900 tracking-tight tabular-nums mb-3">
-          {totalSpendable.toLocaleString('fr-FR')} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
+          {formatAmount(totalSpendable)} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
         </div>
       </div>
 
@@ -43,7 +44,7 @@ export function WalletBalanceCard() {
             <span className="text-zinc-500 font-medium">MVola :</span>
           </div>
           <span className="font-semibold text-zinc-800 tabular-nums">
-            {mvolaBalance.toLocaleString('fr-FR')} Ar
+            {formatCurrency(mvolaBalance)}
           </span>
         </div>
 
@@ -54,7 +55,7 @@ export function WalletBalanceCard() {
             <span className="text-zinc-500 font-medium">Espèces :</span>
           </div>
           <span className="font-semibold text-zinc-800 tabular-nums">
-            {cashBalance.toLocaleString('fr-FR')} Ar
+            {formatCurrency(cashBalance)}
           </span>
         </div>
 
@@ -65,7 +66,7 @@ export function WalletBalanceCard() {
             <span className="text-zinc-500 font-medium">Airtel :</span>
           </div>
           <span className="font-semibold text-zinc-800 tabular-nums">
-            {airtelBalance.toLocaleString('fr-FR')} Ar
+            {formatCurrency(airtelBalance)}
           </span>
         </div>
 
@@ -76,7 +77,7 @@ export function WalletBalanceCard() {
             <span className="text-zinc-500 font-medium">Banque :</span>
           </div>
           <span className="font-semibold text-zinc-800 tabular-nums">
-            {bankBalance.toLocaleString('fr-FR')} Ar
+            {formatCurrency(bankBalance)}
           </span>
         </div>
       </div>

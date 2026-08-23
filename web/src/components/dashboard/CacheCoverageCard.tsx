@@ -1,6 +1,7 @@
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { ClockIcon } from '@heroicons/react/24/outline';
 import { CadenceMetrics } from '../../types/models';
+import { formatAmount } from '../../utils/formatters';
 
 interface CacheCoverageCardProps {
   metrics: CadenceMetrics;
@@ -29,7 +30,7 @@ export function CacheCoverageCard({ metrics }: CacheCoverageCardProps) {
           {remainingDays} jours
         </div>
         <div className="text-[10px] text-zinc-400 font-medium mt-0.5 tabular-nums">
-          {dailyBurnRate.toLocaleString('fr-FR')} Ar/jour
+          {formatAmount(dailyBurnRate)} Ar/jour
         </div>
       </div>
 

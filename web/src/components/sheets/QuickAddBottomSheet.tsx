@@ -4,6 +4,7 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
 import { WalletSource } from '../../types/models';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
   XMarkIcon,
   CheckIcon,
@@ -129,7 +130,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     <div className={`w-3.5 h-3.5 rounded flex items-center justify-center ${includeFees ? 'bg-amber-600 text-white' : 'border border-amber-600'}`}>
                       {includeFees && <CheckIcon className="w-3 h-3 stroke-[3]" />}
                     </div>
-                    <span>+{transferFee} Ar frais (Total : {totalImpact.toLocaleString('fr-FR')} Ar)</span>
+                    <span>+{formatAmount(transferFee)} Ar frais (Total : {formatCurrency(totalImpact)})</span>
                   </div>
                 )}
               </div>
@@ -218,7 +219,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 disabled={numericAmount <= 0 || isSubmitting}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-2"
               >
-                {isSubmitting ? 'Enregistrement...' : `Enregistrer (${totalImpact.toLocaleString('fr-FR')} Ar)`}
+                {isSubmitting ? 'Enregistrement...' : `Enregistrer (${formatCurrency(totalImpact)})`}
               </button>
             </form>
           </motion.div>

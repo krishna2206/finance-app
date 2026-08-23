@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
+import { formatAmount } from '../../utils/formatters';
 import { CreditCardIcon } from '@heroicons/react/24/outline';
 
 export function CacheBalanceCard() {
@@ -27,7 +28,7 @@ export function CacheBalanceCard() {
         </div>
 
         <div className="text-xl font-bold text-zinc-900 tracking-tight tabular-nums">
-          {totalSpendable.toLocaleString('fr-FR')} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
+          {formatAmount(totalSpendable)} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
         </div>
       </div>
 

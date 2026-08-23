@@ -1,6 +1,7 @@
 import { CadenceMetrics } from '../../types/models';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { formatAmount } from '../../utils/formatters';
 
 interface DailyBurnCardProps {
   metrics: CadenceMetrics;
@@ -33,7 +34,7 @@ export function DailyBurnCard({ metrics }: DailyBurnCardProps) {
 
       <div className="flex items-baseline justify-between">
         <div className="text-3xl font-bold text-zinc-900 tracking-tight tabular-nums">
-          {metrics.dailyBurnRate.toLocaleString('fr-FR')} <span className="text-xl text-zinc-500 font-semibold">Ar/j</span>
+          {formatAmount(metrics.dailyBurnRate)} <span className="text-xl text-zinc-500 font-semibold">Ar/j</span>
         </div>
 
         <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${metrics.isAhead ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>

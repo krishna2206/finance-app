@@ -1,6 +1,7 @@
 import { Transaction } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { LocationBadge } from './LocationBadge';
+import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
 import {
   ShoppingCartIcon,
   HomeIcon,
@@ -28,9 +29,8 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
   const renderCategoryIcon = () => {
     const iconName = category?.icon || 'TagIcon';
-    const color = category?.color || '#71717A';
+    const props = { className: 'w-5 h-5 text-zinc-800' };
 
-    const props = { className: 'w-5 h-5', style: { color } };
     switch (iconName) {
       case 'ShoppingCartIcon':
         return <ShoppingCartIcon {...props} />;
@@ -61,11 +61,8 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
       }`}
     >
       <div className="flex items-center gap-3 flex-1 pr-3">
-        {/* Category Icon */}
-        <div
-          style={{ backgroundColor: `${category?.color || '#71717A'}15` }}
-          className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-        >
+        {/* Category Icon (Clean monochrome, no colored box) */}
+        <div className="w-7 h-7 flex items-center justify-center shrink-0">
           {renderCategoryIcon()}
         </div>
 
@@ -88,7 +85,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
             <span>{category?.name || 'Catégorie'}</span>
             <span className="text-zinc-300">•</span>
-            <span className="text-zinc-400 font-medium">{transaction.wallet}</span>
+            <span className="text-zinc-400 font-medium">{formatWalletName(transaction.wallet)}</span>
           </div>
 
           {transaction.location?.placeName && (
@@ -97,15 +94,15 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
         </div>
       </div>
 
-      {/* Amount & Fees */}
+      {/* Amount & Fees formatted uniformly */}
       <div className="text-right shrink-0">
         <div className={`text-sm font-bold tabular-nums ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
-          {isDebit ? '-' : '+'}{transaction.amount.toLocaleString('fr-FR')} Ar
+          {formatSignedAmount(transaction.amount, isDebit)}
         </div>
 
         {transaction.feeAmount > 0 && (
           <div className="text-[10px] font-medium text-amber-600 mt-0.5 tabular-nums">
-            +{transaction.feeAmount.toLocaleString('fr-FR')} Ar frais
+            +{formatAmount(transaction.feeAmount)} Ar frais
           </div>
         )}
       </div>

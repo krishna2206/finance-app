@@ -1,6 +1,7 @@
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { ClockIcon } from '@heroicons/react/24/outline';
 import { CadenceMetrics } from '../../types/models';
+import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 interface CacheBudgetCardProps {
   metrics: CadenceMetrics;
@@ -21,7 +22,7 @@ export function CacheBudgetCard({ metrics }: CacheBudgetCardProps) {
         </div>
 
         <div className="text-xl font-bold text-zinc-900 tracking-tight tabular-nums">
-          {remainingBudget.toLocaleString('fr-FR')} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
+          {formatAmount(remainingBudget)} <span className="text-xs text-zinc-500 font-semibold">Ar</span>
         </div>
         <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
           Restant
@@ -38,7 +39,7 @@ export function CacheBudgetCard({ metrics }: CacheBudgetCardProps) {
         </div>
 
         <div className="text-[9px] text-zinc-500 font-medium tabular-nums truncate">
-          {totalSpent.toLocaleString('fr-FR')} Ar dépensé sur {totalBudget.toLocaleString('fr-FR')} Ar
+          {formatAmount(totalSpent)} Ar dépensé sur {formatCurrency(totalBudget)}
         </div>
       </div>
     </InsetGroupedCard>
