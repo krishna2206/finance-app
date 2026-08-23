@@ -29,44 +29,53 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#090A0C] text-[#F4F4F5] px-4 pt-6 pb-28 selection:bg-emerald-500/30 selection:text-emerald-400">
-      {/* Active Tab View */}
-      <main className="max-w-2xl mx-auto">
-        {activeTab === 'dashboard' && (
-          <DashboardView
-            onSelectTransaction={setSelectedTransaction}
-            onNavigateToTransactions={() => setActiveTab('transactions')}
-          />
-        )}
+    <div className="min-h-screen bg-[#050608] flex justify-center selection:bg-emerald-500/30 selection:text-emerald-400">
+      {/* Mobile-Only Frame (Locked in Portrait ~430px width) */}
+      <div className="w-full max-w-[430px] min-h-screen bg-[#090A0C] border-x border-white/5 relative flex flex-col shadow-2xl overflow-x-hidden px-4 pt-4 pb-28">
+        {/* Active Tab View */}
+        <main className="flex-1">
+          {activeTab === 'dashboard' && (
+            <DashboardView
+              onSelectTransaction={setSelectedTransaction}
+              onNavigateToTransactions={() => setActiveTab('transactions')}
+            />
+          )}
 
-        {activeTab === 'transactions' && (
-          <TransactionsView onSelectTransaction={setSelectedTransaction} />
-        )}
+          {activeTab === 'transactions' && (
+            <TransactionsView onSelectTransaction={setSelectedTransaction} />
+          )}
 
-        {activeTab === 'budgets' && (
-          <BudgetsView onEditCategory={setEditingCategory} />
-        )}
-      </main>
+          {activeTab === 'budgets' && (
+            <BudgetsView onEditCategory={setEditingCategory} />
+          )}
+        </main>
 
-      {/* Floating Layout at Bottom */}
-      <FloatingTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
-      <FloatingActionStack onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+        {/* Floating Bottom Bar (Locked inside Mobile Frame) */}
+        <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex justify-between items-center">
+          <div className="pointer-events-auto">
+            <FloatingTabBar activeTab={activeTab} onChangeTab={setActiveTab} />
+          </div>
+          <div className="pointer-events-auto">
+            <FloatingActionStack onOpenQuickAdd={() => setIsQuickAddOpen(true)} />
+          </div>
+        </div>
 
-      {/* Bottom Sheets */}
-      <QuickAddBottomSheet
-        isOpen={isQuickAddOpen}
-        onClose={() => setIsQuickAddOpen(false)}
-      />
+        {/* Bottom Sheets */}
+        <QuickAddBottomSheet
+          isOpen={isQuickAddOpen}
+          onClose={() => setIsQuickAddOpen(false)}
+        />
 
-      <TransactionDetailBottomSheet
-        transaction={selectedTransaction}
-        onClose={() => setSelectedTransaction(null)}
-      />
+        <TransactionDetailBottomSheet
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
 
-      <BudgetEditBottomSheet
-        category={editingCategory}
-        onClose={() => setEditingCategory(null)}
-      />
+        <BudgetEditBottomSheet
+          category={editingCategory}
+          onClose={() => setEditingCategory(null)}
+        />
+      </div>
     </div>
   );
 }
