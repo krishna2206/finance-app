@@ -40,8 +40,10 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
         isRefreshing={isRefreshing}
       />
 
-      {/* 2. Solde Total Card (Total balance + breakdown of each wallet in small font) */}
-      <WalletBalanceCard />
+      {/* 2. Stat Grid (Solde Total Card taking half width / 1 tile) */}
+      <div className="grid grid-cols-2 gap-3">
+        <WalletBalanceCard />
+      </div>
 
       {/* 3. Section Transactions Récentes */}
       <div className="pt-2">
