@@ -8,30 +8,45 @@ Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native +
 - **Usage Principal** : Utilisé lors des phases de déploiement d'un APK Android autonome ou d'une passerelle native pour intercepter directement les SMS d'opérateurs en tâche de fond.
 - **Mode de Fonctionnement** : Entièrement autonome en local avec `expo-sqlite` ou connecté à l'API du backend.
 
-## 2. Architecture & Choix Technologiques
+## 2. Architecture Système & Interactions
 
 ```
-+-----------------------------------------------------------------------------------+
-|                     APPLICATION MOBILE NATIVE (React Native / Expo)               |
-|                                                                                   |
-|  [ COUCHE UI & NAVIGATION ]                                                       |
-|  - React Native 0.86 + React 19 + Expo SDK 57                                     |
-|  - Expo Router v5 (Navigation par onglets et modales FormSheet)                   |
-|  - Tailwind CSS v4 / NativeWind                                                   |
-|  - Lucide React Native                                                            |
-|                                                                                   |
-|  [ COUCHE CAPTEURS & NATIVE ]                                                     |
-|  - Android BroadcastReceiver (Permissions `RECEIVE_SMS`, `READ_SMS`)              |
-|  - expo-audio (Capture micro pour Gemini STT)                                     |
-|  - expo-image-picker (Appareil photo & galerie pour tickets SCORE)                |
-|  - expo-sqlite (Stockage local offline avec UUID v4)                              |
-|  - expo-updates & EAS Update (Mises à jour à chaud sans réinstallation d'APK)     |
-+-----------------------------------------------------------------------------------+
++------------------------------------------------------------------------------------------------+
+|                            ARCHITECTURE CLIENT MOBILE NATIVE (mobile/)                         |
+|                                                                                                |
+|  [ SYSTÈME D'EXPLOITATION ANDROID ]                                                            |
+|  - Réception SMS réseau cellulaire (034 / MVOLA / AIRTEL)                                      |
+|                                     |                                                          |
+|                                     v Broadcast Event (RECEIVE_SMS)                            |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                            COUCHE NATIVE & CAPTEURS                                      |  |
+|  |  - Android BroadcastReceiver (Ecouteur SMS en tâche de fond)                             |  |
+|  |  - expo-audio (Enregistrement micro pour Gemini STT)                                     |  |
+|  |  - expo-image-picker (Appareil photo pour tickets SCORE)                                 |  |
+|  +----------------------------------------------+-------------------------------------------+  |
+|                                                 |                                              |
+|                                                 v                                              |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                       INTERFACE UTILISATEUR (Expo Router v5)                             |  |
+|  |  - (tabs)/index.tsx (Dashboard, Solde Réel, Reste à Vivre, Cadence)                      |  |
+|  |  - (tabs)/transactions.tsx (Historique chronologique avec filtres)                       |  |
+|  |  - (tabs)/budgets.tsx (Enveloppes et Épargne sanctuarisée)                                |  |
+|  |  - (tabs)/assistant.tsx (AI Assistant avec Tool Calling SQLite)                          |  |
+|  |  - (modals)/quick-add.tsx, scan-receipt.tsx, paste-sms.tsx                               |  |
+|  +----------------------------------------------+-------------------------------------------+  |
+|                                                 |                                              |
+|                                                 v                                              |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                                  GESTION D'ÉTAT & PERSISTANCE                            |  |
+|  |  - Stores Zustand (useWalletStore, useBudgetStore, useTransactionStore)                  |  |
+|  |  - Base relationnelle locale : `expo-sqlite` (finance.db avec UUID v4 immuables)         |  |
+|  +------------------------------------------------------------------------------------------+  |
++------------------------------------------------------------------------------------------------+
 ```
 
-### Justification des Choix Technologiques
+## 3. Choix Technologiques & Justifications
 
-| Composant | Technologie | Justification |
+| Composant | Technologie Choisie | Rôle & Justification Technique |
 | :--- | :--- | :--- |
 | **Framework Mobile** | **Expo SDK 57** | Écosystème natif complet pour Android et iOS. |
 | **Routage** | **Expo Router v5** | Navigation typée basée sur les fichiers et modales natives `formSheet`. |
@@ -40,7 +55,7 @@ Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native +
 | **Audio** | **`expo-audio`** | Module natif Expo 57 pour l'enregistrement audio. |
 | **Mises à Jour** | **EAS Update (`expo-updates`)** | Distribution des correctifs à chaud sur smartphone sans recompiler l'APK. |
 
-## 3. Structure du Répertoire `mobile/`
+## 4. Structure du Répertoire `mobile/`
 
 ```
 mobile/

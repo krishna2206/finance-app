@@ -10,45 +10,64 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 - **Galerie & Scan Style Telegram** : Bottom sheet ouvrant une grille visuelle avec la tuile Caméra en première position suivie des images récentes et de l'import PDF.
 - **Feuilles Glissantes (Bottom Sheets)** : Remplacement de toutes les fenêtres modales classiques par des Bottom Sheets fluides et refermables d'un glissement vers le bas.
 
-## 2. Architecture & Choix Technologiques
+## 2. Architecture Système & Interactions
 
 ```
-+-----------------------------------------------------------------------------------+
-|                        APPLICATION WEB PWA (Vite + React 19)                      |
-|                                                                                   |
-|  [ COUCHE UI & COMPOSANTS ]                                                       |
-|  - React 19 + TypeScript + Vite 6                                                 |
-|  - HeroUI (@heroui/react) : Composants accessibles (Cards, Buttons, Progress)     |
-|  - Heroicons (@heroicons/react) : Pack d'icônes vectorielles standard             |
-|  - Tailwind CSS v4 : Variables de thème sombre et chiffres tabulaires             |
-|  - Framer Motion : Physique de ressorts pour les Bottom Sheets et animations      |
-|  - Recharts / Custom SVG : Graphiques financiers avec dégradés estompés           |
-|                                                                                   |
-|  [ COUCHE ÉTAT & COMMUNICATION ]                                                  |
-|  - Zustand v5 : Stores atomiques en mémoire (wallets, budgets, txns, ai)           |
-|  - Client HTTP : Communication avec l'API backend (`/api/*`)                      |
-|  - Client SSE : Réception temps réel des événements de transaction                |
-|  - Web Audio API : Enregistrement micro direct dans le navigateur                 |
-|  - Service Worker : Mode offline et Web Push notifications                        |
-+-----------------------------------------------------------------------------------+
++------------------------------------------------------------------------------------------------+
+|                             ARCHITECTURE CLIENT WEB PWA (web/)                                 |
+|                                                                                                |
+|  [ UTILISATEUR & GESTES ]                                                                      |
+|  - Clic onglets, Scroll listes, Hold-to-record micro, Drag & drop tickets                      |
+|                                     |                                                          |
+|                                     v                                                          |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                             COUCHE INTERFACE & COMPOSANTS                                |  |
+|  |  - Layout Principal (Floating Tab Bar gauche + Floating Action Stack droite)             |  |
+|  |  - Dashboard & KPI Cards (WalletBalanceCard, DailyBurnCard, CadenceProgressBar)           |  |
+|  |  - Bottom Sheets Flottants (QuickAdd, AttachmentGallery, TransactionDetail, BudgetEdit)  |  |
+|  |  - Feedback Visuel (SmsToastBanner animé Framer Motion, indicateurs de synchronisation)  |  |
+|  +----------------------------------------------+-------------------------------------------+  |
+|                                                 |                                              |
+|                                                 v                                              |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                                  GESTION D'ÉTAT (Zustand v5)                             |  |
+|  |  - useWalletStore (Soldes et décomptes)        - useBudgetStore (Plafonds & Épargne)     |  |
+|  |  - useTransactionStore (Liste & filtres)       - useAiAssistantStore (Chat & Enregistreur)| |
+|  +-----------------------+----------------------+--------------------+----------------------+  |
+|                          |                      |                    |                         |
+|                          v                      v                    v                         |
+|               [ Web Audio API ]      [ HTML5 File & Camera ]  [ Client SSE & HTTP ]            |
+|               (Microphone hold)      (Scan Reçu & OCR)        (EventSource + Fetch)            |
++--------------------------+----------------------+--------------------+-------------------------+
+                           |                      |                    |
+                           |                      |                    |  Requêtes REST & Flux SSE
+                           v                      v                    v
++------------------------------------------------------------------------------------------------+
+|                                    BACKEND API (backend/)                                      |
+|  - Endpoints REST : `/api/wallets`, `/api/budgets`, `/api/transactions`, `/api/ai/*`           |
+|  - Streaming SSE : `GET /api/events` (Transmission instantanée des SMS vers SmsToastBanner)    |
+|  - Base de Données : SQLite locale (`finance.db`)                                              |
++------------------------------------------------------------------------------------------------+
 ```
 
-### Justification des Choix Technologiques
+## 3. Choix Technologiques & Justifications
 
-| Composant | Technologie | Justification |
+| Composant | Technologie Choisie | Rôle & Justification Technique |
 | :--- | :--- | :--- |
-| **Bundler** | **Vite 6** | Démarrage en < 100 ms, Hot Module Replacement (HMR) < 20 ms. |
-| **Framework UI** | **React 19 + TypeScript** | Standard moderne, performance maximale et typage strict. |
-| **Composants UI** | **HeroUI (`@heroui/react`)** | Composants élégants, accessibles et conçus pour le design sombre. |
-| **Pack d'Icônes** | **Heroicons (`@heroicons/react`)** | Icônes SVG optimisées et homogènes. |
-| **Styling** | **Tailwind CSS v4** | Configuration de thème sombre direct (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`). |
-| **Animations** | **Framer Motion** | Physique de ressorts naturelle (`stiffness: 300`, `damping: 24`) pour les Bottom Sheets. |
-| **Graphiques** | **Recharts & Custom SVG** | Courbes de dépenses avec dégradés verticaux estompés (`#34D399` vers transparent). |
-| **Gestion d'État** | **Zustand v5** | Gestion d'état locale ultra-légère (< 1 Ko) sans re-renders superflus. |
-| **Audio** | **Web Audio API (`MediaRecorder`)** | Enregistrement micro direct sans dépendance native. |
-| **PWA** | **Service Worker & Manifest** | Installation plein écran et notifications d'arrière-plan. |
+| **Bundler & Dev Server** | **Vite 6** | Démarrage en moins de 100 ms, Hot Module Replacement (HMR) < 20 ms, zéro blocage de compilation. |
+| **Framework UI** | **React 19 + TypeScript** | Standard moderne, performance maximale et typage strict des modèles de données. |
+| **Bibliothèque UI** | **HeroUI (`@heroui/react`)** | Composants accessibles, élégants et optimisés pour les thèmes sombres (Cards, Buttons, Modals, Progress). |
+| **Pack d'Icônes** | **Heroicons (`@heroicons/react`)** | Icônes vectorielles SVG légères et homogènes (Outline et Solid). |
+| **Moteur de Styling** | **Tailwind CSS v4** | Configuration directe de thème sombre (`#090A0C`), bordures subtiles (`border-white/5`), chiffres tabulaires (`tabular-nums`). |
+| **Moteur d'Animation** | **Framer Motion** | Physique de ressorts naturelle (`stiffness: 300`, `damping: 24`) pour les Bottom Sheets et toasts. |
+| **Graphiques** | **Recharts & Custom SVG** | Courbes de dépenses avec dégradés verticaux estompés (`#34D399` vers transparent) et curseur interactif. |
+| **Gestion d'État** | **Zustand v5** | Gestion d'état locale ultra-légère (< 1 Ko) en mémoire, sans re-renders superflus. |
+| **Entrée Vocale** | **Web Audio API (`MediaRecorder`)** | Capture du microphone dans le navigateur pour la transcription Gemini sans plugin natif. |
+| **Scan de Reçus** | **HTML5 File & Camera API** | Prise de photo ou drag & drop de tickets de caisse avec compression locale. |
+| **Temps Réel** | **Server-Sent Events (`EventSource`)** | Réception instantanée des alertes SMS poussées par le backend. |
+| **PWA & Offline** | **Service Worker & Manifest** | Installation plein écran et notifications d'arrière-plan. |
 
-## 3. Disposition de l'Interface & Floating Actions
+## 4. Disposition de l'Interface & Floating Actions
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -83,7 +102,7 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 +-----------------------------------------------------------------------------------+
 ```
 
-### 3.1 La Tab Bar Flottante (Bas Gauche)
+### 4.1 La Tab Bar Flottante (Bas Gauche)
 - Positionnée en bas à gauche de l'écran avec un fond semi-transparent flouté (`backdrop-blur-md bg-zinc-900/80 border border-white/10`).
 - Contient les 4 onglets principaux :
   1. `[Accueil]` (Dashboard, KPI, Soldes, Cadence).
@@ -91,7 +110,7 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
   3. `[Budgets]` (Enveloppes budgétaires et jauge d'épargne sanctuarisée).
   4. `[Assistant IA]` (Discussion avec l'AI Assistant et Tool Calling).
 
-### 3.2 La Pile d'Actions Flottantes (Bas Droite)
+### 4.2 La Pile d'Actions Flottantes (Bas Droite)
 Ancrée sur le coin inférieur droit, la pile se compose de 3 boutons verticaux :
 
 1. **Bouton Principal `(+)` (Bas)** :
@@ -107,7 +126,7 @@ Ancrée sur le coin inférieur droit, la pile se compose de 3 boutons verticaux 
      - Grille des photos et documents récents.
      - Bouton d'import direct de fichiers PDF ou images.
 
-## 4. Système de Bottom Sheets (Framer Motion)
+## 5. Système de Bottom Sheets (Framer Motion)
 
 Toutes les interactions complexes s'ouvrent sous forme de feuilles glissantes depuis le bas de l'écran avec fond assombri (`backdrop-blur-sm bg-black/60`) :
 
@@ -116,7 +135,7 @@ Toutes les interactions complexes s'ouvrent sous forme de feuilles glissantes de
 3. **`TransactionDetailBottomSheet`** : Fiche détaillée de la transaction avec accordéon des articles scannés (`TransactionItemRow`), lieu (`📍`) et bouton de suppression.
 4. **`BudgetEditBottomSheet`** : Modification rapide du plafond d'une catégorie.
 
-## 5. Structure du Répertoire `web/`
+## 6. Structure Détaillée du Répertoire `web/`
 
 ```
 web/

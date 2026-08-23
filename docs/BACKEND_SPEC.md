@@ -10,43 +10,58 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 - **Diffuseur Temps Réel (SSE)** : Émission instantanée d'événements vers la Web App connectée pour afficher les toasts de confirmation sans rechargement.
 - **Émetteur Web Push (VAPID)** : Chiffrement et expédition de notifications d'arrière-plan vers les serveurs de push (Google FCM / Apple) pour réveiller les appareils même lorsque le navigateur est fermé.
 
-## 2. Architecture & Choix Technologiques
+## 2. Architecture Système & Interactions
 
 ```
-+-----------------------------------------------------------------------------------+
-|                          BACKEND API (Hono / Bun + SQLite)                        |
-|                                                                                   |
-|  [ COUCHE SERVEUR & STREAMING ]                                                   |
-|  - Hono (Framework HTTP TypeScript ultra-rapide, < 1ms de latence)                |
-|  - Bun Runtime (Démarrage instantané < 10ms, moteur TypeScript natif)             |
-|  - Server-Sent Events (SSE) sur `GET /api/events` (Broadcaster temps réel)        |
-|                                                                                   |
-|  [ COUCHE DONNÉES & LOGIQUE MÉTIER ]                                              |
-|  - bun:sqlite (Pilote SQLite natif ultra-performant avec UUID v4 immuables)       |
-|  - Parseur Regex SMS MVola / Airtel + Moteur d'auto-catégorisation en 3 niveaux   |
-|  - Moteur de réconciliation anti-doublon (SMS + Tickets de caisse)               |
-|  - Calculateur de frais MVola et Reste à vivre journalier                         |
-|                                                                                   |
-|  [ COUCHE IA & NOTIFICATIONS PUSH ]                                               |
-|  - Google Gemini 3.1 Flash Lite SDK (Transcription STT, Vision OCR, Tool Calling) |
-|  - web-push (Standard VAPID pour alertes écran de verrouillage avec TTL)          |
-+-----------------------------------------------------------------------------------+
++------------------------------------------------------------------------------------------------+
+|                             ARCHITECTURE DU BACKEND (backend/)                                 |
+|                                                                                                |
+|  [ ÉVÉNEMENT EXTERNE ]                                                                         |
+|  - SMS MVola reçu sur Smartphone -> Passerelle Android (MacroDroid)                            |
+|                                     |                                                          |
+|                                     | Requête HTTP : POST /api/sms/webhook                     |
+|                                     v                                                          |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                             SERVEUR HTTP HONO (Runtime Bun)                              |  |
+|  |                                                                                          |  |
+|  |  [ LOGIQUE MÉTIER & PARSERS ]                                                            |  |
+|  |  - smsParser.ts (Extraction Regex : montant, frais, solde, ref)                          |  |
+|  |  - categoryResolution.ts (Moteur 3 niveaux : Mémoire contact -> Opération -> Imprévus)  |  |
+|  |  - mvolaFeeCalculator.ts (Calculateur de frais officiels)                                 |  |
+|  |  - burnRateCalculator.ts (Moteur du reste à vivre & cadence)                             |  |
+|  |                                                                                          |  |
+|  |  [ PERSISTANCE SQLITE LOCALE ]                                                           |  |
+|  |  - bun:sqlite -> `finance.db` (wallets, categories, transactions, recipients)            |  |
+|  +------------------------------+----------------------------+------------------------------+  |
+|                                 |                            |                                 |
+|                                 v                            v                                 |
+|                      [ BROADCASTER SSE ]           [ SERVICE WEB PUSH ]                        |
+|                      (Flux GET /api/events)        (VAPID web-push)                            |
++---------------------------------+----------------------------+---------------------------------+
+                                  |                            |
+                                  | Événement SSE temps réel   | Notification Push VAPID
+                                  v                            v
++-------------------------------------------------+  +-------------------------------------------+
+|             CLIENT WEB APP PWA (web/)           |  |      SERVEURS GOOGLE FCM / APPLE APNS     |
+|  - Affiche instantanément le SmsToastBanner     |  |  - Réveille le smartphone écran éteint    |
+|  - Met à jour les soldes & le Reste à Vivre     |  |  - Affiche la notification de verrouillage|
++-------------------------------------------------+  +-------------------------------------------+
 ```
 
-### Justification des Choix Technologiques
+## 3. Choix Technologiques & Justifications
 
-| Composant | Technologie | Justification |
+| Composant | Technologie Choisie | Rôle & Justification Technique |
 | :--- | :--- | :--- |
-| **Runtime** | **Bun** | Démarrage en < 10 ms, exécution TypeScript native, pilote SQLite le plus rapide du marché. |
-| **Framework HTTP** | **Hono** | Framework web moderne ultra-léger (< 1 ms d'overhead), typage partagé. |
-| **Base de Données** | **SQLite (`bun:sqlite`)** | Base relationnelle rapide, zéro configuration, transactions ACID. |
-| **Temps Réel** | **Server-Sent Events (SSE)** | Protocole standard HTTP unidirectionnel sans la complexité de WebSocket. |
-| **Notifications Push** | **`web-push` (Standard VAPID)** | Envoi de messages chiffrés avec rétention TTL pour livraison au rallumage. |
-| **Moteur IA** | **Google Gemini 3.1 Flash Lite SDK** | Transcription STT verbatim, vision de reçus et exécution des outils SQLite. |
+| **Runtime** | **Bun** | Démarrage en < 10 ms, exécution TypeScript native sans compilation préalable, pilote SQLite le plus rapide du marché. |
+| **Framework HTTP** | **Hono** | Framework web moderne ultra-léger (< 1 ms d'overhead), typage partagé de bout en bout avec le client. |
+| **Base de Données** | **SQLite (`bun:sqlite`)** | Base relationnelle rapide, zéro configuration, transactions ACID et clés primaires UUID v4. |
+| **Temps Réel** | **Server-Sent Events (SSE)** | Protocole standard HTTP unidirectionnel sans la complexité ni le surcoût de WebSocket. |
+| **Notifications Push** | **`web-push` (Standard VAPID)** | Envoi de messages chiffrés avec rétention TTL pour livraison au rallumage du smartphone. |
+| **Moteur IA** | **Google Gemini 3.1 Flash Lite SDK** | Transcription STT verbatim, vision de reçus et exécution des outils Tool Calling. |
 
-## 3. Spécification Exhaustive des Endpoints API
+## 4. Spécification Exhaustive des Endpoints API
 
-### 3.1 Passerelle SMS & Événements Temps Réel
+### 4.1 Passerelle SMS & Événements Temps Réel
 
 #### `POST /api/sms/webhook`
 - **Description** : Reçoit le texte brut d'un SMS intercepté par le smartphone (via MacroDroid / Tasker).
@@ -87,7 +102,7 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
   - `WALLET_UPDATED` : Mise à jour d'un solde de portefeuille.
   - `BUDGET_ALERT` : Alerte de dépassement de seuil journalier.
 
-### 3.2 Portefeuilles (Wallets)
+### 4.2 Portefeuilles (Wallets)
 
 #### `GET /api/wallets`
 - **Description** : Retourne la liste de tous les portefeuilles avec leurs soldes actuels.
@@ -105,31 +120,16 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 - **Description** : Réajuste manuellement le solde d'un portefeuille.
 - **Body** : `{ "newBalance": 500000 }`
 
-### 3.3 Catégories & Budgets
+### 4.3 Catégories & Budgets
 
 #### `GET /api/categories`
 - **Description** : Retourne toutes les catégories de dépenses et l'objectif d'épargne.
-- **Réponse (200 OK)** :
-  ```json
-  [
-    {
-      "id": "c7b8e1a4-9f2d-4e8b-8a21-3e5f1b9a7c01",
-      "name": "Nourriture & Marché",
-      "type": "EXPENSE",
-      "monthlyBudget": 350000,
-      "color": "#34D399",
-      "icon": "shopping-cart",
-      "isEssential": true,
-      "createdAt": 1755948000000
-    }
-  ]
-  ```
 
 #### `PUT /api/categories/:id/budget`
 - **Description** : Modifie le plafond mensuel d'une catégorie.
 - **Body** : `{ "monthlyBudget": 400000 }`
 
-### 3.4 Transactions
+### 4.4 Transactions
 
 #### `GET /api/transactions?month=YYYY-MM`
 - **Description** : Liste les transactions d'un mois donné ordonnées par date décroissante.
@@ -143,7 +143,7 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 #### `DELETE /api/transactions/:id`
 - **Description** : Supprime une transaction et réajuste automatiquement le solde du portefeuille.
 
-### 3.5 AI Assistant & Multimodal
+### 4.5 AI Assistant & Multimodal
 
 #### `POST /api/ai/transcribe`
 - **Description** : Reçoit un fichier audio base64, applique le prompt STT verbatim et retourne la transcription texte.
@@ -154,7 +154,7 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 #### `POST /api/ai/chat`
 - **Description** : Exécute une session de chat avec injection du contexte financier dynamique et exécution des outils Tool Calling SQLite.
 
-## 4. Structure Détaillée du Répertoire `backend/`
+## 5. Structure Détaillée du Répertoire `backend/`
 
 ```
 backend/
