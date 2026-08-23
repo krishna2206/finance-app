@@ -28,7 +28,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
   const renderCategoryIcon = () => {
     const iconName = category?.icon || 'TagIcon';
-    const color = category?.color || '#A1A1AA';
+    const color = category?.color || '#71717A';
 
     const props = { className: 'w-5 h-5', style: { color } };
     switch (iconName) {
@@ -56,14 +56,14 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   return (
     <div
       onClick={onClick}
-      className={`px-5 py-4 flex items-center justify-between border-b border-white/5 last:border-b-0 transition-colors ${
-        onClick ? 'cursor-pointer hover:bg-white/[0.03] active:bg-white/[0.06]' : ''
+      className={`px-4 py-3.5 flex items-center justify-between border-b border-zinc-100 last:border-b-0 transition-colors ${
+        onClick ? 'cursor-pointer hover:bg-zinc-50 active:bg-zinc-100' : ''
       }`}
     >
-      <div className="flex items-center gap-3.5 flex-1 pr-3">
+      <div className="flex items-center gap-3 flex-1 pr-3">
         {/* Category Icon */}
         <div
-          style={{ backgroundColor: `${category?.color || '#3F3F46'}20` }}
+          style={{ backgroundColor: `${category?.color || '#71717A'}15` }}
           className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
         >
           {renderCategoryIcon()}
@@ -71,24 +71,24 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
         {/* Details */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-100 truncate">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-zinc-900 truncate">
               {transaction.title}
             </span>
 
             {/* Receipt Items Badge */}
             {hasItems && (
-              <span className="inline-flex items-center gap-1 bg-zinc-800 px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-400">
+              <span className="inline-flex items-center gap-0.5 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] font-bold text-emerald-700 border border-emerald-200">
                 <DocumentTextIcon className="w-3 h-3" />
                 <span>{transaction.items?.length}</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 mt-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5">
             <span>{category?.name || 'Catégorie'}</span>
-            <span className="text-zinc-600">•</span>
-            <span className="text-zinc-500 font-medium">{transaction.wallet}</span>
+            <span className="text-zinc-300">•</span>
+            <span className="text-zinc-400 font-medium">{transaction.wallet}</span>
           </div>
 
           {transaction.location?.placeName && (
@@ -99,12 +99,12 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
       {/* Amount & Fees */}
       <div className="text-right shrink-0">
-        <div className={`text-sm font-bold tabular-nums ${isDebit ? 'text-zinc-100' : 'text-emerald-400'}`}>
+        <div className={`text-sm font-bold tabular-nums ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
           {isDebit ? '-' : '+'}{transaction.amount.toLocaleString('fr-FR')} Ar
         </div>
 
         {transaction.feeAmount > 0 && (
-          <div className="text-[10px] font-medium text-amber-400/90 mt-0.5 tabular-nums">
+          <div className="text-[10px] font-medium text-amber-600 mt-0.5 tabular-nums">
             +{transaction.feeAmount.toLocaleString('fr-FR')} Ar frais
           </div>
         )}

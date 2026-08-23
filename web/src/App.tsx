@@ -29,9 +29,9 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050608] flex justify-center selection:bg-emerald-500/30 selection:text-emerald-400">
+    <div className="min-h-screen bg-zinc-100 flex justify-center text-zinc-900 selection:bg-zinc-900 selection:text-white">
       {/* Mobile-Only Frame (Locked in Portrait ~430px width) */}
-      <div className="w-full max-w-[430px] min-h-screen bg-[#090A0C] border-x border-white/5 relative flex flex-col shadow-2xl overflow-x-hidden px-4 pt-4 pb-28">
+      <div className="w-full max-w-[430px] min-h-screen bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col shadow-sm overflow-x-hidden px-4 pt-4 pb-28">
         {/* Active Tab View */}
         <main className="flex-1">
           {activeTab === 'dashboard' && (

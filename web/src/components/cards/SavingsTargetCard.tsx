@@ -14,26 +14,26 @@ export function SavingsTargetCard() {
   return (
     <InsetGroupedCard className="p-5">
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
             <ShieldCheckIcon className="w-5 h-5" />
           </div>
-          <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
             Objectif Épargne du Mois
           </span>
         </div>
-        <span className="text-sm font-bold text-emerald-400 tabular-nums">{percentage}%</span>
+        <span className="text-sm font-bold text-emerald-600 tabular-nums">{percentage}%</span>
       </div>
 
-      <div className="text-2xl font-bold text-zinc-50 tracking-tight tabular-nums my-2">
-        {savingsVaultBalance.toLocaleString('fr-FR')} <span className="text-sm text-zinc-400 font-normal">/ {monthlySavingsTarget.toLocaleString('fr-FR')} Ar</span>
+      <div className="text-2xl font-bold text-zinc-900 tracking-tight tabular-nums my-1.5">
+        {savingsVaultBalance.toLocaleString('fr-FR')} <span className="text-sm text-zinc-500 font-normal">/ {monthlySavingsTarget.toLocaleString('fr-FR')} Ar</span>
       </div>
 
       {/* Progress */}
-      <div className="w-full h-2.5 bg-zinc-800 rounded-full overflow-hidden mt-2">
+      <div className="w-full h-2.5 bg-zinc-200 rounded-full overflow-hidden mt-2">
         <div
           style={{ width: `${percentage}%` }}
-          className="h-full bg-emerald-400 rounded-full transition-all duration-500 ease-out"
+          className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
         />
       </div>
     </InsetGroupedCard>

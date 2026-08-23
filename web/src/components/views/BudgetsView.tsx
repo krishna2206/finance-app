@@ -28,13 +28,13 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
   }, [transactions]);
 
   return (
-    <div className="space-y-6 pb-24 max-w-2xl mx-auto">
+    <div className="space-y-4 pb-20">
       {/* Header */}
-      <div className="py-2">
-        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-widest block">
+      <div className="py-1">
+        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest block">
           Gestion des Enveloppes
         </span>
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-50 tracking-tight">
+        <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
           Budgets & Épargne
         </h1>
       </div>
@@ -44,11 +44,11 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
 
       {/* 2. Enveloppes de Dépenses */}
       <div>
-        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-3 px-1">
+        <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider block mb-2.5 px-1">
           Enveloppes de Dépenses Mensuelles ({expenseCategories.length})
         </span>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {expenseCategories.map(cat => {
             const spent = spendingMap[cat.id] || 0;
             const percentage = cat.monthlyBudget > 0
@@ -60,19 +60,19 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
             return (
               <InsetGroupedCard
                 key={cat.id}
-                className="p-5 transition-all hover:border-white/10"
+                className="p-4 transition-all hover:border-zinc-300"
               >
-                <div className="flex justify-between items-center mb-2">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex justify-between items-center mb-1.5">
+                  <div className="flex items-center gap-2">
                     <span
                       style={{ backgroundColor: cat.color }}
-                      className="w-3 h-3 rounded-full inline-block"
+                      className="w-2.5 h-2.5 rounded-full inline-block"
                     />
-                    <span className="text-sm font-bold text-zinc-100">
+                    <span className="text-sm font-bold text-zinc-900">
                       {cat.name}
                     </span>
                     {cat.isEssential && (
-                      <span className="bg-zinc-800 px-2 py-0.5 rounded text-[10px] text-zinc-400 font-semibold uppercase">
+                      <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] text-zinc-500 font-semibold uppercase border border-zinc-200">
                         Fixe
                       </span>
                     )}
@@ -81,28 +81,28 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
                   <button
                     onClick={() => onEditCategory(cat)}
                     title="Modifier le budget"
-                    className="p-1.5 rounded-full hover:bg-white/5 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                    className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
                   >
                     <PencilSquareIcon className="w-4 h-4" />
                   </button>
                 </div>
 
                 {/* Amounts */}
-                <div className="flex justify-between items-baseline text-xs text-zinc-400 my-1">
+                <div className="flex justify-between items-baseline text-xs text-zinc-500 my-1">
                   <span>
-                    Dépensé : <strong className="text-zinc-200 tabular-nums">{spent.toLocaleString('fr-FR')} Ar</strong>
+                    Dépensé : <strong className="text-zinc-800 tabular-nums">{spent.toLocaleString('fr-FR')} Ar</strong>
                   </span>
                   <span>
-                    Plafond : <strong className="text-zinc-200 tabular-nums">{cat.monthlyBudget.toLocaleString('fr-FR')} Ar</strong>
+                    Plafond : <strong className="text-zinc-800 tabular-nums">{cat.monthlyBudget.toLocaleString('fr-FR')} Ar</strong>
                   </span>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden my-2">
+                <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden my-1.5 border border-zinc-200/50">
                   <div
                     style={{
                       width: `${percentage}%`,
-                      backgroundColor: isOverBudget ? '#FB7185' : cat.color,
+                      backgroundColor: isOverBudget ? '#F43F5E' : cat.color,
                     }}
                     className="h-full rounded-full transition-all duration-500 ease-out"
                   />
@@ -110,10 +110,10 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
 
                 {/* Status Footer */}
                 <div className="flex justify-between items-center text-[10px]">
-                  <span className="text-zinc-500 tabular-nums">
+                  <span className="text-zinc-400 tabular-nums">
                     {percentage}% consommé
                   </span>
-                  <span className={`font-semibold tabular-nums ${isOverBudget ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  <span className={`font-semibold tabular-nums ${isOverBudget ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {isOverBudget
                       ? `Dépassement de ${Math.abs(remaining).toLocaleString('fr-FR')} Ar`
                       : `Reste : ${remaining.toLocaleString('fr-FR')} Ar`}

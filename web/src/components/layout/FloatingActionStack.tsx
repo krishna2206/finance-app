@@ -11,7 +11,7 @@ export function FloatingActionStack({ onOpenQuickAdd }: FloatingActionStackProps
       <button
         onClick={onOpenQuickAdd}
         title="Ajouter une dépense"
-        className="w-13 h-13 rounded-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-zinc-950 flex items-center justify-center shadow-2xl shadow-emerald-500/30 transition-all duration-200 cursor-pointer"
+        className="w-13 h-13 rounded-full bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white flex items-center justify-center shadow-xl shadow-zinc-900/25 transition-all duration-150 cursor-pointer"
       >
         <PlusIcon className="w-6 h-6 stroke-[2.5]" />
       </button>

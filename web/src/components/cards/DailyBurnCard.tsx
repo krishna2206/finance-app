@@ -11,9 +11,9 @@ export function DailyBurnCard({ metrics }: DailyBurnCardProps) {
 
   return (
     <InsetGroupedCard className="p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isHealthy ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isHealthy ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
             {isHealthy ? (
               <CheckCircleIcon className="w-5 h-5" />
             ) : (
@@ -21,10 +21,10 @@ export function DailyBurnCard({ metrics }: DailyBurnCardProps) {
             )}
           </div>
           <div>
-            <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+            <div className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
               Reste à Vivre Quotidien
             </div>
-            <div className="text-xs text-zinc-500 font-medium">
+            <div className="text-xs text-zinc-400 font-medium">
               Pour les {metrics.remainingDays} jours restants du mois
             </div>
           </div>
@@ -32,11 +32,11 @@ export function DailyBurnCard({ metrics }: DailyBurnCardProps) {
       </div>
 
       <div className="flex items-baseline justify-between">
-        <div className="text-3xl font-bold text-zinc-50 tracking-tight tabular-nums">
-          {metrics.dailyBurnRate.toLocaleString('fr-FR')} <span className="text-xl text-zinc-400 font-semibold">Ar/j</span>
+        <div className="text-3xl font-bold text-zinc-900 tracking-tight tabular-nums">
+          {metrics.dailyBurnRate.toLocaleString('fr-FR')} <span className="text-xl text-zinc-500 font-semibold">Ar/j</span>
         </div>
 
-        <div className={`px-3 py-1 rounded-full text-xs font-semibold ${metrics.isAhead ? 'bg-emerald-500/15 text-emerald-400' : 'bg-rose-500/15 text-rose-400'}`}>
+        <div className={`px-2.5 py-1 rounded-full text-xs font-semibold ${metrics.isAhead ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
           {metrics.isAhead ? `+${metrics.deltaPercentage}% avance` : `-${metrics.deltaPercentage}% surconsommation`}
         </div>
       </div>

@@ -44,19 +44,19 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
   };
 
   return (
-    <div className="space-y-4 pb-24 max-w-2xl mx-auto">
+    <div className="space-y-4 pb-20">
       {/* Header */}
-      <div className="py-2">
-        <span className="text-xs font-semibold text-zinc-500 uppercase tracking-widest block">
+      <div className="py-1">
+        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest block">
           Grand Livre
         </span>
-        <h1 className="text-2xl sm:text-3xl font-bold text-zinc-50 tracking-tight">
+        <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
           Historique ({filteredTransactions.length})
         </h1>
       </div>
 
       {/* Filter Tabs (Apple Inset Style) */}
-      <div className="flex gap-2 p-1.5 bg-[#13151A] rounded-2xl border border-white/5 w-fit">
+      <div className="flex gap-1.5 p-1 bg-white rounded-2xl border border-zinc-200/80 shadow-xs w-fit">
         {(['ALL', 'EXPENSE', 'INCOME', 'TRANSFER'] as const).map(f => {
           const isActive = filter === f;
           const label = f === 'ALL' ? 'Tous' : f === 'EXPENSE' ? 'Dépenses' : f === 'INCOME' ? 'Entrées' : 'Transferts';
@@ -64,10 +64,10 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-zinc-100 text-zinc-950 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
+                  ? 'bg-zinc-900 text-white shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
               }`}
             >
               {label}
@@ -79,14 +79,14 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
       {/* Grouped Lists */}
       {Object.keys(groupedTransactions).length === 0 ? (
         <InsetGroupedCard className="p-8 text-center">
-          <p className="text-xs text-zinc-500 font-medium">
+          <p className="text-xs text-zinc-400 font-medium">
             Aucune transaction trouvée pour ce filtre.
           </p>
         </InsetGroupedCard>
       ) : (
         Object.entries(groupedTransactions).map(([dateKey, txns]) => (
-          <div key={dateKey} className="space-y-2">
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1 block capitalize">
+          <div key={dateKey} className="space-y-1.5">
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1 block capitalize">
               {formatDateLabel(dateKey)}
             </span>
             <InsetGroupedCard>
