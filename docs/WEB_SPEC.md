@@ -1,10 +1,13 @@
 # Spécification Technique & UI/UX : Frontend Web App PWA (`web/`)
 
-Ce document définit l'architecture, les choix technologiques, le design system et la structure détaillée de l'application Web PWA.
+Ce document définit l'architecture, les choix technologiques, le design system et la structure détaillée de l'application Web PWA, avec une parité visuelle et fonctionnelle totale avec le client mobile.
 
 ## 1. Description & Vision du Client Web
 
-L'application Web PWA constitue l'interface utilisateur interactive principale. Elle adopte les standards de design des applications modernes (style Linear, Apple Wallet, Raycast) avec un thème sombre feutré, une typographie monétaire tabulaire et une disposition ergonomique pensée pour une utilisation rapide à une main :
+L'application Web PWA constitue l'interface utilisateur interactive principale. Elle adopte les standards de design d'Apple (style Apple Wallet, Inset Grouped Cards, Linear, Raycast) avec un thème sombre feutré, une typographie monétaire tabulaire et une disposition ergonomique pensée pour une utilisation rapide à une main :
+- **Uniformité UI/UX Totale** : Même identité visuelle, mêmes composants, mêmes interactions tactiles et même disposition sur Web et sur Mobile.
+- **1 Statistique = 1 Carte Dédiée** : Chaque KPI financier dispose de sa propre carte autonome pour une lisibilité et un scan visuel instantanés.
+- **Cartes Inset Grouped Style Apple (ListGroup / Cell Group)** : Les boutons d'actions liés, les filtres et les sélecteurs sont regroupés au sein de conteneurs arrondis feutrés avec séparateurs subtils de 1px.
 - **Navigation Flottante Découplée** : Barre d'onglets flottante ancrée en bas à gauche et pile d'actions rapides ancrée en bas à droite.
 - **Micro Vocal Style Telegram** : Bouton d'enregistrement avec interaction "maintenir pour parler", onde sonore animée et transcription instantanée.
 - **Galerie & Scan Style Telegram** : Bottom sheet ouvrant une grille visuelle avec la tuile Caméra en première position suivie des images récentes et de l'import PDF.
@@ -23,7 +26,8 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 |  +------------------------------------------------------------------------------------------+  |
 |  |                             COUCHE INTERFACE & COMPOSANTS                                |  |
 |  |  - Layout Principal (Floating Tab Bar gauche + Floating Action Stack droite)             |  |
-|  |  - Dashboard & KPI Cards (WalletBalanceCard, DailyBurnCard, CadenceProgressBar)           |  |
+|  |  - Cartes Statistiques Dédiées (Solde, Reste à Vivre, Cadence, Épargne, Frais)           |  |
+|  |  - Conteneurs Inset Grouped Cards (Boutons d'action, sélecteurs, filtres)                 |  |
 |  |  - Bottom Sheets Flottants (QuickAdd, AttachmentGallery, TransactionDetail, BudgetEdit)  |  |
 |  |  - Feedback Visuel (SmsToastBanner animé Framer Motion, indicateurs de synchronisation)  |  |
 |  +----------------------------------------------+-------------------------------------------+  |
@@ -67,7 +71,7 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 | **Temps Réel** | **Server-Sent Events (`EventSource`)** | Réception instantanée des alertes SMS poussées par le backend. |
 | **PWA & Offline** | **Service Worker & Manifest** | Installation plein écran et notifications d'arrière-plan. |
 
-## 4. Disposition de l'Interface & Floating Actions
+## 4. Disposition de l'Interface & Système de Cartes Dédiées
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -75,19 +79,30 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 |                                                                                   |
 |  [ EN-TÊTE ] : Salutation, date et statut de synchronisation                      |
 |                                                                                   |
-|  [ CARTE 1 : SOLDE RÉEL DISPONIBLE ]                                              |
+|  [ CARTE 1 : SOLDE RÉEL DISPONIBLE ] (Card Dédiée)                                |
 |  - Solde Total consolidé : 839 500 Ar                                             |
-|  - Ventilation : [ MVola : 474 500 Ar ] [ Espèces : 365 000 Ar ] [ Épargne ]      |
+|  - Inset Grouped Row : [ MVola : 474 500 Ar ] [ Espèces : 365 000 Ar ]           |
 |                                                                                   |
-|  [ CARTE 2 : RESTE À VIVRE JOURNALIER ]                                           |
+|  [ CARTE 2 : RESTE À VIVRE JOURNALIER ] (Card Dédiée)                             |
 |  - Reste journalier : 14 500 Ar/j pour les 11 jours restants                      |
+|  - Badge statut : +18% d'avance                                                   |
 |                                                                                   |
-|  [ CARTE 3 : BARRE DE CADENCE BUDGÉTAIRE ]                                        |
+|  [ CARTE 3 : BARRE DE CADENCE BUDGÉTAIRE ] (Card Dédiée)                          |
 |  - [==========================              |                              ]      |
 |    0%                        45%            66% (Jour 20/30)            100%      |
 |                                                                                   |
-|  [ LISTE DES RÉCENTES DÉPENSES ]                                                  |
-|  - Rangées de transactions avec badge `🧾 N` et bouton "Voir tout"                |
+|  [ CARTE 4 : OBJECTIF ÉPARGNE SANCTUARISÉE ] (Card Dédiée)                        |
+|  - 100 000 / 150 000 Ar (66% sécurisé)                                            |
+|                                                                                   |
+|  [ CARTE 5 : COMPTEUR FRAIS MOBILES ] (Card Dédiée)                               |
+|  - 5 500 Ar de frais de retrait/transfert ce mois                                 |
+|                                                                                   |
+|  [ SECTION RÉCENTES DÉPENSES (Inset Grouped Card) ]                               |
+|  +-----------------------------------------------------------------------------+  |
+|  | Supermarché SCORE - Digue ....................................... 48 500 Ar |  |
+|  | Déjeuner Snack .................................................. 12 000 Ar |  |
+|  | Abonnement Wifi ................................................ 100 000 Ar |  |
+|  +-----------------------------------------------------------------------------+  |
 |                                                                                   |
 |  ===============================================================================  |
 |  [ DISPOSITION DU BAS (NAVIGATION & PILE D'ACTIONS FLOTTANTES) ]                  |
@@ -102,25 +117,31 @@ L'application Web PWA constitue l'interface utilisateur interactive principale. 
 +-----------------------------------------------------------------------------------+
 ```
 
-### 4.1 La Tab Bar Flottante (Bas Gauche)
-- Positionnée en bas à gauche de l'écran avec un fond semi-transparent flouté (`backdrop-blur-md bg-zinc-900/80 border border-white/10`).
+### 4.1 Modèle Inset Grouped Cards (Style Apple HIG)
+Les éléments d'action et les rangées d'information connexes sont rassemblés dans des conteneurs `Inset Grouped Cards` :
+- **Conteneur** : `bg-zinc-900/80 rounded-3xl border border-white/5 overflow-hidden`.
+- **Lignes Intérieures (Cells)** : Séparées par un liseré fin de 1px (`border-b border-white/5 last:border-b-0`).
+- **Comportement Tactile** : Retour visuel opacifié (`active:bg-white/5`) et retours haptiques sur mobile.
+
+### 4.2 La Tab Bar Flottante (Bas Gauche)
+- Positionnée en bas à gauche avec fond semi-transparent flouté (`backdrop-blur-md bg-zinc-900/80 border border-white/10 rounded-full`).
 - Contient les 4 onglets principaux :
-  1. `[Accueil]` (Dashboard, KPI, Soldes, Cadence).
-  2. `[Historique]` (Grand livre chronologique avec filtres Dépenses / Entrées / Transferts).
+  1. `[Accueil]` (Dashboard et KPI Cards).
+  2. `[Historique]` (Grand livre chronologique en Inset Grouped List avec filtres).
   3. `[Budgets]` (Enveloppes budgétaires et jauge d'épargne sanctuarisée).
   4. `[Assistant IA]` (Discussion avec l'AI Assistant et Tool Calling).
 
-### 4.2 La Pile d'Actions Flottantes (Bas Droite)
+### 4.3 La Pile d'Actions Flottantes (Bas Droite)
 Ancrée sur le coin inférieur droit, la pile se compose de 3 boutons verticaux :
 
 1. **Bouton Principal `(+)` (Bas)** :
-   - Bouton rond émeraude (`w-14 h-14 bg-emerald-500 text-zinc-950`).
+   - Bouton rond émeraude (`w-14 h-14 bg-emerald-500 text-zinc-950 rounded-full shadow-xl shadow-emerald-500/20`).
    - Un simple tap ouvre le **Bottom Sheet de Saisie Flash Rapide** (< 3 secondes avec clavier numérique et calculateur de frais MVola).
 2. **Bouton Micro Vocal `[🎙️]` (Au-dessus du `(+)`)** :
-   - Bouton rond feutré (`w-12 h-12 bg-zinc-900 border border-white/10`).
+   - Bouton rond feutré (`w-12 h-12 bg-zinc-900 border border-white/10 rounded-full shadow-lg`).
    - **Interaction Style Telegram** : Maintenir le bouton enfoncé déclenche l'enregistrement audio avec onde sonore pulsante. Le relâchement envoie immédiatement l'audio pour transcription Gemini STT et enregistrement automatique de la dépense.
 3. **Bouton Pièce Jointe / Scanner `[📷]` (Au-dessus du micro)** :
-   - Bouton rond feutré (`w-12 h-12 bg-zinc-900 border border-white/10`).
+   - Bouton rond feutré (`w-12 h-12 bg-zinc-900 border border-white/10 rounded-full shadow-lg`).
    - Un tap ouvre le **Bottom Sheet Galerie Style Telegram** :
      - Première case : **Tuile Caméra active** pour photographier un ticket de caisse en direct.
      - Grille des photos et documents récents.
@@ -130,7 +151,7 @@ Ancrée sur le coin inférieur droit, la pile se compose de 3 boutons verticaux 
 
 Toutes les interactions complexes s'ouvrent sous forme de feuilles glissantes depuis le bas de l'écran avec fond assombri (`backdrop-blur-sm bg-black/60`) :
 
-1. **`QuickAddBottomSheet`** : Formulaire de saisie flash (Montant en gros chiffres, sélection du portefeuille Cash/MVola, calculateur de frais et sélection de catégorie).
+1. **`QuickAddBottomSheet`** : Formulaire de saisie flash (Montant en gros chiffres, Inset Grouped Row pour la sélection du portefeuille Cash/MVola, calculateur de frais et sélection de catégorie).
 2. **`AttachmentGalleryBottomSheet`** : Galerie d'images et caméra pour l'envoi de reçus SCORE et factures PDF.
 3. **`TransactionDetailBottomSheet`** : Fiche détaillée de la transaction avec accordéon des articles scannés (`TransactionItemRow`), lieu (`📍`) et bouton de suppression.
 4. **`BudgetEditBottomSheet`** : Modification rapide du plafond d'une catégorie.
@@ -178,12 +199,15 @@ web/
         │   ├── FloatingTabBar.tsx          # Barre d'onglets flottante en bas à gauche
         │   └── FloatingActionStack.tsx     # Pile des 3 boutons d'actions en bas à droite
         ├── cards/
-        │   ├── WalletBalanceCard.tsx       # Carte triptyque Solde Réel (MVola vs Espèces)
-        │   ├── DailyBurnCard.tsx           # Carte du Reste à Vivre Journalier dynamique
-        │   └── SavingsTargetCard.tsx       # Jauge de progression de l'épargne sanctuarisée
+        │   ├── WalletBalanceCard.tsx       # Carte Dédiée : Solde Réel (MVola vs Espèces)
+        │   ├── DailyBurnCard.tsx           # Carte Dédiée : Reste à Vivre Journalier dynamique
+        │   ├── SavingsTargetCard.tsx       # Carte Dédiée : Progression de l'épargne sanctuarisée
+        │   └── MonthlyFeesCard.tsx         # Carte Dédiée : Compteur des frais Mobile Money
         ├── charts/
         │   ├── CadenceProgressBar.tsx      # Jauge avec marqueur temporel vertical Jour J (`|`)
         │   └── SpendingGradientChart.tsx   # Courbe Recharts avec dégradé émeraude estompé
+        ├── common/
+        │   └── InsetGroupedCard.tsx        # Conteneur Inset Grouped style Apple
         ├── transactions/
         │   ├── TransactionRow.tsx          # Ligne de transaction avec badge `🧾 N` et icône
         │   ├── TransactionItemRow.tsx      # Rangée d'article individuel (quantité, prix)

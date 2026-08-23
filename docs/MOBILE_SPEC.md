@@ -5,7 +5,8 @@ Ce document définit l'architecture, la configuration et le fonctionnement de l'
 ## 1. Description & Rôle du Module Mobile
 
 Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native + TypeScript)** :
-- **Usage Principal** : Utilisé lors des phases de déploiement d'un APK Android autonome ou d'une passerelle native pour intercepter directement les SMS d'opérateurs en tâche de fond.
+- **Parité Visuelle & UX Totale avec le Web** : Même disposition (Floating Tab Bar bas gauche, Floating Action Stack bas droite), même thème sombre obsidienne, cartes statistiques dédiées et conteneurs Inset Grouped style Apple.
+- **Usage Principal** : Utilisé lors des phases de déploiement d'un APK Android autonome ou d'une passerelle native pour intercepter directement les SMS d'opérateurs en tâche de fond (`RECEIVE_SMS`).
 - **Mode de Fonctionnement** : Entièrement autonome en local avec `expo-sqlite` ou connecté à l'API du backend.
 
 ## 2. Architecture Système & Interactions
@@ -20,19 +21,18 @@ Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native +
 |                                     v Broadcast Event (RECEIVE_SMS)                            |
 |  +------------------------------------------------------------------------------------------+  |
 |  |                            COUCHE NATIVE & CAPTEURS                                      |  |
-|  |  - Android BroadcastReceiver (Ecouteur SMS en tâche de fond)                             |  |
+|  |  - Android BroadcastReceiver (Écouteur SMS en tâche de fond)                             |  |
 |  |  - expo-audio (Enregistrement micro pour Gemini STT)                                     |  |
 |  |  - expo-image-picker (Appareil photo pour tickets SCORE)                                 |  |
 |  +----------------------------------------------+-------------------------------------------+  |
 |                                                 |                                              |
 |                                                 v                                              |
 |  +------------------------------------------------------------------------------------------+  |
-|  |                       INTERFACE UTILISATEUR (Expo Router v5)                             |  |
-|  |  - (tabs)/index.tsx (Dashboard, Solde Réel, Reste à Vivre, Cadence)                      |  |
-|  |  - (tabs)/transactions.tsx (Historique chronologique avec filtres)                       |  |
-|  |  - (tabs)/budgets.tsx (Enveloppes et Épargne sanctuarisée)                                |  |
-|  |  - (tabs)/assistant.tsx (AI Assistant avec Tool Calling SQLite)                          |  |
-|  |  - (modals)/quick-add.tsx, scan-receipt.tsx, paste-sms.tsx                               |  |
+|  |                       INTERFACE UTILISATEUR UNIFIÉE (Expo Router v5)                     |  |
+|  |  - Cartes Statistiques Dédiées (Solde Réel, Reste à Vivre, Cadence, Épargne, Frais)      |  |
+|  |  - Inset Grouped Cards (Style Apple HIG pour les actions communes et listes)              |  |
+|  |  - Floating Tab Bar gauche & Floating Action Stack droite (Micro hold & Scan Telegram)   |  |
+|  |  - Bottom Sheets natifs (QuickAdd, AttachmentGallery, TransactionDetail)                 |  |
 |  +----------------------------------------------+-------------------------------------------+  |
 |                                                 |                                              |
 |                                                 v                                              |
@@ -74,7 +74,7 @@ mobile/
 │   │   ├── transactions.tsx
 │   │   ├── budgets.tsx
 │   │   └── assistant.tsx
-│   ├── (modals)/                           # Modales glissantes
+│   ├── (modals)/                           # Modales / Bottom Sheets glissantes
 │   │   ├── quick-add.tsx                   # Saisie flash rapide
 │   │   ├── scan-receipt.tsx                # Scan de tickets de caisse SCORE
 │   │   └── paste-sms.tsx                   # Simulateur de test SMS
@@ -87,6 +87,12 @@ mobile/
 │   ├── stores/                             # Stores réactifs Zustand
 │   ├── services/                           # Logique métier (frais MVola, reste à vivre, parseur SMS)
 │   ├── components/                         # Composants UI React Native
+│   │   ├── cards/                          # Cartes dédiées (Solde, Reste à Vivre, Épargne, Frais)
+│   │   ├── charts/                         # CadenceProgressBar avec seuil Jour J (`|`)
+│   │   ├── common/                         # InsetGroupedCard style Apple
+│   │   ├── layout/                         # FloatingTabBar, FloatingActionStack
+│   │   ├── transactions/                   # TransactionRow, TransactionItemRow
+│   │   └── voice/                          # VoiceRecordButton (Hold to record)
 │   ├── styles/                             # global.css
 │   └── types/                              # Types TypeScript
 │
