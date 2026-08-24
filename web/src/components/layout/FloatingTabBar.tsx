@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import {
   Squares2X2Icon,
   ReceiptPercentIcon,
@@ -39,7 +40,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
   ];
 
   return (
-    <nav className="h-14 w-full bg-white/95 backdrop-blur-xl border border-zinc-200/90 px-1 rounded-full shadow-lg shadow-zinc-900/10 flex items-center justify-between gap-1">
+    <nav className="h-14 w-full bg-white/80 backdrop-blur-2xl border border-zinc-200/80 p-1.5 rounded-full shadow-lg shadow-zinc-900/10 flex items-center justify-between gap-1 relative">
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         const Icon = isActive ? tab.solidIcon : tab.outlineIcon;
@@ -47,14 +48,23 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
           <button
             key={tab.id}
             onClick={() => onChangeTab(tab.id)}
-            className={`h-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 rounded-full transition-all duration-150 cursor-pointer ${
-              isActive
-                ? 'bg-zinc-900 text-white font-medium shadow-xs'
-                : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100/70'
-            }`}
+            className="relative h-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 rounded-full cursor-pointer select-none focus:outline-none"
           >
-            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
-            <span className="text-[11px] font-semibold truncate">{tab.label}</span>
+            {/* Sliding Pill Background Indicator */}
+            {isActive && (
+              <motion.div
+                layoutId="activeTabPill"
+                className="absolute inset-0 bg-zinc-900 rounded-full shadow-xs transform-gpu will-change-transform"
+                transition={{ type: 'spring', damping: 26, stiffness: 450 }}
+              />
+            )}
+
+            <div className="relative z-10 flex items-center justify-center gap-1.5 min-w-0">
+              <Icon className={`w-4 h-4 shrink-0 transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
+              <span className={`text-[11px] font-semibold truncate transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`}>
+                {tab.label}
+              </span>
+            </div>
           </button>
         );
       })}

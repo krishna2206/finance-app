@@ -46,8 +46,9 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/40 backdrop-blur-xs cursor-pointer pointer-events-auto"
+          className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
         />
 
         {/* Native Bottom Sheet Card - Anchored Flush at Bottom, Matching Mobile Frame Width (max-w-[430px]) */}
@@ -55,14 +56,14 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 pointer-events-auto text-zinc-900"
+          transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
+          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
         >
           {/* Grabber */}
           <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
 
           {/* Header */}
-          <div className="flex justify-between items-center pb-3 border-b border-zinc-100 mb-4">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-base font-bold text-zinc-900 tracking-tight">
               Modifier le budget : {category.name}
             </h2>

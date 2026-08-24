@@ -2,14 +2,14 @@ import { Bars3Icon, UserCircleIcon, ArrowPathIcon } from '@heroicons/react/24/ou
 
 interface DashboardHeaderProps {
   userName?: string;
-  userEmail?: string;
+  userSubtitle?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
 }
 
 export function DashboardHeader({
-  userName = 'Rakoto Rabe',
-  userEmail = 'solde@finance.mg',
+  userName = 'Utilisateur',
+  userSubtitle,
   onRefresh,
   isRefreshing = false,
 }: DashboardHeaderProps) {
@@ -25,9 +25,11 @@ export function DashboardHeader({
           <h1 className="text-sm font-bold text-zinc-900 tracking-tight leading-tight">
             {userName}
           </h1>
-          <p className="text-[11px] text-zinc-500 font-medium leading-tight">
-            {userEmail}
-          </p>
+          {userSubtitle && (
+            <p className="text-[11px] text-zinc-500 font-medium leading-tight mt-0.5">
+              {userSubtitle}
+            </p>
+          )}
         </div>
       </div>
 

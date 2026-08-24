@@ -1,10 +1,15 @@
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { ShieldCheckIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 
-export function SavingsTargetCard() {
+interface SavingsTargetCardProps {
+  onDeposit?: () => void;
+  onWithdraw?: () => void;
+}
+
+export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardProps) {
   const savingsVaultBalance = useWalletStore(state => state.wallets.SAVINGS_VAULT?.balance || 0);
   const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
 
@@ -16,11 +21,11 @@ export function SavingsTargetCard() {
     <InsetGroupedCard className="p-5">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-            <ShieldCheckIcon className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+            <ShieldCheckIcon className="w-4 h-4" />
           </div>
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-            Objectif Épargne du Mois
+            Coffre Épargne & Réserve
           </span>
         </div>
         <span className="text-sm font-bold text-emerald-600 tabular-nums">{percentage}%</span>
@@ -31,11 +36,32 @@ export function SavingsTargetCard() {
       </div>
 
       {/* Progress */}
-      <div className="w-full h-2.5 bg-zinc-200 rounded-full overflow-hidden mt-2">
+      <div className="w-full h-2.5 bg-zinc-100 rounded-full overflow-hidden mt-2 border border-zinc-200/60">
         <div
           style={{ width: `${percentage}%` }}
           className="h-full bg-emerald-500 rounded-full transition-all duration-500 ease-out"
         />
+      </div>
+
+      {/* Actions */}
+      <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-zinc-100">
+        <button
+          type="button"
+          onClick={onDeposit}
+          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-800 text-xs font-bold transition-all cursor-pointer"
+        >
+          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+          <span>Verser</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onWithdraw}
+          className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold transition-all cursor-pointer"
+        >
+          <ArrowUpTrayIcon className="w-3.5 h-3.5 text-zinc-500" />
+          <span>Débloquer</span>
+        </button>
       </div>
     </InsetGroupedCard>
   );

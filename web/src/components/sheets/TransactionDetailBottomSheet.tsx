@@ -4,15 +4,13 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionItemRow } from '../transactions/TransactionItemRow';
 import { LocationBadge } from '../transactions/LocationBadge';
+import { WalletLogo } from '../common/WalletLogo';
 import { InsetGroupedCard, InsetGroupedRow } from '../common/InsetGroupedCard';
 import { formatAmount, formatCurrency, formatWalletName } from '../../utils/formatters';
 import {
   XMarkIcon,
   TrashIcon,
   CalendarIcon,
-  DevicePhoneMobileIcon,
-  BanknotesIcon,
-  BuildingLibraryIcon,
   TagIcon,
   ShoppingBagIcon,
   ShoppingCartIcon,
@@ -49,38 +47,48 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
   const renderCategoryIcon = () => {
     const iconName = category?.icon || 'TagIcon';
     const color = category?.color || '#10B981';
-    const props = { className: 'w-4 h-4', style: { color } };
+    const props = { className: 'w-3.5 h-3.5 text-white' };
 
+    let iconElement = <TagIcon {...props} />;
     switch (iconName) {
       case 'ShoppingCartIcon':
-        return <ShoppingCartIcon {...props} />;
+        iconElement = <ShoppingCartIcon {...props} />;
+        break;
       case 'HomeIcon':
-        return <HomeIcon {...props} />;
+        iconElement = <HomeIcon {...props} />;
+        break;
       case 'TruckIcon':
-        return <TruckIcon {...props} />;
+        iconElement = <TruckIcon {...props} />;
+        break;
       case 'SignalIcon':
-        return <SignalIcon {...props} />;
+        iconElement = <SignalIcon {...props} />;
+        break;
       case 'SparklesIcon':
-        return <SparklesIcon {...props} />;
+        iconElement = <SparklesIcon {...props} />;
+        break;
       case 'ExclamationTriangleIcon':
-        return <ExclamationTriangleIcon {...props} />;
+        iconElement = <ExclamationTriangleIcon {...props} />;
+        break;
       case 'CreditCardIcon':
-        return <CreditCardIcon {...props} />;
+        iconElement = <CreditCardIcon {...props} />;
+        break;
       case 'ShieldCheckIcon':
-        return <ShieldCheckIcon {...props} />;
-      default:
-        return <TagIcon {...props} />;
+        iconElement = <ShieldCheckIcon {...props} />;
+        break;
     }
+
+    return (
+      <div
+        style={{ backgroundColor: color }}
+        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs"
+      >
+        {iconElement}
+      </div>
+    );
   };
 
   const renderWalletIcon = () => {
-    const w = transaction.wallet;
-    if (w === 'MVOLA') return <DevicePhoneMobileIcon className="w-4 h-4 text-amber-500" />;
-    if (w === 'AIRTEL_MONEY') return <DevicePhoneMobileIcon className="w-4 h-4 text-rose-500" />;
-    if (w === 'CASH') return <BanknotesIcon className="w-4 h-4 text-emerald-500" />;
-    if (w === 'BANK') return <BuildingLibraryIcon className="w-4 h-4 text-blue-500" />;
-    if (w === 'SAVINGS_VAULT') return <ShieldCheckIcon className="w-4 h-4 text-teal-500" />;
-    return <DevicePhoneMobileIcon className="w-4 h-4 text-zinc-500" />;
+    return <WalletLogo id={transaction.wallet} name={transaction.wallet} size="sm" />;
   };
 
   return (
@@ -91,8 +99,9 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/40 backdrop-blur-xs cursor-pointer pointer-events-auto"
+          className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
         />
 
         {/* Native Bottom Sheet Card - Anchored Flush at Bottom, Matching Mobile Frame Width (max-w-[430px]) */}
@@ -100,14 +109,14 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
-          transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900"
+          transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
+          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
         >
           {/* Grabber */}
           <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
 
           {/* Header */}
-          <div className="flex justify-between items-center pb-3 border-b border-zinc-100 mb-4">
+          <div className="flex justify-between items-center mb-2">
             <h2 className="text-base font-bold text-zinc-900 tracking-tight">
               Détail de l'opération
             </h2>
@@ -128,23 +137,23 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </div>
           </div>
 
-          {/* Hero Amount */}
-          <div className="text-center py-4 bg-zinc-50 rounded-2xl border border-zinc-200/80 mb-4">
-            <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
+          {/* Hero Amount (Borderless, clean floating header) */}
+          <div className="text-center py-3 mb-4">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1">
               {transaction.title}
             </span>
-            <div className={`text-3xl font-bold tracking-tight tabular-nums mb-1 ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
-              {isDebit ? '-' : '+'}{formatAmount(transaction.amount)} <span className="text-xl font-semibold">Ar</span>
+            <div className={`text-4xl font-black tracking-tight tabular-nums mb-1 ${isDebit ? 'text-zinc-900' : 'text-emerald-600'}`}>
+              {isDebit ? '-' : '+'}{formatAmount(transaction.amount)} <span className="text-2xl font-bold">Ar</span>
             </div>
 
             {transaction.feeAmount > 0 && (
-              <div className="text-xs text-amber-700 font-medium tabular-nums mt-0.5">
+              <div className="text-xs text-amber-600 font-semibold tabular-nums mt-1">
                 +{formatAmount(transaction.feeAmount)} Ar frais inclus (Total : {formatCurrency(transaction.totalImpact)})
               </div>
             )}
 
             {transaction.location?.placeName && (
-              <div className="mt-1.5">
+              <div className="mt-2">
                 <LocationBadge placeName={transaction.location.placeName} />
               </div>
             )}
@@ -153,7 +162,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           {/* Metadata Inset Grouped Card */}
           <InsetGroupedCard className="mb-4">
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+              <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                 {renderCategoryIcon()}
                 <span>Catégorie</span>
               </div>
@@ -161,7 +170,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
+              <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                 {renderWalletIcon()}
                 <span>Moyen de paiement</span>
               </div>
@@ -169,8 +178,10 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </InsetGroupedRow>
 
             <InsetGroupedRow>
-              <div className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
-                <CalendarIcon className="w-4 h-4 text-indigo-500" />
+              <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
+                <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <CalendarIcon className="w-3.5 h-3.5" />
+                </div>
                 <span>Date & Heure</span>
               </div>
               <span className="text-xs font-semibold text-zinc-900">
@@ -182,8 +193,10 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           {/* Itemized List if available */}
           {transaction.items && transaction.items.length > 0 && (
             <InsetGroupedCard className="p-4 mb-4">
-              <div className="flex items-center gap-1.5 mb-2 text-emerald-600 text-xs font-bold uppercase tracking-wider">
-                <ShoppingBagIcon className="w-4 h-4 text-emerald-500" />
+              <div className="flex items-center gap-2 mb-2 text-emerald-700 text-xs font-bold uppercase tracking-wider">
+                <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <ShoppingBagIcon className="w-3.5 h-3.5" />
+                </div>
                 <span>Articles du Ticket ({transaction.items.length})</span>
               </div>
 

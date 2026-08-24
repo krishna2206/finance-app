@@ -1,6 +1,6 @@
 export type TransactionFlow = 'DEBIT' | 'CREDIT';
 
-export type WalletSource = 'MVOLA' | 'AIRTEL_MONEY' | 'CASH' | 'BANK' | 'SAVINGS_VAULT';
+export type WalletSource = 'MVOLA' | 'AIRTEL_MONEY' | 'CASH' | 'BANK' | 'SAVINGS_VAULT' | string;
 
 export type OperationType =
   | 'EXPENSE_GENERAL'     // Achat direct de bien ou service
@@ -13,6 +13,8 @@ export type OperationType =
   | 'INCOME_TRANSFER'     // Transfert reçu d'un tiers
   | 'DEPOSIT_CASH'        // Dépôt d'espèces sur compte mobile
   | 'SAVINGS_TRANSFER'    // Déplacement de fonds vers l'épargne sanctuarisée
+  | 'SAVINGS_DEPOSIT'     // Versement vers le Coffre Épargne (Compte courant -> Épargne)
+  | 'SAVINGS_WITHDRAWAL'  // Retrait / Déblocage d'épargne (Épargne -> Compte courant)
   | 'BALANCE_ADJUSTMENT'; // Réajustement de solde manuel ou par SMS
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
@@ -76,6 +78,22 @@ export interface Category {
   icon: string;
   isEssential: boolean;
   createdAt: number;
+}
+
+export interface AppSettings {
+  id: string;
+  userName: string;
+  userProfession?: string;
+  userLocation?: string;
+  monthlyIncomeTarget: number;
+  monthlySavingsTarget: number;
+  currency: string;
+  onboardingCompleted: boolean;
+  geminiApiKey?: string;
+  smsCaptureEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface CadenceMetrics {

@@ -4,6 +4,12 @@ import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
 import { formatDateGroupLabel } from '../../utils/formatters';
+import {
+  ListBulletIcon,
+  ArrowUpRightIcon,
+  ArrowDownLeftIcon,
+  ArrowsRightLeftIcon,
+} from '@heroicons/react/24/outline';
 
 interface TransactionsViewProps {
   onSelectTransaction: (txn: Transaction) => void;
@@ -16,9 +22,9 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
 
   // Filter
   const filteredTransactions = useMemo(() => {
-    if (filter === 'INCOME') return transactions.filter(t => t.flow === 'CREDIT');
-    if (filter === 'EXPENSE') return transactions.filter(t => t.flow === 'DEBIT' && t.operationType !== 'WITHDRAWAL_CASH');
-    if (filter === 'TRANSFER') return transactions.filter(t => t.operationType === 'WITHDRAWAL_CASH' || t.operationType === 'SAVINGS_TRANSFER' || t.operationType === 'TRANSFER_P2P');
+    if (filter === 'INCOME') return transactions.filter(t => t.flow === 'CREDIT' && t.operationType !== 'SAVINGS_WITHDRAWAL');
+    if (filter === 'EXPENSE') return transactions.filter(t => t.flow === 'DEBIT' && t.operationType !== 'WITHDRAWAL_CASH' && t.operationType !== 'SAVINGS_TRANSFER' && t.operationType !== 'SAVINGS_DEPOSIT');
+    if (filter === 'TRANSFER') return transactions.filter(t => t.operationType === 'WITHDRAWAL_CASH' || t.operationType === 'SAVINGS_TRANSFER' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'SAVINGS_WITHDRAWAL' || t.operationType === 'TRANSFER_P2P');
     return transactions;
   }, [transactions, filter]);
 
@@ -33,6 +39,13 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
     return groups;
   }, [filteredTransactions]);
 
+  const filterTabs = [
+    { id: 'ALL' as const, label: 'Tous', icon: ListBulletIcon },
+    { id: 'EXPENSE' as const, label: 'Dépenses', icon: ArrowUpRightIcon },
+    { id: 'INCOME' as const, label: 'Entrées', icon: ArrowDownLeftIcon },
+    { id: 'TRANSFER' as const, label: 'Transferts', icon: ArrowsRightLeftIcon },
+  ];
+
   return (
     <div className="space-y-4 pb-20">
       {/* Header */}
@@ -45,22 +58,23 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
         </h1>
       </div>
 
-      {/* Filter Tabs (Apple Inset Style) */}
-      <div className="flex gap-1.5 p-1 bg-white rounded-2xl border border-zinc-200/80 shadow-xs w-fit">
-        {(['ALL', 'EXPENSE', 'INCOME', 'TRANSFER'] as const).map(f => {
-          const isActive = filter === f;
-          const label = f === 'ALL' ? 'Tous' : f === 'EXPENSE' ? 'Dépenses' : f === 'INCOME' ? 'Entrées' : 'Transferts';
+      {/* Filter Tabs (Apple Inset Style with Directional Icons) */}
+      <div className="flex gap-1 p-1 bg-white rounded-2xl border border-zinc-200/80 shadow-xs w-fit max-w-full overflow-x-auto">
+        {filterTabs.map(item => {
+          const isActive = filter === item.id;
+          const Icon = item.icon;
           return (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              key={item.id}
+              onClick={() => setFilter(item.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                 isActive
                   ? 'bg-zinc-900 text-white shadow-xs'
                   : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
               }`}
             >
-              {label}
+              <Icon className={`w-3.5 h-3.5 stroke-[2.2] ${isActive ? 'text-white' : 'text-zinc-400'}`} />
+              <span>{item.label}</span>
             </button>
           );
         })}

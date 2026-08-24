@@ -3,33 +3,33 @@ import { Wallet, WalletSource } from '../types/models';
 import { api } from '../services/api';
 
 interface WalletState {
-  wallets: Record<WalletSource, Wallet>;
+  wallets: Record<string, Wallet>;
   isLoading: boolean;
 
   loadWallets: () => Promise<void>;
   updateWalletBalance: (id: WalletSource, newBalance: number) => Promise<void>;
+  createWallet: (wallet: { id: string; name: string; balance?: number; isSpendable?: boolean }) => Promise<Wallet | null>;
+  deleteWallet: (id: string) => Promise<boolean>;
+  batchInitWallets: (wallets: Array<{ id: string; name: string; balance: number; isSpendable: boolean }>) => Promise<void>;
   getTotalSpendableBalance: () => number;
+  getSpendableWallets: () => Wallet[];
+  getWithdrawableWallets: () => Wallet[];
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
-  wallets: {
-    MVOLA: { id: 'MVOLA', name: 'MVola', balance: 0, isSpendable: true, updatedAt: 0 },
-    CASH: { id: 'CASH', name: 'Espèces', balance: 0, isSpendable: true, updatedAt: 0 },
-    AIRTEL_MONEY: { id: 'AIRTEL_MONEY', name: 'Airtel Money', balance: 0, isSpendable: true, updatedAt: 0 },
-    BANK: { id: 'BANK', name: 'Compte Banque', balance: 0, isSpendable: true, updatedAt: 0 },
-    SAVINGS_VAULT: { id: 'SAVINGS_VAULT', name: 'Coffre Épargne', balance: 0, isSpendable: false, updatedAt: 0 },
-  },
+  wallets: {},
   isLoading: true,
 
   loadWallets: async () => {
     try {
       const list = await api.getWallets();
-      const map = { ...get().wallets };
+      const map: Record<string, Wallet> = {};
       list.forEach(w => {
         map[w.id] = w;
       });
       set({ wallets: map, isLoading: false });
     } catch (e) {
+      console.error(e);
       set({ isLoading: false });
     }
   },
@@ -48,9 +48,64 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
+  createWallet: async (walletData) => {
+    try {
+      const created = await api.createWallet(walletData);
+      set(state => ({
+        wallets: {
+          ...state.wallets,
+          [created.id]: created,
+        },
+      }));
+      return created;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  },
+
+  deleteWallet: async (id) => {
+    try {
+      const res = await api.deleteWallet(id);
+      if (res.success) {
+        set(state => {
+          const copy = { ...state.wallets };
+          delete copy[id];
+          return { wallets: copy };
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  },
+
+  batchInitWallets: async (walletsList) => {
+    try {
+      const list = await api.batchInitWallets(walletsList);
+      const map: Record<string, Wallet> = {};
+      list.forEach(w => {
+        map[w.id] = w;
+      });
+      set({ wallets: map });
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
   getTotalSpendableBalance: () => {
     return Object.values(get().wallets)
       .filter(w => w.isSpendable)
       .reduce((sum, w) => sum + w.balance, 0);
+  },
+
+  getSpendableWallets: () => {
+    return Object.values(get().wallets).filter(w => w.isSpendable);
+  },
+
+  getWithdrawableWallets: () => {
+    return Object.values(get().wallets).filter(w => w.isSpendable && w.id !== 'CASH');
   },
 }));

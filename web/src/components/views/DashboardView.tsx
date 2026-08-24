@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 import { DashboardHeader } from '../dashboard/DashboardHeader';
 import { WalletBalanceCard } from '../cards/WalletBalanceCard';
+import { AddWalletBottomSheet } from '../sheets/AddWalletBottomSheet';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
@@ -17,11 +19,14 @@ interface DashboardViewProps {
 
 export function DashboardView({ onSelectTransaction, onNavigateToTransactions }: DashboardViewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
 
+  const settings = useSettingsStore(state => state.settings);
   const transactions = useTransactionStore(state => state.transactions);
   const loadWallets = useWalletStore(state => state.loadWallets);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
+  const loadSettings = useSettingsStore(state => state.loadSettings);
 
   // Group top recent transactions by date
   const groupedRecentTransactions = useMemo(() => {
@@ -37,23 +42,30 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([loadWallets(), loadBudgets(), loadTransactions()]);
+    await Promise.all([loadWallets(), loadBudgets(), loadTransactions(), loadSettings()]);
     setIsRefreshing(false);
   };
+
+  const userSubtitle = useMemo(() => {
+    const parts = [];
+    if (settings?.userProfession) parts.push(settings.userProfession);
+    if (settings?.userLocation) parts.push(settings.userLocation);
+    return parts.join(' • ') || undefined;
+  }, [settings]);
 
   return (
     <div className="space-y-4 pb-20">
       {/* 1. Header (User profile & refresh) */}
       <DashboardHeader
-        userName="Rakoto Rabe"
-        userEmail="rakoto@finance.mg"
+        userName={settings?.userName || 'Utilisateur'}
+        userSubtitle={userSubtitle}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
       />
 
       {/* 2. Stat Grid (Solde Total Card taking half width / 1 tile) */}
       <div className="grid grid-cols-2 gap-3">
-        <WalletBalanceCard />
+        <WalletBalanceCard onAddWallet={() => setIsAddWalletOpen(true)} />
       </div>
 
       {/* 3. Section Transactions Récentes */}
@@ -103,6 +115,12 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
           </div>
         )}
       </div>
+
+      {/* Add Wallet Modal */}
+      <AddWalletBottomSheet
+        isOpen={isAddWalletOpen}
+        onClose={() => setIsAddWalletOpen(false)}
+      />
     </div>
   );
 }

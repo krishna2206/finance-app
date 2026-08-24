@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { SavingsTargetCard } from '../cards/SavingsTargetCard';
+import { SavingsActionBottomSheet, SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Category } from '../../types/models';
 import { formatCurrency } from '../../utils/formatters';
@@ -12,6 +13,9 @@ interface BudgetsViewProps {
 }
 
 export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
+  const [isSavingsSheetOpen, setIsSavingsSheetOpen] = useState(false);
+  const [savingsDefaultAction, setSavingsDefaultAction] = useState<SavingsActionType>('DEPOSIT');
+
   const categories = useBudgetStore(state => state.categories);
   const transactions = useTransactionStore(state => state.transactions);
 
@@ -21,12 +25,28 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
     const currentYearMonth = new Date().toISOString().slice(0, 7);
     const map: Record<string, number> = {};
     transactions.forEach(t => {
-      if (t.flow === 'DEBIT' && t.date.startsWith(currentYearMonth)) {
+      if (
+        t.flow === 'DEBIT' &&
+        t.date.startsWith(currentYearMonth) &&
+        t.operationType !== 'SAVINGS_TRANSFER' &&
+        t.operationType !== 'SAVINGS_DEPOSIT' &&
+        t.operationType !== 'WITHDRAWAL_CASH'
+      ) {
         map[t.categoryId] = (map[t.categoryId] || 0) + t.totalImpact;
       }
     });
     return map;
   }, [transactions]);
+
+  const handleOpenDeposit = () => {
+    setSavingsDefaultAction('DEPOSIT');
+    setIsSavingsSheetOpen(true);
+  };
+
+  const handleOpenWithdraw = () => {
+    setSavingsDefaultAction('WITHDRAWAL');
+    setIsSavingsSheetOpen(true);
+  };
 
   return (
     <div className="space-y-4 pb-20">
@@ -41,7 +61,10 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
       </div>
 
       {/* 1. Dedicated Card: Épargne Sanctuarisée */}
-      <SavingsTargetCard />
+      <SavingsTargetCard
+        onDeposit={handleOpenDeposit}
+        onWithdraw={handleOpenWithdraw}
+      />
 
       {/* 2. Enveloppes de Dépenses */}
       <div>
@@ -125,6 +148,13 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
           })}
         </div>
       </div>
+
+      {/* Savings Action Bottom Sheet */}
+      <SavingsActionBottomSheet
+        isOpen={isSavingsSheetOpen}
+        onClose={() => setIsSavingsSheetOpen(false)}
+        defaultAction={savingsDefaultAction}
+      />
     </div>
   );
 }

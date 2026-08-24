@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
-body {
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow-x: hidden;
   background-color: #f4f4f5;
   color: #18181b;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -8,18 +12,25 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+#root {
+  height: 100%;
+  width: 100%;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Scrollbar styling */
+/* Hide intrusive scrollbars while preserving full scroll functionality */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 0px;
+  height: 0px;
+  display: none;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-}
+
+

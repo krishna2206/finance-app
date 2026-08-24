@@ -1,32 +1,54 @@
 import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { CreditCardIcon } from '@heroicons/react/24/outline';
+import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 
-export function WalletBalanceCard() {
+interface WalletBalanceCardProps {
+  onAddWallet?: () => void;
+}
+
+export function WalletBalanceCard({ onAddWallet }: WalletBalanceCardProps) {
   const wallets = useWalletStore(state => state.wallets);
 
-  const totalSpendable = useMemo(() => {
-    return Object.values(wallets)
-      .filter(w => w.isSpendable)
-      .reduce((sum, w) => sum + w.balance, 0);
+  const spendableWallets = useMemo(() => {
+    return Object.values(wallets).filter(w => w.isSpendable);
   }, [wallets]);
 
-  const mvolaBalance = wallets.MVOLA?.balance || 0;
-  const cashBalance = wallets.CASH?.balance || 0;
-  const airtelBalance = wallets.AIRTEL_MONEY?.balance || 0;
-  const bankBalance = wallets.BANK?.balance || 0;
+  const totalSpendable = useMemo(() => {
+    return spendableWallets.reduce((sum, w) => sum + w.balance, 0);
+  }, [spendableWallets]);
+
+  const getWalletColor = (id: string, name: string) => {
+    const lower = `${id} ${name}`.toLowerCase();
+    if (lower.includes('mvola')) return '#D97706';
+    if (lower.includes('cash') || lower.includes('espèce')) return '#059669';
+    if (lower.includes('airtel')) return '#E11D48';
+    if (lower.includes('bank') || lower.includes('banque') || lower.includes('bni') || lower.includes('boa')) return '#2563EB';
+    return '#6366F1';
+  };
 
   return (
     <InsetGroupedCard className="p-4 flex flex-col justify-between">
       {/* Header Label */}
       <div>
-        <div className="flex items-center gap-1.5 text-zinc-500 mb-1">
-          <CreditCardIcon className="w-3.5 h-3.5" />
-          <span className="text-[10px] font-bold uppercase tracking-wider">
-            Solde Total
-          </span>
+        <div className="flex items-center justify-between text-zinc-500 mb-1">
+          <div className="flex items-center gap-1.5">
+            <CreditCardIcon className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Solde Total
+            </span>
+          </div>
+
+          {onAddWallet && (
+            <button
+              onClick={onAddWallet}
+              title="Ajouter un compte"
+              className="p-0.5 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-800 transition-colors cursor-pointer"
+            >
+              <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          )}
         </div>
 
         {/* Total Balance */}
@@ -35,51 +57,29 @@ export function WalletBalanceCard() {
         </div>
       </div>
 
-      {/* Vertical List of Wallets in small font */}
+      {/* Dynamic Vertical List of Wallets */}
       <div className="pt-2.5 border-t border-zinc-100 flex flex-col gap-1.5">
-        {/* MVola */}
-        <div className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span className="text-zinc-500 font-medium">MVola :</span>
-          </div>
-          <span className="font-semibold text-zinc-800 tabular-nums">
-            {formatCurrency(mvolaBalance)}
-          </span>
-        </div>
-
-        {/* Espèces */}
-        <div className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-zinc-500 font-medium">Espèces :</span>
-          </div>
-          <span className="font-semibold text-zinc-800 tabular-nums">
-            {formatCurrency(cashBalance)}
-          </span>
-        </div>
-
-        {/* Airtel Money */}
-        <div className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-            <span className="text-zinc-500 font-medium">Airtel :</span>
-          </div>
-          <span className="font-semibold text-zinc-800 tabular-nums">
-            {formatCurrency(airtelBalance)}
-          </span>
-        </div>
-
-        {/* Banque */}
-        <div className="flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span className="text-zinc-500 font-medium">Banque :</span>
-          </div>
-          <span className="font-semibold text-zinc-800 tabular-nums">
-            {formatCurrency(bankBalance)}
-          </span>
-        </div>
+        {spendableWallets.length === 0 ? (
+          <span className="text-[11px] text-zinc-400 italic">Aucun compte actif</span>
+        ) : (
+          spendableWallets.map(w => {
+            const color = getWalletColor(w.id, w.name);
+            return (
+              <div key={w.id} className="flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                  <span
+                    style={{ backgroundColor: color }}
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                  />
+                  <span className="text-zinc-500 font-medium truncate">{w.name} :</span>
+                </div>
+                <span className="font-semibold text-zinc-800 tabular-nums shrink-0">
+                  {formatCurrency(w.balance)}
+                </span>
+              </div>
+            );
+          })
+        )}
       </div>
     </InsetGroupedCard>
   );

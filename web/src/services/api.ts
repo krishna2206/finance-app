@@ -1,12 +1,57 @@
-import { Wallet, Category, Transaction, WalletSource } from '../types/models';
+import { Wallet, Category, Transaction, WalletSource, AppSettings } from '../types/models';
 
 const API_BASE = '/api';
 
 export const api = {
+  // Settings & Onboarding
+  async getSettings(): Promise<AppSettings> {
+    const res = await fetch(`${API_BASE}/settings`);
+    if (!res.ok) throw new Error('Failed to fetch settings');
+    return res.json();
+  },
+
+  async updateSettings(data: Partial<AppSettings>): Promise<AppSettings> {
+    const res = await fetch(`${API_BASE}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update settings');
+    return res.json();
+  },
+
   // Wallets
   async getWallets(): Promise<Wallet[]> {
     const res = await fetch(`${API_BASE}/wallets`);
     if (!res.ok) throw new Error('Failed to fetch wallets');
+    return res.json();
+  },
+
+  async createWallet(wallet: { id: string; name: string; balance?: number; isSpendable?: boolean }): Promise<Wallet> {
+    const res = await fetch(`${API_BASE}/wallets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(wallet),
+    });
+    if (!res.ok) throw new Error('Failed to create wallet');
+    return res.json();
+  },
+
+  async batchInitWallets(wallets: Array<{ id: string; name: string; balance: number; isSpendable: boolean }>): Promise<Wallet[]> {
+    const res = await fetch(`${API_BASE}/wallets/batch-init`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallets }),
+    });
+    if (!res.ok) throw new Error('Failed to batch init wallets');
+    return res.json();
+  },
+
+  async deleteWallet(id: string): Promise<{ success: boolean; deletedId?: string }> {
+    const res = await fetch(`${API_BASE}/wallets/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete wallet');
     return res.json();
   },
 
@@ -70,6 +115,14 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete transaction');
+    return res.json();
+  },
+
+  async clearAllTransactions(): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/transactions/clear-all`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to clear transactions');
     return res.json();
   },
 };
