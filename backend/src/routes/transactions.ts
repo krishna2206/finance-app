@@ -17,6 +17,11 @@ transactionsRouter.get('/', (c) => {
   return c.json(list);
 });
 
+transactionsRouter.post('/clear-all', (c) => {
+  transactionRepository.clearAllTransactions();
+  return c.json({ success: true });
+});
+
 transactionsRouter.get('/:id', (c) => {
   const id = c.req.param('id');
   const txn = transactionRepository.getTransactionById(id);
@@ -59,9 +64,14 @@ transactionsRouter.post('/', async (c) => {
   if (created.operationType === 'WITHDRAWAL_CASH') {
     walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
     walletRepository.adjustBalanceDelta('CASH', created.amount);
-  } else if (created.operationType === 'SAVINGS_TRANSFER') {
-    walletRepository.adjustBalanceDelta(created.wallet, -created.amount);
+  } else if (created.operationType === 'SAVINGS_TRANSFER' || created.operationType === 'SAVINGS_DEPOSIT') {
+    const sourceWallet = created.wallet !== 'SAVINGS_VAULT' ? created.wallet : 'CASH';
+    walletRepository.adjustBalanceDelta(sourceWallet, -created.amount);
     walletRepository.adjustBalanceDelta('SAVINGS_VAULT', created.amount);
+  } else if (created.operationType === 'SAVINGS_WITHDRAWAL') {
+    const destWallet = created.destinationWallet || (created.wallet !== 'SAVINGS_VAULT' ? created.wallet : 'CASH');
+    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', -created.amount);
+    walletRepository.adjustBalanceDelta(destWallet, created.amount);
   } else if (created.flow === 'DEBIT') {
     walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
   } else if (created.flow === 'CREDIT') {
@@ -97,9 +107,14 @@ transactionsRouter.delete('/:id', (c) => {
   if (existing.operationType === 'WITHDRAWAL_CASH') {
     walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
     walletRepository.adjustBalanceDelta('CASH', -existing.amount);
-  } else if (existing.operationType === 'SAVINGS_TRANSFER') {
-    walletRepository.adjustBalanceDelta(existing.wallet, existing.amount);
+  } else if (existing.operationType === 'SAVINGS_TRANSFER' || existing.operationType === 'SAVINGS_DEPOSIT') {
+    const sourceWallet = existing.wallet !== 'SAVINGS_VAULT' ? existing.wallet : 'CASH';
+    walletRepository.adjustBalanceDelta(sourceWallet, existing.amount);
     walletRepository.adjustBalanceDelta('SAVINGS_VAULT', -existing.amount);
+  } else if (existing.operationType === 'SAVINGS_WITHDRAWAL') {
+    const destWallet = existing.destinationWallet || (existing.wallet !== 'SAVINGS_VAULT' ? existing.wallet : 'CASH');
+    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', existing.amount);
+    walletRepository.adjustBalanceDelta(destWallet, -existing.amount);
   } else if (existing.flow === 'DEBIT') {
     walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
   } else if (existing.flow === 'CREDIT') {

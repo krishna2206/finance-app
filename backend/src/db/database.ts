@@ -15,6 +15,23 @@ export function getDatabase(): Database {
 export function initDatabase(db: Database): void {
   db.exec(CREATE_TABLES_SQL);
 
+  // Safe migrations for settings columns
+  try {
+    db.exec('ALTER TABLE settings ADD COLUMN user_profession TEXT;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE settings ADD COLUMN user_location TEXT;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE settings ADD COLUMN onboarding_completed INTEGER NOT NULL DEFAULT 0;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE settings ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE settings ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
+  } catch {}
+
   // Seed default wallets if empty
   const existingWallets = db.query('SELECT id FROM wallets LIMIT 1').all();
   if (existingWallets.length === 0) {
@@ -38,6 +55,8 @@ export function initDatabase(db: Database): void {
   // Seed default settings if empty
   const existingSettings = db.query('SELECT id FROM settings LIMIT 1').all();
   if (existingSettings.length === 0) {
-    db.prepare('INSERT OR IGNORE INTO settings (id, user_name, monthly_income_target, monthly_savings_target, currency, sms_capture_enabled, push_notifications_enabled) VALUES (?, ?, ?, ?, ?, ?, ?)').run('default', 'Utilisateur', 1000000, 150000, 'MGA', 1, 1);
+    const now = Date.now();
+    db.prepare('INSERT OR IGNORE INTO settings (id, user_name, user_profession, user_location, monthly_income_target, monthly_savings_target, currency, onboarding_completed, sms_capture_enabled, push_notifications_enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run('default', 'Utilisateur', '', '', 1000000, 150000, 'MGA', 0, 1, 1, now, now);
   }
 }

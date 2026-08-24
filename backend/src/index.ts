@@ -4,6 +4,7 @@ import { getDatabase } from './db/database';
 import { walletsRouter } from './routes/wallets';
 import { categoriesRouter } from './routes/categories';
 import { transactionsRouter } from './routes/transactions';
+import { settingsRouter } from './routes/settings';
 
 const app = new Hono();
 
@@ -17,6 +18,7 @@ getDatabase();
 app.get('/health', (c) => c.json({ status: 'ok', time: Date.now() }));
 
 // Mount sub-routers
+app.route('/api/settings', settingsRouter);
 app.route('/api/wallets', walletsRouter);
 app.route('/api/categories', categoriesRouter);
 app.route('/api/transactions', transactionsRouter);

@@ -58,12 +58,17 @@ CREATE TABLE IF NOT EXISTS recipients (
 CREATE TABLE IF NOT EXISTS settings (
   id TEXT PRIMARY KEY,
   user_name TEXT NOT NULL DEFAULT 'Utilisateur',
+  user_profession TEXT,
+  user_location TEXT,
   monthly_income_target REAL NOT NULL DEFAULT 0,
   monthly_savings_target REAL NOT NULL DEFAULT 0,
   currency TEXT NOT NULL DEFAULT 'MGA',
+  onboarding_completed INTEGER NOT NULL DEFAULT 0,
   gemini_api_key TEXT,
   sms_capture_enabled INTEGER NOT NULL DEFAULT 1,
-  push_notifications_enabled INTEGER NOT NULL DEFAULT 1
+  push_notifications_enabled INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL DEFAULT 0
 );
 `;
 
@@ -144,6 +149,7 @@ export const DEFAULT_CATEGORIES = [
 
 export const DEFAULT_WALLETS = [
   { id: 'MVOLA', name: 'MVola', balance: 0, is_spendable: 1 },
+  { id: 'ORANGE_MONEY', name: 'Orange Money', balance: 0, is_spendable: 1 },
   { id: 'CASH', name: 'Espèces', balance: 0, is_spendable: 1 },
   { id: 'AIRTEL_MONEY', name: 'Airtel Money', balance: 0, is_spendable: 1 },
   { id: 'BANK', name: 'Compte Bancaire', balance: 0, is_spendable: 1 },

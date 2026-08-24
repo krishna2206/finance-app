@@ -92,6 +92,11 @@ export const transactionRepository = {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(id);
   },
 
+  clearAllTransactions(): void {
+    const db = getDatabase();
+    db.prepare('DELETE FROM transactions').run();
+  },
+
   mapRowToTransaction(row: any): Transaction {
     let items: TransactionItem[] | undefined = undefined;
     if (row.items_json) {
