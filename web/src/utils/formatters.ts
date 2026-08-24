@@ -51,6 +51,7 @@ export function formatSignedAmount(amount: number | string | null | undefined, i
 
 const WALLET_LABELS: Record<string, string> = {
   MVOLA: 'MVola',
+  ORANGE_MONEY: 'Orange Money',
   CASH: 'Espèces',
   AIRTEL_MONEY: 'Airtel Money',
   BANK: 'Banque',
