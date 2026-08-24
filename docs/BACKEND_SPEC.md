@@ -2,13 +2,14 @@
 
 Ce document définit l'architecture, les choix technologiques, les endpoints REST, le flux Server-Sent Events (SSE) et la structure du serveur backend.
 
-## 1. Description & Rôle du Backend
+## 1. Description, Rôle & Philosophie Self-Hosted
 
-Le backend constitue la colonne vertébrale du système. Il remplit 4 missions fondamentales :
+Le backend constitue la source de vérité et la passerelle de communication :
+- **Auto-Hébergeable & Docker-Ready** : Conçu pour s'exécuter en quelques millisecondes sur n'importe quel VPS privé, serveur local ou conteneur Docker avec une empreinte mémoire minime (< 30 Mo RAM).
 - **Passerelle Webhook SMS H24** : Réception des requêtes HTTP transmises par le smartphone Android lors de la réception d'un SMS MVola ou Airtel.
-- **Source de Vérité Unique (SQLite)** : Persistance locale centralisée dans `finance.db` (`bun:sqlite`), garantissant que le client Web (ordinateur/smartphone) et le client Mobile accèdent aux mêmes soldes et transactions.
-- **Diffuseur Temps Réel (SSE)** : Émission instantanée d'événements vers la Web App connectée pour afficher les toasts de confirmation sans rechargement.
-- **Émetteur Web Push (VAPID)** : Chiffrement et expédition de notifications d'arrière-plan vers les serveurs de push (Google FCM / Apple) pour réveiller les appareils même lorsque le navigateur est fermé.
+- **Source de Vérité Unique (SQLite)** : Persistance centralisée dans `finance.db` (`bun:sqlite`), garantissant l'accès synchronisé aux soldes, aux portefeuilles dynamiques et aux transactions.
+- **Diffuseur Temps Réel (SSE)** : Émission instantanée d'événements vers la Web App connectée pour afficher les alertes et rafraîchir les données sans rechargement.
+- **Émetteur Web Push (VAPID)** : Chiffrement et expédition de notifications d'arrière-plan vers les serveurs de push (Google FCM / Apple).
 
 ## 2. Architecture Système & Interactions
 
@@ -16,10 +17,11 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 +------------------------------------------------------------------------------------------------+
 |                             ARCHITECTURE DU BACKEND (backend/)                                 |
 |                                                                                                |
-|  [ ÉVÉNEMENT EXTERNE ]                                                                         |
-|  - SMS MVola reçu sur Smartphone -> Passerelle Android (MacroDroid)                            |
+|  [ CLIENTS & ÉVÉNEMENTS EXTERNES ]                                                             |
+|  - Client Mobile (Local-First) & Passerelle Android (Capture SMS native)                        |
+|  - Client Web PWA (Saisie Flash, Dashboard, Gestion des Budgets)                               |
 |                                     |                                                          |
-|                                     | Requête HTTP : POST /api/sms/webhook                     |
+|                                     | Requêtes REST & Webhook SMS                              |
 |                                     v                                                          |
 |  +------------------------------------------------------------------------------------------+  |
 |  |                             SERVEUR HTTP HONO (Runtime Bun)                              |  |
@@ -27,25 +29,17 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 |  |  [ LOGIQUE MÉTIER & PARSERS ]                                                            |  |
 |  |  - smsParser.ts (Extraction Regex : montant, frais, solde, ref)                          |  |
 |  |  - categoryResolution.ts (Moteur 3 niveaux : Mémoire contact -> Opération -> Imprévus)  |  |
-|  |  - mvolaFeeCalculator.ts (Calculateur de frais officiels)                                 |  |
+|  |  - mvolaFeeCalculator.ts (Calculateur de frais transferts & retraits Cash Point)         |  |
 |  |  - burnRateCalculator.ts (Moteur du reste à vivre & cadence)                             |  |
 |  |                                                                                          |  |
-|  |  [ PERSISTANCE SQLITE LOCALE ]                                                           |  |
-|  |  - bun:sqlite -> `finance.db` (wallets, categories, transactions, recipients)            |  |
+|  |  [ PERSISTANCE SQLITE LOCALE (bun:sqlite) ]                                              |  |
+|  |  - `finance.db` (wallets, categories, transactions, recipients, settings)                |  |
 |  +------------------------------+----------------------------+------------------------------+  |
 |                                 |                            |                                 |
 |                                 v                            v                                 |
 |                      [ BROADCASTER SSE ]           [ SERVICE WEB PUSH ]                        |
 |                      (Flux GET /api/events)        (VAPID web-push)                            |
 +---------------------------------+----------------------------+---------------------------------+
-                                  |                            |
-                                  | Événement SSE temps réel   | Notification Push VAPID
-                                  v                            v
-+-------------------------------------------------+  +-------------------------------------------+
-|             CLIENT WEB APP PWA (web/)           |  |      SERVEURS GOOGLE FCM / APPLE APNS     |
-|  - Affiche instantanément le SmsToastBanner     |  |  - Réveille le smartphone écran éteint    |
-|  - Met à jour les soldes & le Reste à Vivre     |  |  - Affiche la notification de verrouillage|
-+-------------------------------------------------+  +-------------------------------------------+
 ```
 
 ## 3. Choix Technologiques & Justifications
@@ -61,98 +55,101 @@ Le backend constitue la colonne vertébrale du système. Il remplit 4 missions f
 
 ## 4. Spécification Exhaustive des Endpoints API
 
-### 4.1 Passerelle SMS & Événements Temps Réel
+### 4.1 Configuration & Profil Utilisateur (Settings)
 
-#### `POST /api/sms/webhook`
-- **Description** : Reçoit le texte brut d'un SMS intercepté par le smartphone (via MacroDroid / Tasker).
+#### `GET /api/settings`
+- **Description** : Retourne la configuration utilisateur, l'identité et le statut d'onboarding.
+- **Réponse (200 OK)** :
+  ```json
+  {
+    "id": "global",
+    "userName": "Krishna",
+    "userProfession": "Développeur",
+    "userLocation": "Antananarivo",
+    "monthlyIncomeTarget": 1200000,
+    "monthlySavingsTarget": 200000,
+    "currency": "MGA",
+    "onboardingCompleted": true
+  }
+  ```
+
+#### `PUT /api/settings`
+- **Description** : Met à jour le profil, les cibles budgétaires et le statut d'onboarding.
 - **Body** :
   ```json
   {
-    "body": "Nandefa 25 000 Ar tany amin'ny 0341122233. Frais: 450 Ar. Solde restant: 470 050 Ar. Ref: 189283749",
-    "sender": "MVOLA",
-    "timestamp": 1755948000000
-  }
-  ```
-- **Comportement** :
-  1. Parse le texte avec `smsParser.ts`.
-  2. Résout la catégorie via `categoryResolution.ts` (Mémoire contact -> Opération -> Imprévus).
-  3. Insère la transaction dans SQLite et met à jour le solde du portefeuille.
-  4. Émet un événement SSE `NEW_TRANSACTION` vers les clients Web connectés.
-  5. Émet une notification Web Push vers les souscriptions enregistrées.
-- **Réponse (200 OK)** :
-  ```json
-  {
-    "success": true,
-    "transactionId": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-    "parsed": {
-      "flow": "DEBIT",
-      "amount": 25000,
-      "feeAmount": 450,
-      "operationType": "TRANSFER_P2P",
-      "categoryId": "c7b8e1a4-9f2d-4e8b-8a21-3e5f1b9a7c01"
-    }
+    "userName": "Krishna",
+    "userProfession": "Développeur",
+    "userLocation": "Antananarivo",
+    "monthlyIncomeTarget": 1200000,
+    "monthlySavingsTarget": 200000,
+    "onboardingCompleted": true
   }
   ```
 
-#### `GET /api/events`
-- **Description** : Flux Server-Sent Events (SSE) temps réel pour la Web App PWA.
-- **Headers** : `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive`.
-- **Types d'Événements Émis** :
-  - `NEW_TRANSACTION` : Nouvelle transaction capturée avec montant et catégorie.
-  - `WALLET_UPDATED` : Mise à jour d'un solde de portefeuille.
-  - `BUDGET_ALERT` : Alerte de dépassement de seuil journalier.
-
-### 4.2 Portefeuilles (Wallets)
+### 4.2 Portefeuilles Dynamiques (Wallets)
 
 #### `GET /api/wallets`
 - **Description** : Retourne la liste de tous les portefeuilles avec leurs soldes actuels.
-- **Réponse (200 OK)** :
+
+#### `POST /api/wallets`
+- **Description** : Crée dynamiquement un nouveau portefeuille (bancaire, mobile ou physique).
+- **Body** :
   ```json
-  [
-    { "id": "MVOLA", "name": "MVola", "balance": 474500, "isSpendable": true, "updatedAt": 1755948000000 },
-    { "id": "CASH", "name": "Espèces", "balance": 365000, "isSpendable": true, "updatedAt": 1755948000000 },
-    { "id": "BANK", "name": "Compte Bancaire", "balance": 0, "isSpendable": true, "updatedAt": 1755948000000 },
-    { "id": "SAVINGS_VAULT", "name": "Coffre Épargne", "balance": 150000, "isSpendable": false, "updatedAt": 1755948000000 }
-  ]
+  {
+    "id": "BANK_BNI",
+    "name": "Compte BNI",
+    "balance": 500000,
+    "isSpendable": true
+  }
   ```
 
 #### `POST /api/wallets/:id/adjust`
 - **Description** : Réajuste manuellement le solde d'un portefeuille.
 - **Body** : `{ "newBalance": 500000 }`
 
-### 4.3 Catégories & Budgets
+#### `DELETE /api/wallets/:id`
+- **Description** : Supprime un portefeuille personnalisé (sauf les portefeuilles système indispensables).
+
+### 4.3 Passerelle SMS & Événements Temps Réel
+
+#### `POST /api/sms/webhook`
+- **Description** : Reçoit le texte brut d'un SMS intercepté par le smartphone.
+
+#### `GET /api/events`
+- **Description** : Flux Server-Sent Events (SSE) temps réel pour la Web App PWA.
+
+### 4.4 Catégories & Budgets
 
 #### `GET /api/categories`
 - **Description** : Retourne toutes les catégories de dépenses et l'objectif d'épargne.
 
 #### `PUT /api/categories/:id/budget`
 - **Description** : Modifie le plafond mensuel d'une catégorie.
-- **Body** : `{ "monthlyBudget": 400000 }`
 
-### 4.4 Transactions
+### 4.5 Transactions
 
 #### `GET /api/transactions?month=YYYY-MM`
 - **Description** : Liste les transactions d'un mois donné ordonnées par date décroissante.
 
 #### `POST /api/transactions`
-- **Description** : Crée une transaction manuelle, déduit le solde du portefeuille et met à jour le mapping contact.
+- **Description** : Crée une transaction (Dépense, Retrait Cash Point, Versement/Déblocage Épargne, Transfert).
+- **Gestion Automatique des Mouvements de Trésorerie** :
+  - `WITHDRAWAL_CASH` : Débite le compte source de `montant + frais`, crédite `CASH` de `montant`.
+  - `SAVINGS_DEPOSIT` : Débite le compte source de `montant`, crédite `SAVINGS_VAULT` de `montant`.
+  - `SAVINGS_WITHDRAWAL` : Débite `SAVINGS_VAULT` de `montant`, crédite le compte destination de `montant`.
+  - `EXPENSE_GENERAL` (Débit direct) : Débite le portefeuille source de `montant + frais`.
 
 #### `PUT /api/transactions/:id/enrich`
-- **Description** : Attache la liste des articles d'un ticket scanné (`TransactionItem[]`) et le lieu sans doubler le débit de solde.
+- **Description** : Attache la liste des articles d'un ticket scanné (`TransactionItem[]`) et le lieu.
 
 #### `DELETE /api/transactions/:id`
-- **Description** : Supprime une transaction et réajuste automatiquement le solde du portefeuille.
+- **Description** : Supprime une transaction et compense automatiquement les soldes des portefeuilles concernés.
 
-### 4.5 AI Assistant & Multimodal
-
-#### `POST /api/ai/transcribe`
-- **Description** : Reçoit un fichier audio base64, applique le prompt STT verbatim et retourne la transcription texte.
-
-#### `POST /api/ai/scan-receipt`
-- **Description** : Reçoit une image de ticket de caisse en base64 et retourne le JSON structuré des articles et du total.
-
-#### `POST /api/ai/chat`
-- **Description** : Exécute une session de chat avec injection du contexte financier dynamique et exécution des outils Tool Calling SQLite.
+### 4.6 AI Assistant & Multimodal
+- `POST /api/ai/transcribe` : Transcription audio STT verbatim.
+- `POST /api/ai/scan-receipt` : Extraction structurée JSON de tickets de caisse.
+- `POST /api/ai/chat` : Discussion financière avec exécution des outils Tool Calling SQLite.
 
 ## 5. Structure Détaillée du Répertoire `backend/`
 
@@ -167,9 +164,10 @@ backend/
     │
     ├── db/                                 # Persistance SQLite native
     │   ├── database.ts                     # Connexion et initialisation (finance.db)
-    │   ├── schema.ts                       # DDL tables avec UUID v4 (wallets, categories, txns, recipients)
+    │   ├── schema.ts                       # DDL tables avec UUID v4 (wallets, categories, txns, recipients, settings)
     │   └── repositories/                   # Requêtes SQL relationnelles
-    │       ├── walletRepository.ts         # Gestion des soldes
+    │       ├── walletRepository.ts         # Gestion dynamique des soldes et création
+    │       ├── settingsRepository.ts       # Gestion du profil et de l'onboarding
     │       ├── categoryRepository.ts       # Gestion des budgets
     │       ├── transactionRepository.ts    # CRUD transactions et items
     │       └── recipientRepository.ts      # Mémoire apprenante des numéros tiers
@@ -191,9 +189,10 @@ backend/
     │   └── visionPrompt.ts                 # Prompt extraction JSON tickets SCORE
     │
     └── routes/                             # Routeurs REST
+        ├── settings.ts                     # `GET/PUT /api/settings` (Profil & Onboarding)
         ├── sms.ts                          # `POST /api/sms/webhook` & `GET /api/events` (SSE)
         ├── push.ts                         # `POST /api/push/subscribe` (Web Push)
-        ├── wallets.ts                      # `GET/POST /api/wallets`
+        ├── wallets.ts                      # `GET/POST/DELETE /api/wallets`
         ├── categories.ts                   # `GET/POST /api/categories`
         ├── transactions.ts                 # `GET/POST /api/transactions`
         └── ai.ts                           # `POST /api/ai/chat`, `POST /api/ai/transcribe`, `POST /api/ai/scan-receipt`

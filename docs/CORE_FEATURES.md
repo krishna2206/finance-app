@@ -2,12 +2,19 @@
 
 Ce document définit les règles métier, le modèle de données, les algorithmes de calcul et les protocoles communs unifiant l'ensemble des clients (Web PWA et Mobile Native) et le Backend.
 
-## 1. Vision Métier & Contexte
+## 1. Vision Métier, Modèle Produit & Éthique
 
 ### 1.1 Problématique
 La gestion financière personnelle échoue généralement par asymétrie de friction : dépenser prend une seconde, enregistrer une dépense manuellement prend 30 à 60 secondes. L'objectif fondamental est d'éliminer cette friction en ramenant la saisie à moins de 3 secondes tout en rendant visibles les fuites financières invisibles (frais de retrait et de transfert Mobile Money à Madagascar).
 
-### 1.2 Le Triptyque Fondamental
+### 1.2 Modèle Produit & Confidentialité ("Self-Hosted + Cloud Souverain")
+- **Open-Core / Self-Hosted (Gratuit)** : L'utilisateur peut auto-héberger son backend et sa base SQLite sur son propre matériel (ordinateur, VPS personnel, Raspberry Pi) avec une souveraineté totale sur ses données privées.
+- **Option Cloud Payant (Hébergement géré)** : Pour les utilisateurs sans compétences techniques de déploiement, une offre cloud clé en main est proposée au juste prix d'infrastructure (sans revente de données ni profilage publicitaire).
+- **Architecture à Deux Clients** :
+  - **Client Mobile (Local-First)** : Application native avec écoute SMS native en arrière-plan et base SQLite locale synchronisée.
+  - **Client Web (PWA)** : Application web responsive (format portrait mobile) connectée au backend self-hosted ou cloud, avec possibilité de passerelle SMS via application compagnon.
+
+### 1.3 Le Triptyque Fondamental
 Le système repose sur la séparation et l'interaction de trois piliers majeurs :
 - **Solde Réel Total** : Somme de l'argent liquide immédiatement disponible (`Solde MVola + Solde Espèces en poche + Solde Banque`).
 - **Budget Mensuel Alloué** : Enveloppes plafonnées par catégorie définissant la limite de consommation autorisée.
@@ -20,12 +27,12 @@ Le système repose sur la séparation et l'interaction de trois piliers majeurs 
 ```typescript
 export type TransactionFlow = 'DEBIT' | 'CREDIT';
 
-export type WalletSource = 'MVOLA' | 'AIRTEL_MONEY' | 'CASH' | 'BANK' | 'SAVINGS_VAULT';
+export type WalletSource = 'MVOLA' | 'AIRTEL_MONEY' | 'CASH' | 'BANK' | 'SAVINGS_VAULT' | string;
 
 export type OperationType =
   | 'EXPENSE_GENERAL'     // Achat direct de bien ou service
   | 'TRANSFER_P2P'        // Transfert d'argent vers un tiers
-  | 'WITHDRAWAL_CASH'     // Retrait d'espèces au Cash Point (MVola -> Cash)
+  | 'WITHDRAWAL_CASH'     // Retrait d'espèces (MVola / Banque -> Espèces)
   | 'TOPUP_AIRTIME'       // Achat de crédit téléphonique ou forfait data
   | 'MERCHANT_PAYMENT'    // Paiement commerçant (QR code / code marchand)
   | 'BILL_PAYMENT'        // Paiement de facture (Jirama, Canal+, etc.)
@@ -33,6 +40,8 @@ export type OperationType =
   | 'INCOME_TRANSFER'     // Transfert reçu d'un tiers
   | 'DEPOSIT_CASH'        // Dépôt d'espèces sur compte mobile
   | 'SAVINGS_TRANSFER'    // Déplacement de fonds vers l'épargne sanctuarisée
+  | 'SAVINGS_DEPOSIT'     // Versement vers le Coffre Épargne
+  | 'SAVINGS_WITHDRAWAL'  // Retrait / Déblocage du Coffre Épargne vers compte courant
   | 'BALANCE_ADJUSTMENT'; // Réajustement de solde manuel ou par SMS
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
@@ -44,16 +53,17 @@ export type CategoryType = 'EXPENSE' | 'SAVINGS';
 
 ```typescript
 export interface Wallet {
-  id: WalletSource;
-  name: string;
-  balance: number;
-  isSpendable: boolean;
+  id: string;                      // Identifiant unique (ex: 'MVOLA', 'CASH', 'BANK', 'SAVINGS_VAULT')
+  name: string;                    // Libellé affiché (ex: 'MVola', 'Espèces', 'Compte BNI')
+  balance: number;                 // Solde en Ariary
+  isSpendable: boolean;            // true pour comptes courants, false pour épargne sanctuarisée
+  isWithdrawable?: boolean;        // true si retirable vers le portefeuille physique en espèces
   updatedAt: number;
 }
 
 export interface TransactionItem {
   id: string;                      // UUID v4
-  name: string;                    // Libellé du produit (ex: "Lait Entier UHT 1L")
+  name: string;                    // Libellé du produit (ex: "Tomates & Légumes")
   quantity: number;                // Quantité (ex: 2)
   unitPrice?: number;              // Prix unitaire en Ariary (ex: 6500)
   totalPrice: number;              // Prix total de la ligne (ex: 13000)
@@ -61,7 +71,7 @@ export interface TransactionItem {
 }
 
 export interface TransactionLocation {
-  placeName?: string;              // Nom du lieu ou quartier (ex: "Supermarché SCORE - Digue")
+  placeName?: string;              // Nom du lieu ou quartier (ex: "Marché d'Anosibe")
   latitude?: number;
   longitude?: number;
 }
@@ -70,10 +80,10 @@ export interface Transaction {
   id: string;                      // UUID v4 immuable
   flow: TransactionFlow;           // DEBIT ou CREDIT
   operationType: OperationType;
-  wallet: WalletSource;            // Portefeuille source
-  destinationWallet?: WalletSource;// Portefeuille destination si transfert interne
+  wallet: string;                  // Portefeuille source
+  destinationWallet?: string;      // Portefeuille destination si transfert interne / retrait
   amount: number;                  // Montant principal en Ariary
-  feeAmount: number;               // Frais appliqués en Ariary
+  feeAmount: number;               // Frais appliqués en Ariary (Cash point, transfert)
   totalImpact: number;             // Débit: (amount + feeAmount), Crédit: amount
   title: string;                   // Libellé court
   categoryId: string;              // Clé étrangère UUID v4 vers Category.id
@@ -113,9 +123,12 @@ export interface Category {
 export interface AppSettings {
   id: string;
   userName: string;
+  userProfession?: string;
+  userLocation: string;
   monthlyIncomeTarget: number;
   monthlySavingsTarget: number;
   currency: string;
+  onboardingCompleted: boolean;
   geminiApiKey?: string;
   smsCaptureEnabled: boolean;
   pushNotificationsEnabled: boolean;
@@ -123,21 +136,29 @@ export interface AppSettings {
 ```
 
 ### 2.3 Logique de Gestion des Portefeuilles (Wallets Engine)
-- **Dépense en MVola** : `Solde MVola -= (Montant + Frais)`. Le solde Espèces reste intact.
-- **Dépense en Espèces** : `Solde Espèces -= Montant`. Le solde MVola reste intact.
-- **Retrait au Cash Point (`WITHDRAWAL_CASH`)** :
-  - `Solde MVola -= (Montant + Frais)`
-  - `Solde Espèces += Montant`
-  - Les frais de retrait sont imputés à la catégorie *Frais Financiers*.
-  - Aucun double-comptage lors des dépenses ultérieures en espèces.
-- **Transfert vers l'Épargne (`SAVINGS_TRANSFER`)** :
-  - `Solde Source -= Montant`
-  - `Solde SAVINGS_VAULT += Montant`
-  - Les fonds sont sanctuarisés et déduits du solde dépensable du quotidien.
+- **Portefeuilles Dynamiques & Extensibles** : Les comptes ne sont plus figés en dur. L'utilisateur peut créer ses propres portefeuilles bancaires ou mobiles.
+- **Retrait d'Espèces (`WITHDRAWAL_CASH`)** :
+  - Un retrait est un **transfert interne vers le portefeuille physique (`CASH`)**.
+  - `Solde Source -= (Montant + Frais)`
+  - `Solde CASH += Montant`
+  - Seuls les frais éventuels sont comptabilisés comme charge (*Frais Mobiles & Services*), sans double-comptage lors des dépenses ultérieures en espèces.
+- **Coffre Épargne Sanctuarisé (`SAVINGS_VAULT`)** :
+  - **Versement (`SAVINGS_DEPOSIT`)** : `Solde Source -= Montant`, `Solde SAVINGS_VAULT += Montant`.
+  - **Déblocage / Retrait (`SAVINGS_WITHDRAWAL`)** : `Solde SAVINGS_VAULT -= Montant`, `Solde Destination += Montant`.
+  - Le solde du coffre est exclu du calcul du solde dépensable quotidien pour préserver la discipline budgétaire.
 
-## 3. Moteurs de Calculs Métier
+## 3. Flux d'Onboarding Guidé (Point Zéro Financier)
 
-### 3.1 Grille Tarifaire Officielle MVola (Frais de Transfert et Retrait)
+Au premier lancement, l'utilisateur est guidé à travers 3 étapes fluides :
+1. **Étape 1 : Profil & Identité** (Prénom & Nom, Métier optionnel, Localisation/Ville).
+2. **Étape 2 : Portefeuilles & Soldes Réels** (Activation des comptes réels possédés : Espèces, MVola, Banque, etc., avec saisie des soldes de départ).
+3. **Étape 3 : Objectifs Budgétaires** (Revenus mensuels estimés et Objectif d'épargne sanctuarisée).
+
+Dès la finalisation, le statut `onboardingCompleted = true` est persisté et le tableau de bord s'initialise avec les vrais soldes et la vraie cadence budgétaire.
+
+## 4. Moteurs de Calculs Métier
+
+### 4.1 Grille Tarifaire Officielle MVola (Frais de Transfert et Retrait)
 
 ```typescript
 export function calculateMVolaFees(amount: number): { transferFee: number; withdrawalFee: number } {
@@ -175,7 +196,7 @@ export function calculateMVolaFees(amount: number): { transferFee: number; withd
 }
 ```
 
-### 3.2 Reste à Vivre Journalier (Daily Burn Rate)
+### 4.2 Reste à Vivre Journalier (Daily Burn Rate)
 ```
 Jours_Restants = Nombre de jours entre aujourd'hui et le dernier jour du mois inclus
 Solde_Disponible_Total = Somme(Soldes des portefeuilles avec isSpendable = true)
@@ -185,7 +206,7 @@ Charges_Fixes_Restantes = Somme des charges fixes non encore débitées dans le 
 Reste_Journalier = (Solde_Disponible_Total - Epargne_Cible_Restante - Charges_Fixes_Restantes) / Jours_Restants
 ```
 
-### 3.3 Cadence Budgétaire & Seuil Temporel Jour J (`|`)
+### 4.3 Cadence Budgétaire & Seuil Temporel Jour J (`|`)
 ```
 Budget_Total_Mois = Somme(Budgets des catégories de type 'EXPENSE')
 Dépenses_Cumulées = Somme(Débits réels + Frais du mois)
@@ -198,12 +219,12 @@ Ecart_Cadence = Consommation_Budget_Pct - Progression_Mois_Pct
 - Si Ecart_Cadence > 0  : Zone Rouge (Surconsommation par rapport à la date)
 ```
 
-## 4. Matrice de Parsing des SMS Mobile Money
+## 5. Matrice de Parsing des SMS Mobile Money
 
 | Motif Détecté dans le SMS | Type d'Opération | Flux | Impact Frais | Impact Soldes | Résolution de Catégorie |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `Nandefa... tany amin'ny [Numéro]...` | `TRANSFER_P2P` | `DEBIT` | Extrait (`Frais: X Ar`) | MVola: `-(Montant + Frais)` | 1. Mémoire Tiers si connu<br>2. Sinon *Dépannages & Imprévus* + Sélecteur |
-| `Retrait de... au Cash Point...` | `WITHDRAWAL_CASH` | `DEBIT` | Extrait (`Frais: X Ar`) | MVola: `-(Montant + Frais)`, Cash: `+Montant` | *Retrait Espèces* (Transfert Interne) |
+| `Retrait de... au Cash Point...` | `WITHDRAWAL_CASH` | `DEBIT` | Extrait (`Frais: X Ar`) | MVola: `-(Montant + Frais)`, Cash: `+Montant` | *Frais Mobiles & Services* (Transfert interne vers Cash) |
 | `Nividy tolotra... / Recharge...` | `TOPUP_AIRTIME` | `DEBIT` | Frais = 0 Ar | MVola: `-Montant` | *Télécom & Internet* |
 | `Paiement de... / Marchand...` | `MERCHANT_PAYMENT` | `DEBIT` | Frais = 0 Ar | MVola: `-Montant` | 1. Mémoire Marchand si connu<br>2. Sinon *Nourriture / Quotidien* |
 | `Voaray ny... avy tamin'ny... Salaire` | `SALARY` | `CREDIT` | Frais = 0 Ar | MVola: `+Montant` | *Revenus / Salaire* |
@@ -214,7 +235,7 @@ Ecart_Cadence = Consommation_Budget_Pct - Progression_Mois_Pct
 2. **Niveau 2 (Détection par Type d'Opération)** : Affectation immédiate pour les forfaits (Télécom), retraits (Retrait Cash), factures (Charges Fixes) et salaires (Revenus).
 3. **Niveau 3 (Tiers Inconnu)** : Affectation par défaut dans *Dépannages & Imprévus* pour préserver l'exactitude mathématique du solde, avec affichage d'un sélecteur 1-tap.
 
-## 5. Moteur de Réconciliation & Fusion Anti-Doublon (SMS + Scan de Tickets)
+## 6. Moteur de Réconciliation & Fusion Anti-Doublon (SMS + Scan de Tickets)
 
 ```
 Pour chaque Scan de Ticket entrant (Total_Ticket, Date_Ticket, Marchand_Ticket) :
@@ -230,7 +251,7 @@ Pour chaque Scan de Ticket entrant (Total_Ticket, Date_Ticket, Marchand_Ticket) 
    - Créer une nouvelle Transaction standard avec débit immédiat du portefeuille choisi.
 ```
 
-## 6. Spécification de l'AI Assistant (Google Gemini 3.1 Flash Lite)
+## 7. Spécification de l'AI Assistant (Google Gemini 3.1 Flash Lite)
 
 - **Modèle Unique** : Google Gemini 3.1 Flash Lite pour l'ensemble des tâches (Transcription audio STT, Vision OCR de tickets, Chat agentique et Tool Calling).
 - **Prompt Système STT Verbatim** :
@@ -245,3 +266,4 @@ Pour chaque Scan de Ticket entrant (Total_Ticket, Date_Ticket, Marchand_Ticket) 
   - `adjust_budget(categoryId, newMonthlyBudget)`
   - `adjust_wallet_balance(walletId, newBalance)`
   - `simulate_purchase(amount, categoryId)`
+

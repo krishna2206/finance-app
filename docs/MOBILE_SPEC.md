@@ -5,9 +5,9 @@ Ce document définit l'architecture, la configuration et le fonctionnement de l'
 ## 1. Description & Rôle du Module Mobile
 
 Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native + TypeScript)** :
-- **Parité Visuelle & UX Totale avec le Web** : Même disposition (Floating Tab Bar bas gauche, Floating Action Stack bas droite), même thème sombre obsidienne, cartes statistiques dédiées et conteneurs Inset Grouped style Apple.
-- **Usage Principal** : Utilisé lors des phases de déploiement d'un APK Android autonome ou d'une passerelle native pour intercepter directement les SMS d'opérateurs en tâche de fond (`RECEIVE_SMS`).
-- **Mode de Fonctionnement** : Entièrement autonome en local avec `expo-sqlite` ou connecté à l'API du backend.
+- **Philosophie Local-First** : Fonctionne de manière 100% autonome hors-ligne avec `expo-sqlite`, et synchronise ses données vers le backend (self-hosted ou cloud).
+- **Interception SMS Native H24** : Reçoit les SMS d'opérateurs en tâche de fond (`RECEIVE_SMS`) directement via le BroadcastReceiver Android sans nécessiter d'application tierce comme MacroDroid.
+- **Parité Visuelle & UX Totale avec le Web** : Même design épuré, format mobile, cartes statistiques dédiées, conteneurs Inset Grouped style Apple et Bottom Sheets fluides.
 
 ## 2. Architecture Système & Interactions
 
@@ -29,17 +29,23 @@ Le dossier `mobile/` héberge le client mobile natif sous **Expo (React Native +
 |                                                 v                                              |
 |  +------------------------------------------------------------------------------------------+  |
 |  |                       INTERFACE UTILISATEUR UNIFIÉE (Expo Router v5)                     |  |
-|  |  - Cartes Statistiques Dédiées (Solde Réel, Reste à Vivre, Cadence, Épargne, Frais)      |  |
+|  |  - Onboarding initial (Profil, Portefeuilles réels, Objectifs budgétaires)                 |  |
+|  |  - Cartes Statistiques Dédiées (Solde Dynamique, Reste à Vivre, Cadence, Épargne, Frais)   |  |
 |  |  - Inset Grouped Cards (Style Apple HIG pour les actions communes et listes)              |  |
-|  |  - Floating Tab Bar gauche & Floating Action Stack droite (Micro hold & Scan Telegram)   |  |
-|  |  - Bottom Sheets natifs (QuickAdd, AttachmentGallery, TransactionDetail)                 |  |
+|  |  - Floating Tab Bar & Floating Action Button (+)                                         |  |
+|  |  - Bottom Sheets natifs (QuickAdd Dépense/Retrait, SavingsAction, TransactionDetail)      |  |
 |  +----------------------------------------------+-------------------------------------------+  |
 |                                                 |                                              |
 |                                                 v                                              |
 |  +------------------------------------------------------------------------------------------+  |
 |  |                                  GESTION D'ÉTAT & PERSISTANCE                            |  |
-|  |  - Stores Zustand (useWalletStore, useBudgetStore, useTransactionStore)                  |  |
+|  |  - Stores Zustand (useSettingsStore, useWalletStore, useBudgetStore, useTransactionStore)  |  |
 |  |  - Base relationnelle locale : `expo-sqlite` (finance.db avec UUID v4 immuables)         |  |
+|  +----------------------------------------------+-------------------------------------------+  |
+|                                                 |                                              |
+|                                                 v Synchronisation REST / P2P                   |
+|  +------------------------------------------------------------------------------------------+  |
+|  |                        SERVEUR BACKEND (Self-Hosted ou Cloud)                            |  |
 |  +------------------------------------------------------------------------------------------+  |
 +------------------------------------------------------------------------------------------------+
 ```
@@ -68,33 +74,26 @@ mobile/
 │
 ├── app/                                    # Routes Expo Router
 │   ├── _layout.tsx                         # Root Layout avec SafeAreaProvider et ErrorBoundary
-│   ├── (tabs)/                             # Onglets inférieurs (Accueil, Historique, Budgets, Assistant)
+│   ├── (onboarding)/                       # Parcours d'onboarding initial
+│   ├── (tabs)/                             # Onglets inférieurs (Accueil, Historique, Budgets)
 │   │   ├── _layout.tsx
 │   │   ├── index.tsx
 │   │   ├── transactions.tsx
-│   │   ├── budgets.tsx
-│   │   └── assistant.tsx
+│   │   └── budgets.tsx
 │   ├── (modals)/                           # Modales / Bottom Sheets glissantes
-│   │   ├── quick-add.tsx                   # Saisie flash rapide
-│   │   ├── scan-receipt.tsx                # Scan de tickets de caisse SCORE
-│   │   └── paste-sms.tsx                   # Simulateur de test SMS
+│   │   ├── quick-add.tsx                   # Saisie flash (Dépense / Retrait)
+│   │   ├── savings-action.tsx              # Versement / Déblocage d'épargne
+│   │   ├── scan-receipt.tsx                # Scan de tickets de caisse
+│   │   └── add-wallet.tsx                  # Ajout d'un portefeuille dynamique
 │   └── transaction/
 │       └── [id].tsx                        # Fiche détaillée de transaction
 │
-├── src/                                    # Code source modulaire
-│   ├── ai/                                 # Client SDK Gemini 3.1 Flash Lite et Tool Calling
-│   ├── db/                                 # Base SQLite expo-sqlite et repositories relationnels
-│   ├── stores/                             # Stores réactifs Zustand
-│   ├── services/                           # Logique métier (frais MVola, reste à vivre, parseur SMS)
-│   ├── components/                         # Composants UI React Native
-│   │   ├── cards/                          # Cartes dédiées (Solde, Reste à Vivre, Épargne, Frais)
-│   │   ├── charts/                         # CadenceProgressBar avec seuil Jour J (`|`)
-│   │   ├── common/                         # InsetGroupedCard style Apple
-│   │   ├── layout/                         # FloatingTabBar, FloatingActionStack
-│   │   ├── transactions/                   # TransactionRow, TransactionItemRow
-│   │   └── voice/                          # VoiceRecordButton (Hold to record)
-│   ├── styles/                             # global.css
-│   └── types/                              # Types TypeScript
-│
-└── assets/                                 # Icônes et splash screen
+└── src/                                    # Code source partagé
+    ├── ai/                                 # Client SDK Gemini 3.1 Flash Lite et Tool Calling
+    ├── db/                                 # Base SQLite expo-sqlite et repositories relationnels
+    ├── stores/                             # Stores réactifs Zustand (Settings, Wallets, Budgets, Txns)
+    ├── services/                           # Logique métier (frais MVola, reste à vivre, parseur SMS)
+    ├── components/                         # Composants UI React Native
+    ├── styles/                             # global.css
+    └── types/                              # Types TypeScript
 ```
