@@ -1,187 +1,206 @@
-export const CREATE_TABLES_SQL = `
-CREATE TABLE IF NOT EXISTS wallets (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'CUSTOM',
-  account_number TEXT,
-  balance REAL NOT NULL DEFAULT 0,
-  is_spendable INTEGER NOT NULL DEFAULT 1,
-  created_at INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL DEFAULT 0
-);
+import { sqliteTable, text, real, integer } from 'drizzle-orm/sqlite-core';
+import { relations } from 'drizzle-orm';
 
-CREATE TABLE IF NOT EXISTS categories (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL DEFAULT 'EXPENSE',
-  monthly_budget REAL NOT NULL DEFAULT 0,
-  color TEXT NOT NULL DEFAULT '#34D399',
-  icon TEXT NOT NULL DEFAULT 'TagIcon',
-  is_essential INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL
-);
+// 1. WALLETS (Comptes Réels de Trésorerie)
+export const wallets = sqliteTable('wallets', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('CUSTOM'), // 'MVOLA' | 'ORANGE_MONEY' | 'AIRTEL_MONEY' | 'BANK' | 'CASH' | 'CUSTOM'
+  accountNumber: text('account_number'),
+  balance: real('balance').notNull().default(0),
+  isSpendable: integer('is_spendable').notNull().default(1),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
-CREATE TABLE IF NOT EXISTS transactions (
-  id TEXT PRIMARY KEY,
-  flow TEXT NOT NULL,
-  operation_type TEXT NOT NULL,
-  wallet TEXT NOT NULL,
-  destination_wallet TEXT,
-  amount REAL NOT NULL,
-  fee_amount REAL NOT NULL DEFAULT 0,
-  total_impact REAL NOT NULL,
-  title TEXT NOT NULL,
-  category_id TEXT NOT NULL,
-  icon TEXT,
-  place_name TEXT,
-  latitude REAL,
-  longitude REAL,
-  items_json TEXT,
-  recipient_or_sender TEXT,
-  reference_number TEXT,
-  date TEXT NOT NULL,
-  note TEXT,
-  source TEXT NOT NULL,
-  raw_sms_text TEXT,
-  synced INTEGER NOT NULL DEFAULT 1,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL,
-  FOREIGN KEY (category_id) REFERENCES categories (id)
-);
+// 2. SAVINGS (Supports / Pots d'Épargne rattachés à un wallet)
+export const savings = sqliteTable('savings', {
+  id: text('id').primaryKey(),
+  walletId: text('wallet_id').notNull().references(() => wallets.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  mode: text('mode').notNull().default('VIRTUAL_LOCK'), // 'NATIVE' | 'VIRTUAL_LOCK'
+  balance: real('balance').notNull().default(0),
+  color: text('color').notNull().default('#10B981'),
+  icon: text('icon').notNull().default('ShieldCheckBoldIcon'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
-CREATE TABLE IF NOT EXISTS recipients (
-  id TEXT PRIMARY KEY,
-  phone_number TEXT UNIQUE NOT NULL,
-  recipient_name TEXT,
-  category_id TEXT NOT NULL,
-  last_used_at INTEGER NOT NULL,
-  FOREIGN KEY (category_id) REFERENCES categories (id)
-);
+// 3. SAVINGS_GOALS (Projets / Wishlist financés par un pot d'épargne)
+export const savingsGoals = sqliteTable('savings_goals', {
+  id: text('id').primaryKey(),
+  savingsId: text('savings_id').notNull().references(() => savings.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  targetAmount: real('target_amount').notNull(),
+  currentAmount: real('current_amount').notNull().default(0),
+  deadline: text('deadline'), // ISO 8601 string
+  priority: text('priority').notNull().default('MEDIUM'), // 'LOW' | 'MEDIUM' | 'HIGH'
+  status: text('status').notNull().default('IN_PROGRESS'), // 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED'
+  color: text('color').notNull().default('#3B82F6'),
+  icon: text('icon').notNull().default('TargetBoldIcon'),
+  note: text('note'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
-CREATE TABLE IF NOT EXISTS settings (
-  id TEXT PRIMARY KEY,
-  user_name TEXT NOT NULL DEFAULT 'Utilisateur',
-  user_profession TEXT,
-  user_location TEXT,
-  monthly_income_target REAL NOT NULL DEFAULT 0,
-  monthly_savings_target REAL NOT NULL DEFAULT 0,
-  currency TEXT NOT NULL DEFAULT 'MGA',
-  onboarding_completed INTEGER NOT NULL DEFAULT 0,
-  gemini_api_key TEXT,
-  sms_capture_enabled INTEGER NOT NULL DEFAULT 1,
-  push_notifications_enabled INTEGER NOT NULL DEFAULT 1,
-  created_at INTEGER NOT NULL DEFAULT 0,
-  updated_at INTEGER NOT NULL DEFAULT 0
-);
-`;
+// 4. CATEGORIES (Taxonomie pure de classification)
+export const categories = sqliteTable('categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  type: text('type').notNull().default('EXPENSE'), // 'EXPENSE' | 'INCOME'
+  color: text('color').notNull().default('#34D399'),
+  icon: text('icon').notNull().default('TagBoldIcon'),
+  createdAt: integer('created_at').notNull(),
+});
 
-export const DEFAULT_CATEGORIES = [
-  {
-    id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    name: 'Nourriture & Marché',
-    type: 'EXPENSE',
-    monthlyBudget: 350000,
-    color: '#34D399',
-    icon: 'ShoppingCartIcon',
-    isEssential: 1,
-  },
-  {
-    id: 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d',
-    name: 'Charges Fixes & Factures',
-    type: 'EXPENSE',
-    monthlyBudget: 250000,
-    color: '#60A5FA',
-    icon: 'HomeIcon',
-    isEssential: 1,
-  },
-  {
-    id: 'b2c3d4e5-f6a7-4b6c-9d0e-1f2a3b4c5d6e',
-    name: 'Transport & Déplacements',
-    type: 'EXPENSE',
-    monthlyBudget: 80000,
-    color: '#FBBF24',
-    icon: 'TruckIcon',
-    isEssential: 1,
-  },
-  {
-    id: 'c3d4e5f6-a7b8-4c7d-0e1f-2a3b4c5d6e7f',
-    name: 'Télécom & Internet',
-    type: 'EXPENSE',
-    monthlyBudget: 75000,
-    color: '#A78BFA',
-    icon: 'SignalIcon',
-    isEssential: 1,
-  },
-  {
-    id: 'd4e5f6a7-b8c9-4d8e-1f2a-3b4c5d6e7f8a',
-    name: 'Sorties & Restaurants',
-    type: 'EXPENSE',
-    monthlyBudget: 120000,
-    color: '#F472B6',
-    icon: 'SparklesIcon',
-    isEssential: 0,
-  },
-  {
-    id: 'e5f6a7b8-c9d0-4e9f-2a3b-4c5d6e7f8a9b',
-    name: 'Dépannages & Imprévus',
-    type: 'EXPENSE',
-    monthlyBudget: 100000,
-    color: '#FB7185',
-    icon: 'ExclamationTriangleIcon',
-    isEssential: 0,
-  },
-  {
-    id: 'f6a7b8c9-d0e1-4f0a-3b4c-5d6e7f8a9b0c',
-    name: 'Frais Mobiles & Services',
-    type: 'EXPENSE',
-    monthlyBudget: 15000,
-    color: '#9CA3AF',
-    icon: 'CreditCardIcon',
-    isEssential: 1,
-  },
-  {
-    id: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
-    name: 'Épargne & Réserve',
-    type: 'SAVINGS',
-    monthlyBudget: 150000,
-    color: '#10B981',
-    icon: 'ShieldCheckIcon',
-    isEssential: 0,
-  },
-  {
-    id: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
-    name: 'Salaire & Rémunération',
-    type: 'INCOME',
-    monthlyBudget: 0,
-    color: '#10B981',
-    icon: 'BanknotesIcon',
-    isEssential: 0,
-  },
-  {
-    id: '2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e',
-    name: 'Freelance & Prestations',
-    type: 'INCOME',
-    monthlyBudget: 0,
-    color: '#3B82F6',
-    icon: 'SparklesIcon',
-    isEssential: 0,
-  },
-  {
-    id: '3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f',
-    name: 'Entrées Diverses & Ventes',
-    type: 'INCOME',
-    monthlyBudget: 0,
-    color: '#8B5CF6',
-    icon: 'TagIcon',
-    isEssential: 0,
-  }
-];
+// 5. BUDGETS (Plafonds mensuels et enveloppes de dépenses)
+export const budgets = sqliteTable('budgets', {
+  id: text('id').primaryKey(),
+  categoryId: text('category_id').notNull().unique().references(() => categories.id, { onDelete: 'cascade' }),
+  monthlyLimit: real('monthly_limit').notNull().default(0),
+  isEssential: integer('is_essential').notNull().default(0), // 1 = Besoin vital (Nourriture, Loyer, Santé)
+  isFixed: integer('is_fixed').notNull().default(0),         // 1 = Montant fixe mensuel (Loyer vs Facture variable)
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
 
-export const DEFAULT_WALLETS = [
-  { id: 'w-mvola-primary-001', name: 'MVola', type: 'MVOLA', balance: 0, is_spendable: 1 },
-  { id: 'w-orange-primary-002', name: 'Orange Money', type: 'ORANGE_MONEY', balance: 0, is_spendable: 1 },
-  { id: 'w-cash-physical-003', name: 'Espèces', type: 'CASH', balance: 0, is_spendable: 1 },
-  { id: 'w-airtel-primary-004', name: 'Airtel Money', type: 'AIRTEL_MONEY', balance: 0, is_spendable: 1 },
-  { id: 'w-bank-primary-005', name: 'Compte Bancaire', type: 'BANK', balance: 0, is_spendable: 1 },
-  { id: 'w-savings-vault-006', name: 'Coffre Épargne', type: 'SAVINGS_VAULT', balance: 0, is_spendable: 0 },
-];
+// 6. TRANSACTIONS (Grand Livre Comptable Immuable)
+export const transactions = sqliteTable('transactions', {
+  id: text('id').primaryKey(),
+  flow: text('flow').notNull(), // 'DEBIT' | 'CREDIT'
+  operationType: text('operation_type').notNull(), // 'EXPENSE_GENERAL', 'TRANSFER_P2P', 'WITHDRAWAL_CASH', 'SAVINGS_DEPOSIT', 'SAVINGS_WITHDRAWAL', 'SALARY', etc.
+  walletId: text('wallet_id').notNull().references(() => wallets.id),
+  destinationWalletId: text('destination_wallet_id').references(() => wallets.id),
+  savingsId: text('savings_id').references(() => savings.id),
+  goalId: text('goal_id').references(() => savingsGoals.id),
+  categoryId: text('category_id').references(() => categories.id),
+  amount: real('amount').notNull(),
+  feeAmount: real('fee_amount').notNull().default(0),
+  totalAmount: real('total_amount').notNull(),
+  title: text('title').notNull(),
+  recipient: text('recipient'),
+  sender: text('sender'),
+  date: text('date').notNull(), // ISO 8601 UTC
+  note: text('note'),
+  source: text('source').notNull().default('MANUAL'), // 'MANUAL' | 'SMS_AUTO' | 'VOICE' | 'IMAGE_OCR'
+  placeName: text('place_name'),
+  latitude: real('latitude'),
+  longitude: real('longitude'),
+  synced: integer('synced').notNull().default(1),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// 7. TRANSACTION_ITEMS (Ventilation détaillée des articles d'un reçu/ticket)
+export const transactionItems = sqliteTable('transaction_items', {
+  id: text('id').primaryKey(),
+  transactionId: text('transaction_id').notNull().references(() => transactions.id, { onDelete: 'cascade' }),
+  categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  name: text('name').notNull(),
+  quantity: real('quantity').notNull().default(1),
+  unitPrice: real('unit_price'),
+  totalPrice: real('total_price').notNull(),
+  unit: text('unit'),
+  createdAt: integer('created_at').notNull(),
+});
+
+// 8. RECIPIENTS (Mémoire des Tiers / Auto-catégorisation)
+export const recipients = sqliteTable('recipients', {
+  id: text('id').primaryKey(),
+  phoneNumber: text('phone_number').notNull().unique(),
+  recipientName: text('recipient_name'),
+  categoryId: text('category_id').notNull().references(() => categories.id),
+  lastUsedAt: integer('last_used_at').notNull(),
+});
+
+// 9. SETTINGS (Profil Utilisateur & Configuration)
+export const settings = sqliteTable('settings', {
+  id: text('id').primaryKey(),
+  userName: text('user_name').notNull().default('Utilisateur'),
+  userProfession: text('user_profession'),
+  userLocation: text('user_location'),
+  monthlyIncomeTarget: real('monthly_income_target').notNull().default(0),
+  monthlySavingsTarget: real('monthly_savings_target').notNull().default(0),
+  currency: text('currency').notNull().default('MGA'),
+  onboardingCompleted: integer('onboarding_completed').notNull().default(0),
+  geminiApiKey: text('gemini_api_key'),
+  smsCaptureEnabled: integer('sms_capture_enabled').notNull().default(1),
+  pushNotificationsEnabled: integer('push_notifications_enabled').notNull().default(1),
+  createdAt: integer('created_at').notNull().default(0),
+  updatedAt: integer('updated_at').notNull().default(0),
+});
+
+// Relations Drizzle
+export const walletsRelations = relations(wallets, ({ many }) => ({
+  savings: many(savings),
+  transactions: many(transactions),
+}));
+
+export const savingsRelations = relations(savings, ({ one, many }) => ({
+  wallet: one(wallets, {
+    fields: [savings.walletId],
+    references: [wallets.id],
+  }),
+  goals: many(savingsGoals),
+  transactions: many(transactions),
+}));
+
+export const savingsGoalsRelations = relations(savingsGoals, ({ one, many }) => ({
+  savings: one(savings, {
+    fields: [savingsGoals.savingsId],
+    references: [savings.id],
+  }),
+  transactions: many(transactions),
+}));
+
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  budget: one(budgets, {
+    fields: [categories.id],
+    references: [budgets.categoryId],
+  }),
+  transactions: many(transactions),
+  transactionItems: many(transactionItems),
+  recipients: many(recipients),
+}));
+
+export const budgetsRelations = relations(budgets, ({ one }) => ({
+  category: one(categories, {
+    fields: [budgets.categoryId],
+    references: [categories.id],
+  }),
+}));
+
+export const transactionsRelations = relations(transactions, ({ one, many }) => ({
+  wallet: one(wallets, {
+    fields: [transactions.walletId],
+    references: [wallets.id],
+  }),
+  destinationWallet: one(wallets, {
+    fields: [transactions.destinationWalletId],
+    references: [wallets.id],
+  }),
+  savings: one(savings, {
+    fields: [transactions.savingsId],
+    references: [savings.id],
+  }),
+  goal: one(savingsGoals, {
+    fields: [transactions.goalId],
+    references: [savingsGoals.id],
+  }),
+  category: one(categories, {
+    fields: [transactions.categoryId],
+    references: [categories.id],
+  }),
+  items: many(transactionItems),
+}));
+
+export const transactionItemsRelations = relations(transactionItems, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [transactionItems.transactionId],
+    references: [transactions.id],
+  }),
+  category: one(categories, {
+    fields: [transactionItems.categoryId],
+    references: [categories.id],
+  }),
+}));

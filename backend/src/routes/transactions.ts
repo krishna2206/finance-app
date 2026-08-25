@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
+import { savingsRepository } from '../db/repositories/savingsRepository';
+import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { recipientRepository } from '../db/repositories/recipientRepository';
-import { Transaction } from '../types';
+import { TransactionFlow, OperationType, TransactionSource } from '../types';
 
 export const transactionsRouter = new Hono();
 
@@ -31,69 +33,70 @@ transactionsRouter.get('/:id', (c) => {
 
 transactionsRouter.post('/', async (c) => {
   const body = await c.req.json();
-  if (!body.amount || !body.categoryId || !body.wallet) {
-    return c.json({ error: 'amount, categoryId and wallet are required' }, 400);
+  const walletId = body.walletId || body.wallet;
+  const destinationWalletId = body.destinationWalletId || body.destinationWallet;
+
+  if (!body.amount || !walletId) {
+    return c.json({ error: 'amount and walletId are required' }, 400);
   }
 
   // Reject transfer to the same wallet
-  if (body.destinationWallet && body.wallet === body.destinationWallet) {
+  if (destinationWalletId && walletId === destinationWalletId) {
     return c.json({ error: 'Source and destination wallets must be distinct' }, 400);
   }
 
   const amount = Number(body.amount);
   const feeAmount = Number(body.feeAmount || 0);
-  const totalImpact = body.flow === 'DEBIT' ? amount + feeAmount : amount;
+  const totalAmount = body.flow === 'DEBIT' ? amount + feeAmount : amount;
+
+  const flow: TransactionFlow = body.flow || 'DEBIT';
+  const operationType: OperationType = body.operationType || (destinationWalletId ? 'TRANSFER_P2P' : 'EXPENSE_GENERAL');
 
   const created = transactionRepository.createTransaction({
-    flow: body.flow || 'DEBIT',
-    operationType: body.operationType || (body.destinationWallet ? 'TRANSFER_P2P' : 'EXPENSE_GENERAL'),
-    wallet: body.wallet,
-    destinationWallet: body.destinationWallet || undefined,
+    flow,
+    operationType,
+    walletId,
+    destinationWalletId: destinationWalletId || undefined,
+    savingsId: body.savingsId || undefined,
+    goalId: body.goalId || undefined,
+    categoryId: body.categoryId || undefined,
     amount,
     feeAmount,
-    totalImpact,
+    totalAmount,
     title: body.title || 'Dépense',
-    categoryId: body.categoryId,
-    icon: body.icon,
-    location: body.location,
-    items: body.items,
-    recipientOrSender: body.recipientOrSender,
-    referenceNumber: body.referenceNumber,
+    recipient: body.recipient || body.recipientOrSender || undefined,
+    sender: body.sender || undefined,
     date: body.date || new Date().toISOString(),
     note: body.note,
-    source: body.source || 'MANUAL',
-    rawSmsText: body.rawSmsText,
+    source: (body.source || 'MANUAL') as TransactionSource,
+    location: body.location,
+    items: body.items,
   });
 
   // Apply wallet balance updates
-  if (created.destinationWallet && created.destinationWallet !== created.wallet) {
-    // Any internal transfer (withdrawal, savings deposit/withdrawal, bank to wallet, etc.)
-    walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
-    walletRepository.adjustBalanceDelta(created.destinationWallet, created.amount);
+  if (created.destinationWalletId && created.destinationWalletId !== created.walletId) {
+    // Internal transfer
+    walletRepository.adjustBalanceDelta(created.walletId, -(created.amount + created.feeAmount));
+    walletRepository.adjustBalanceDelta(created.destinationWalletId, created.amount);
   } else if (created.flow === 'DEBIT') {
-    walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
+    walletRepository.adjustBalanceDelta(created.walletId, -(created.amount + created.feeAmount));
   } else if (created.flow === 'CREDIT') {
-    walletRepository.adjustBalanceDelta(created.wallet, created.amount);
+    walletRepository.adjustBalanceDelta(created.walletId, created.amount);
+  }
+
+  // If tied to a savings receptacle / goal and operation is savings
+  if (created.savingsId && !created.goalId && created.operationType === 'SAVINGS_DEPOSIT') {
+    savingsRepository.adjustSavingsBalanceDelta(created.savingsId, created.amount);
+  } else if (created.savingsId && !created.goalId && created.operationType === 'SAVINGS_WITHDRAWAL') {
+    savingsRepository.adjustSavingsBalanceDelta(created.savingsId, -created.amount);
   }
 
   // Update recipient mapping
-  if (created.recipientOrSender) {
-    recipientRepository.upsertMapping(created.recipientOrSender, created.categoryId);
+  if (created.recipient && created.categoryId) {
+    recipientRepository.upsertMapping(created.recipient, created.categoryId);
   }
 
   return c.json(created, 201);
-});
-
-transactionsRouter.put('/:id/enrich', async (c) => {
-  const id = c.req.param('id');
-  const body = await c.req.json();
-  if (!body.items) {
-    return c.json({ error: 'items are required' }, 400);
-  }
-
-  transactionRepository.enrichTransactionWithReceipt(id, body.items, body.location);
-  const updated = transactionRepository.getTransactionById(id);
-  return c.json(updated);
 });
 
 transactionsRouter.delete('/:id', (c) => {
@@ -102,13 +105,27 @@ transactionsRouter.delete('/:id', (c) => {
   if (!existing) return c.json({ error: 'Transaction not found' }, 404);
 
   // Compensate wallet balance
-  if (existing.destinationWallet && existing.destinationWallet !== existing.wallet) {
-    walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
-    walletRepository.adjustBalanceDelta(existing.destinationWallet, -existing.amount);
+  if (existing.destinationWalletId && existing.destinationWalletId !== existing.walletId) {
+    walletRepository.adjustBalanceDelta(existing.walletId, existing.amount + existing.feeAmount);
+    walletRepository.adjustBalanceDelta(existing.destinationWalletId, -existing.amount);
   } else if (existing.flow === 'DEBIT') {
-    walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
+    walletRepository.adjustBalanceDelta(existing.walletId, existing.amount + existing.feeAmount);
   } else if (existing.flow === 'CREDIT') {
-    walletRepository.adjustBalanceDelta(existing.wallet, -existing.amount);
+    walletRepository.adjustBalanceDelta(existing.walletId, -existing.amount);
+  }
+
+  // Compensate savings if applicable
+  if (existing.savingsId && existing.operationType === 'SAVINGS_DEPOSIT') {
+    savingsRepository.adjustSavingsBalanceDelta(existing.savingsId, -existing.amount);
+  } else if (existing.savingsId && existing.operationType === 'SAVINGS_WITHDRAWAL') {
+    savingsRepository.adjustSavingsBalanceDelta(existing.savingsId, existing.amount);
+  }
+
+  // Compensate goal if applicable
+  if (existing.goalId && existing.operationType === 'SAVINGS_DEPOSIT') {
+    savingsGoalRepository.adjustGoalAmountDelta(existing.goalId, -existing.amount);
+  } else if (existing.goalId && existing.operationType === 'SAVINGS_WITHDRAWAL') {
+    savingsGoalRepository.adjustGoalAmountDelta(existing.goalId, existing.amount);
   }
 
   transactionRepository.deleteTransaction(id);

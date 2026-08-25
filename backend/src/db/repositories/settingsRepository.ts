@@ -1,10 +1,12 @@
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
+import { settings } from '../schema';
 import { AppSettings } from '../../types';
+import { eq } from 'drizzle-orm';
 
 export const settingsRepository = {
   getSettings(): AppSettings {
     const db = getDatabase();
-    const row = db.query('SELECT * FROM settings LIMIT 1').get() as any;
+    const row = db.select().from(settings).limit(1).get();
 
     if (!row) {
       const now = Date.now();
@@ -26,18 +28,18 @@ export const settingsRepository = {
 
     return {
       id: row.id,
-      userName: row.user_name || 'Utilisateur',
-      userProfession: row.user_profession || '',
-      userLocation: row.user_location || '',
-      monthlyIncomeTarget: row.monthly_income_target || 0,
-      monthlySavingsTarget: row.monthly_savings_target || 0,
+      userName: row.userName || 'Utilisateur',
+      userProfession: row.userProfession || '',
+      userLocation: row.userLocation || '',
+      monthlyIncomeTarget: row.monthlyIncomeTarget || 0,
+      monthlySavingsTarget: row.monthlySavingsTarget || 0,
       currency: row.currency || 'MGA',
-      onboardingCompleted: Boolean(row.onboarding_completed),
-      geminiApiKey: row.gemini_api_key || undefined,
-      smsCaptureEnabled: Boolean(row.sms_capture_enabled),
-      pushNotificationsEnabled: Boolean(row.push_notifications_enabled),
-      createdAt: row.created_at || 0,
-      updatedAt: row.updated_at || 0,
+      onboardingCompleted: Boolean(row.onboardingCompleted),
+      geminiApiKey: row.geminiApiKey || undefined,
+      smsCaptureEnabled: Boolean(row.smsCaptureEnabled),
+      pushNotificationsEnabled: Boolean(row.pushNotificationsEnabled),
+      createdAt: row.createdAt || 0,
+      updatedAt: row.updatedAt || 0,
     };
   },
 
@@ -46,50 +48,22 @@ export const settingsRepository = {
     const current = this.getSettings();
     const now = Date.now();
 
-    const updated: AppSettings = {
-      id: current.id,
-      userName: data.userName !== undefined ? data.userName : current.userName,
-      userProfession: data.userProfession !== undefined ? data.userProfession : current.userProfession,
-      userLocation: data.userLocation !== undefined ? data.userLocation : current.userLocation,
-      monthlyIncomeTarget: data.monthlyIncomeTarget !== undefined ? data.monthlyIncomeTarget : current.monthlyIncomeTarget,
-      monthlySavingsTarget: data.monthlySavingsTarget !== undefined ? data.monthlySavingsTarget : current.monthlySavingsTarget,
-      currency: data.currency !== undefined ? data.currency : current.currency,
-      onboardingCompleted: data.onboardingCompleted !== undefined ? data.onboardingCompleted : current.onboardingCompleted,
-      geminiApiKey: data.geminiApiKey !== undefined ? data.geminiApiKey : current.geminiApiKey,
-      smsCaptureEnabled: data.smsCaptureEnabled !== undefined ? data.smsCaptureEnabled : current.smsCaptureEnabled,
-      pushNotificationsEnabled: data.pushNotificationsEnabled !== undefined ? data.pushNotificationsEnabled : current.pushNotificationsEnabled,
-      createdAt: current.createdAt || now,
+    const updatePayload: Partial<typeof settings.$inferInsert> = {
       updatedAt: now,
     };
 
-    db.prepare(`
-      UPDATE settings SET
-        user_name = ?,
-        user_profession = ?,
-        user_location = ?,
-        monthly_income_target = ?,
-        monthly_savings_target = ?,
-        currency = ?,
-        onboarding_completed = ?,
-        gemini_api_key = ?,
-        sms_capture_enabled = ?,
-        push_notifications_enabled = ?,
-        updated_at = ?
-      WHERE id = ?
-    `).run(
-      updated.userName,
-      updated.userProfession || '',
-      updated.userLocation || '',
-      updated.monthlyIncomeTarget,
-      updated.monthlySavingsTarget,
-      updated.currency,
-      updated.onboardingCompleted ? 1 : 0,
-      updated.geminiApiKey || null,
-      updated.smsCaptureEnabled ? 1 : 0,
-      updated.pushNotificationsEnabled ? 1 : 0,
-      now,
-      current.id
-    );
+    if (data.userName !== undefined) updatePayload.userName = data.userName;
+    if (data.userProfession !== undefined) updatePayload.userProfession = data.userProfession;
+    if (data.userLocation !== undefined) updatePayload.userLocation = data.userLocation;
+    if (data.monthlyIncomeTarget !== undefined) updatePayload.monthlyIncomeTarget = data.monthlyIncomeTarget;
+    if (data.monthlySavingsTarget !== undefined) updatePayload.monthlySavingsTarget = data.monthlySavingsTarget;
+    if (data.currency !== undefined) updatePayload.currency = data.currency;
+    if (data.onboardingCompleted !== undefined) updatePayload.onboardingCompleted = data.onboardingCompleted ? 1 : 0;
+    if (data.geminiApiKey !== undefined) updatePayload.geminiApiKey = data.geminiApiKey || null;
+    if (data.smsCaptureEnabled !== undefined) updatePayload.smsCaptureEnabled = data.smsCaptureEnabled ? 1 : 0;
+    if (data.pushNotificationsEnabled !== undefined) updatePayload.pushNotificationsEnabled = data.pushNotificationsEnabled ? 1 : 0;
+
+    db.update(settings).set(updatePayload).where(eq(settings.id, current.id)).run();
 
     return this.getSettings();
   },

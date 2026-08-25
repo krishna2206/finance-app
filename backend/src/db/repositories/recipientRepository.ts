@@ -1,19 +1,21 @@
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
+import { recipients } from '../schema';
 import { RecipientMapping } from '../../types';
+import { eq } from 'drizzle-orm';
 
 export const recipientRepository = {
   getMappingByPhoneNumber(phoneNumber: string): RecipientMapping | null {
     const db = getDatabase();
     const cleanPhone = phoneNumber.replace(/[\s\-\.]/g, '');
-    const row = db.query('SELECT * FROM recipients WHERE phone_number = ?').get(cleanPhone) as any;
+    const row = db.select().from(recipients).where(eq(recipients.phoneNumber, cleanPhone)).get();
     if (!row) return null;
 
     return {
       id: row.id,
-      phoneNumber: row.phone_number,
-      recipientName: row.recipient_name || undefined,
-      categoryId: row.category_id,
-      lastUsedAt: row.last_used_at,
+      phoneNumber: row.phoneNumber,
+      recipientName: row.recipientName || undefined,
+      categoryId: row.categoryId,
+      lastUsedAt: row.lastUsedAt,
     };
   },
 
@@ -24,14 +26,20 @@ export const recipientRepository = {
     const now = Date.now();
 
     if (existing) {
-      db.prepare(
-        'UPDATE recipients SET category_id = ?, recipient_name = COALESCE(?, recipient_name), last_used_at = ? WHERE phone_number = ?'
-      ).run(categoryId, recipientName || null, now, cleanPhone);
+      db.update(recipients).set({
+        categoryId,
+        recipientName: recipientName || existing.recipientName,
+        lastUsedAt: now,
+      }).where(eq(recipients.phoneNumber, cleanPhone)).run();
     } else {
       const id = crypto.randomUUID();
-      db.prepare(
-        'INSERT INTO recipients (id, phone_number, recipient_name, category_id, last_used_at) VALUES (?, ?, ?, ?, ?)'
-      ).run(id, cleanPhone, recipientName || null, categoryId, now);
+      db.insert(recipients).values({
+        id,
+        phoneNumber: cleanPhone,
+        recipientName: recipientName || null,
+        categoryId,
+        lastUsedAt: now,
+      }).run();
     }
   }
 };

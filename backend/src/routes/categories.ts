@@ -1,18 +1,36 @@
 import { Hono } from 'hono';
 import { categoryRepository } from '../db/repositories/categoryRepository';
+import { budgetRepository } from '../db/repositories/budgetRepository';
+import { CategoryType } from '../types';
 
 export const categoriesRouter = new Hono();
 
 categoriesRouter.get('/', (c) => {
   const categories = categoryRepository.getAllCategories();
-  return c.json(categories);
+  const enhanced = categories.map(cat => {
+    const b = budgetRepository.getBudgetByCategoryId(cat.id);
+    return {
+      ...cat,
+      monthlyLimit: b?.monthlyLimit || 0,
+      isEssential: b?.isEssential || false,
+      isFixed: b?.isFixed || false,
+    };
+  });
+  return c.json(enhanced);
 });
 
 categoriesRouter.get('/:id', (c) => {
   const id = c.req.param('id');
   const category = categoryRepository.getCategoryById(id);
   if (!category) return c.json({ error: 'Category not found' }, 404);
-  return c.json(category);
+
+  const b = budgetRepository.getBudgetByCategoryId(category.id);
+  return c.json({
+    ...category,
+    monthlyLimit: b?.monthlyLimit || 0,
+    isEssential: b?.isEssential || false,
+    isFixed: b?.isFixed || false,
+  });
 });
 
 categoriesRouter.post('/', async (c) => {
@@ -21,24 +39,65 @@ categoriesRouter.post('/', async (c) => {
 
   const created = categoryRepository.createCategory({
     name: body.name,
-    type: body.type || 'EXPENSE',
-    monthlyBudget: body.monthlyBudget || 0,
+    type: (body.type || 'EXPENSE') as CategoryType,
     color: body.color || '#34D399',
-    icon: body.icon || 'TagIcon',
-    isEssential: Boolean(body.isEssential),
+    icon: body.icon || 'TagBoldIcon',
   });
 
-  return c.json(created, 201);
-});
-
-categoriesRouter.put('/:id/budget', async (c) => {
-  const id = c.req.param('id');
-  const { monthlyBudget } = await c.req.json<{ monthlyBudget: number }>();
-  if (typeof monthlyBudget !== 'number') {
-    return c.json({ error: 'Invalid monthlyBudget' }, 400);
+  if (body.monthlyLimit !== undefined) {
+    budgetRepository.upsertBudget({
+      categoryId: created.id,
+      monthlyLimit: Number(body.monthlyLimit),
+      isEssential: Boolean(body.isEssential),
+      isFixed: Boolean(body.isFixed),
+    });
   }
 
-  categoryRepository.updateCategoryBudget(id, monthlyBudget);
-  const updated = categoryRepository.getCategoryById(id);
-  return c.json(updated);
+  const b = budgetRepository.getBudgetByCategoryId(created.id);
+  return c.json({
+    ...created,
+    monthlyLimit: b?.monthlyLimit || 0,
+    isEssential: b?.isEssential || false,
+    isFixed: b?.isFixed || false,
+  }, 201);
+});
+
+categoriesRouter.put('/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json();
+  const existing = categoryRepository.getCategoryById(id);
+  if (!existing) return c.json({ error: 'Category not found' }, 404);
+
+  const updated = categoryRepository.updateCategory({
+    id,
+    name: body.name || existing.name,
+    type: body.type || existing.type,
+    color: body.color || existing.color,
+    icon: body.icon || existing.icon,
+    createdAt: existing.createdAt,
+  });
+
+  if (body.monthlyLimit !== undefined || body.isEssential !== undefined || body.isFixed !== undefined) {
+    budgetRepository.upsertBudget({
+      categoryId: id,
+      monthlyLimit: body.monthlyLimit !== undefined ? Number(body.monthlyLimit) : 0,
+      isEssential: body.isEssential !== undefined ? Boolean(body.isEssential) : undefined,
+      isFixed: body.isFixed !== undefined ? Boolean(body.isFixed) : undefined,
+    });
+  }
+
+  const b = budgetRepository.getBudgetByCategoryId(id);
+  return c.json({
+    ...updated,
+    monthlyLimit: b?.monthlyLimit || 0,
+    isEssential: b?.isEssential || false,
+    isFixed: b?.isFixed || false,
+  });
+});
+
+categoriesRouter.delete('/:id', (c) => {
+  const id = c.req.param('id');
+  const success = categoryRepository.deleteCategory(id);
+  if (!success) return c.json({ error: 'Category not found' }, 404);
+  return c.json({ success: true, deletedId: id });
 });

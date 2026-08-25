@@ -1,37 +1,39 @@
-import { getDatabase } from '../database';
+import { getDatabase } from '../index';
+import { wallets, savings } from '../schema';
 import { Wallet, WalletType } from '../../types';
+import { eq } from 'drizzle-orm';
 
 export const walletRepository = {
   getAllWallets(): Wallet[] {
     const db = getDatabase();
-    const rows = db.query('SELECT id, name, type, account_number, balance, is_spendable, created_at, updated_at FROM wallets ORDER BY rowid ASC').all() as any[];
+    const rows = db.select().from(wallets).all();
 
     return rows.map(r => ({
-      id: r.id as string,
+      id: r.id,
       name: r.name,
       type: (r.type || 'CUSTOM') as WalletType,
-      accountNumber: r.account_number || undefined,
+      accountNumber: r.accountNumber || undefined,
       balance: r.balance,
-      isSpendable: Boolean(r.is_spendable),
-      createdAt: r.created_at || 0,
-      updatedAt: r.updated_at || 0,
+      isSpendable: Boolean(r.isSpendable),
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
     }));
   },
 
   getWalletById(id: string): Wallet | null {
     const db = getDatabase();
-    const row = db.query('SELECT id, name, type, account_number, balance, is_spendable, created_at, updated_at FROM wallets WHERE id = ?').get(id) as any;
+    const row = db.select().from(wallets).where(eq(wallets.id, id)).get();
     if (!row) return null;
 
     return {
       id: row.id,
       name: row.name,
       type: (row.type || 'CUSTOM') as WalletType,
-      accountNumber: row.account_number || undefined,
+      accountNumber: row.accountNumber || undefined,
       balance: row.balance,
-      isSpendable: Boolean(row.is_spendable),
-      createdAt: row.created_at || 0,
-      updatedAt: row.updated_at || 0,
+      isSpendable: Boolean(row.isSpendable),
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   },
 
@@ -43,16 +45,26 @@ export const walletRepository = {
     const isSpendable = data.isSpendable !== undefined ? (data.isSpendable ? 1 : 0) : 1;
     const balance = data.balance || 0;
 
-    db.prepare('INSERT OR REPLACE INTO wallets (id, name, type, account_number, balance, is_spendable, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+    db.insert(wallets).values({
       id,
-      data.name,
+      name: data.name,
       type,
-      data.accountNumber || null,
+      accountNumber: data.accountNumber || null,
       balance,
       isSpendable,
-      now,
-      now
-    );
+      createdAt: now,
+      updatedAt: now,
+    }).onConflictDoUpdate({
+      target: wallets.id,
+      set: {
+        name: data.name,
+        type,
+        accountNumber: data.accountNumber || null,
+        balance,
+        isSpendable,
+        updatedAt: now,
+      }
+    }).run();
 
     return {
       id,
@@ -69,42 +81,46 @@ export const walletRepository = {
   updateBalance(id: string, newBalance: number): void {
     const db = getDatabase();
     const now = Date.now();
-    db.prepare('UPDATE wallets SET balance = ?, updated_at = ? WHERE id = ?').run(newBalance, now, id);
+    db.update(wallets).set({ balance: newBalance, updatedAt: now }).where(eq(wallets.id, id)).run();
   },
 
   adjustBalanceDelta(id: string, delta: number): number {
     const db = getDatabase();
-    const now = Date.now();
-    db.prepare('UPDATE wallets SET balance = balance + ?, updated_at = ? WHERE id = ?').run(delta, now, id);
-    const updated = this.getWalletById(id);
-    return updated ? updated.balance : 0;
+    const existing = this.getWalletById(id);
+    if (!existing) return 0;
+    const newBalance = existing.balance + delta;
+    this.updateBalance(id, newBalance);
+    return newBalance;
   },
 
   deleteWallet(id: string): boolean {
     const db = getDatabase();
     const existing = this.getWalletById(id);
     if (!existing) return false;
-    // Prevent deleting SAVINGS_VAULT or CASH
-    if (existing.type === 'SAVINGS_VAULT' || existing.type === 'CASH' || existing.id === 'SAVINGS_VAULT' || existing.id === 'CASH') {
-      return false;
-    }
-    db.prepare('DELETE FROM wallets WHERE id = ?').run(id);
+    db.delete(wallets).where(eq(wallets.id, id)).run();
     return true;
   },
 
-  batchInitWallets(wallets: Array<{ id?: string; name: string; type?: WalletType; accountNumber?: string; balance: number; isSpendable: boolean }>): Wallet[] {
+  batchInitWallets(walletsList: Array<{ id?: string; name: string; type?: WalletType; accountNumber?: string; balance: number; isSpendable: boolean }>): Wallet[] {
     const db = getDatabase();
     const now = Date.now();
 
-    // Clear previous wallets so only the user-selected wallets exist
-    db.prepare('DELETE FROM wallets').run();
+    // Clear previous wallets
+    db.delete(wallets).run();
 
-    const stmt = db.prepare('INSERT INTO wallets (id, name, type, account_number, balance, is_spendable, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-
-    for (const w of wallets) {
+    for (const w of walletsList) {
       const id = w.id || crypto.randomUUID();
       const type = w.type || 'CUSTOM';
-      stmt.run(id, w.name, type, w.accountNumber || null, w.balance, w.isSpendable ? 1 : 0, now, now);
+      db.insert(wallets).values({
+        id,
+        name: w.name,
+        type,
+        accountNumber: w.accountNumber || null,
+        balance: w.balance,
+        isSpendable: w.isSpendable ? 1 : 0,
+        createdAt: now,
+        updatedAt: now,
+      }).run();
     }
 
     return this.getAllWallets();
