@@ -32,13 +32,24 @@ export function initDatabase(db: Database): void {
     db.exec('ALTER TABLE settings ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
   } catch {}
 
+  // Safe migrations for wallets columns
+  try {
+    db.exec("ALTER TABLE wallets ADD COLUMN type TEXT NOT NULL DEFAULT 'CUSTOM';");
+  } catch {}
+  try {
+    db.exec('ALTER TABLE wallets ADD COLUMN account_number TEXT;');
+  } catch {}
+  try {
+    db.exec('ALTER TABLE wallets ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0;');
+  } catch {}
+
   // Seed default wallets if empty
   const existingWallets = db.query('SELECT id FROM wallets LIMIT 1').all();
   if (existingWallets.length === 0) {
     const now = Date.now();
-    const insertWallet = db.prepare('INSERT OR IGNORE INTO wallets (id, name, balance, is_spendable, updated_at) VALUES (?, ?, ?, ?, ?)');
+    const insertWallet = db.prepare('INSERT OR IGNORE INTO wallets (id, name, type, account_number, balance, is_spendable, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
     for (const w of DEFAULT_WALLETS) {
-      insertWallet.run(w.id, w.name, w.balance, w.is_spendable, now);
+      insertWallet.run(w.id, w.name, w.type, null, w.balance, w.is_spendable, now, now);
     }
   }
 

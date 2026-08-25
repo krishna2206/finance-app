@@ -2,9 +2,12 @@ export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS wallets (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'CUSTOM',
+  account_number TEXT,
   balance REAL NOT NULL DEFAULT 0,
   is_spendable INTEGER NOT NULL DEFAULT 1,
-  updated_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL DEFAULT 0,
+  updated_at INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -175,10 +178,10 @@ export const DEFAULT_CATEGORIES = [
 ];
 
 export const DEFAULT_WALLETS = [
-  { id: 'MVOLA', name: 'MVola', balance: 0, is_spendable: 1 },
-  { id: 'ORANGE_MONEY', name: 'Orange Money', balance: 0, is_spendable: 1 },
-  { id: 'CASH', name: 'Espèces', balance: 0, is_spendable: 1 },
-  { id: 'AIRTEL_MONEY', name: 'Airtel Money', balance: 0, is_spendable: 1 },
-  { id: 'BANK', name: 'Compte Bancaire', balance: 0, is_spendable: 1 },
-  { id: 'SAVINGS_VAULT', name: 'Coffre Épargne', balance: 0, is_spendable: 0 },
+  { id: 'w-mvola-primary-001', name: 'MVola', type: 'MVOLA', balance: 0, is_spendable: 1 },
+  { id: 'w-orange-primary-002', name: 'Orange Money', type: 'ORANGE_MONEY', balance: 0, is_spendable: 1 },
+  { id: 'w-cash-physical-003', name: 'Espèces', type: 'CASH', balance: 0, is_spendable: 1 },
+  { id: 'w-airtel-primary-004', name: 'Airtel Money', type: 'AIRTEL_MONEY', balance: 0, is_spendable: 1 },
+  { id: 'w-bank-primary-005', name: 'Compte Bancaire', type: 'BANK', balance: 0, is_spendable: 1 },
+  { id: 'w-savings-vault-006', name: 'Coffre Épargne', type: 'SAVINGS_VAULT', balance: 0, is_spendable: 0 },
 ];

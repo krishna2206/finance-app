@@ -35,15 +35,20 @@ transactionsRouter.post('/', async (c) => {
     return c.json({ error: 'amount, categoryId and wallet are required' }, 400);
   }
 
+  // Reject transfer to the same wallet
+  if (body.destinationWallet && body.wallet === body.destinationWallet) {
+    return c.json({ error: 'Source and destination wallets must be distinct' }, 400);
+  }
+
   const amount = Number(body.amount);
   const feeAmount = Number(body.feeAmount || 0);
   const totalImpact = body.flow === 'DEBIT' ? amount + feeAmount : amount;
 
   const created = transactionRepository.createTransaction({
     flow: body.flow || 'DEBIT',
-    operationType: body.operationType || 'EXPENSE_GENERAL',
+    operationType: body.operationType || (body.destinationWallet ? 'TRANSFER_P2P' : 'EXPENSE_GENERAL'),
     wallet: body.wallet,
-    destinationWallet: body.destinationWallet,
+    destinationWallet: body.destinationWallet || undefined,
     amount,
     feeAmount,
     totalImpact,
@@ -61,17 +66,10 @@ transactionsRouter.post('/', async (c) => {
   });
 
   // Apply wallet balance updates
-  if (created.operationType === 'WITHDRAWAL_CASH') {
+  if (created.destinationWallet && created.destinationWallet !== created.wallet) {
+    // Any internal transfer (withdrawal, savings deposit/withdrawal, bank to wallet, etc.)
     walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
-    walletRepository.adjustBalanceDelta('CASH', created.amount);
-  } else if (created.operationType === 'SAVINGS_TRANSFER' || created.operationType === 'SAVINGS_DEPOSIT') {
-    const sourceWallet = created.wallet !== 'SAVINGS_VAULT' ? created.wallet : 'CASH';
-    walletRepository.adjustBalanceDelta(sourceWallet, -created.amount);
-    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', created.amount);
-  } else if (created.operationType === 'SAVINGS_WITHDRAWAL') {
-    const destWallet = created.destinationWallet || (created.wallet !== 'SAVINGS_VAULT' ? created.wallet : 'CASH');
-    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', -created.amount);
-    walletRepository.adjustBalanceDelta(destWallet, created.amount);
+    walletRepository.adjustBalanceDelta(created.destinationWallet, created.amount);
   } else if (created.flow === 'DEBIT') {
     walletRepository.adjustBalanceDelta(created.wallet, -(created.amount + created.feeAmount));
   } else if (created.flow === 'CREDIT') {
@@ -104,17 +102,9 @@ transactionsRouter.delete('/:id', (c) => {
   if (!existing) return c.json({ error: 'Transaction not found' }, 404);
 
   // Compensate wallet balance
-  if (existing.operationType === 'WITHDRAWAL_CASH') {
+  if (existing.destinationWallet && existing.destinationWallet !== existing.wallet) {
     walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
-    walletRepository.adjustBalanceDelta('CASH', -existing.amount);
-  } else if (existing.operationType === 'SAVINGS_TRANSFER' || existing.operationType === 'SAVINGS_DEPOSIT') {
-    const sourceWallet = existing.wallet !== 'SAVINGS_VAULT' ? existing.wallet : 'CASH';
-    walletRepository.adjustBalanceDelta(sourceWallet, existing.amount);
-    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', -existing.amount);
-  } else if (existing.operationType === 'SAVINGS_WITHDRAWAL') {
-    const destWallet = existing.destinationWallet || (existing.wallet !== 'SAVINGS_VAULT' ? existing.wallet : 'CASH');
-    walletRepository.adjustBalanceDelta('SAVINGS_VAULT', existing.amount);
-    walletRepository.adjustBalanceDelta(destWallet, -existing.amount);
+    walletRepository.adjustBalanceDelta(existing.destinationWallet, -existing.amount);
   } else if (existing.flow === 'DEBIT') {
     walletRepository.adjustBalanceDelta(existing.wallet, existing.amount + existing.feeAmount);
   } else if (existing.flow === 'CREDIT') {
