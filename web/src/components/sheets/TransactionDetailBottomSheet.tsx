@@ -1,13 +1,14 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
+import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionItemRow } from '../transactions/TransactionItemRow';
 import { LocationBadge } from '../transactions/LocationBadge';
 import { WalletLogo } from '../common/WalletLogo';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { InsetGroupedCard, InsetGroupedRow } from '../common/InsetGroupedCard';
-import { formatAmount, formatCurrency, formatWalletName } from '../../utils/formatters';
+import { formatAmount, formatCurrency, formatTransactionDateTime } from '../../utils/formatters';
 import {
   CloseLinearIcon,
   TrashBinTrashLinearIcon,
@@ -22,12 +23,16 @@ interface TransactionDetailBottomSheetProps {
 
 export function TransactionDetailBottomSheet({ transaction, onClose }: TransactionDetailBottomSheetProps) {
   const categories = useBudgetStore(state => state.categories);
+  const wallets = useWalletStore(state => state.wallets);
   const deleteTransaction = useTransactionStore(state => state.deleteTransaction);
 
   if (!transaction) return null;
 
   const category = categories.find(c => c.id === transaction.categoryId);
   const isDebit = transaction.flow === 'DEBIT';
+  const walletId = transaction.walletId || transaction.wallet || '';
+  const walletObj = wallets[walletId];
+  const totalAmount = transaction.totalAmount ?? transaction.totalImpact ?? transaction.amount;
 
   const handleDelete = async () => {
     if (confirm('Es-tu sûr de vouloir supprimer cette transaction ?')) {
@@ -82,7 +87,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             </div>
           </div>
 
-          {/* Hero Amount (Borderless, clean floating header) */}
+          {/* Hero Amount */}
           <div className="text-center py-2 mb-4">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1">
               {transaction.title}
@@ -93,7 +98,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
             {transaction.feeAmount > 0 && (
               <div className="text-xs text-amber-600 font-semibold tabular-nums mt-1">
-                +{formatAmount(transaction.feeAmount)} Ar frais inclus (Total : {formatCurrency(transaction.totalImpact)})
+                +{formatAmount(transaction.feeAmount)} Ar frais inclus (Total : {formatCurrency(totalAmount)})
               </div>
             )}
 
@@ -121,10 +126,10 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
             <InsetGroupedRow>
               <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
-                <WalletLogo id={transaction.wallet} name={transaction.wallet} size="sm" />
+                <WalletLogo id={walletId} name={walletObj?.name || walletId} size="sm" />
                 <span>Moyen de paiement</span>
               </div>
-              <span className="text-xs font-semibold text-zinc-900">{formatWalletName(transaction.wallet)}</span>
+              <span className="text-xs font-semibold text-zinc-900">{walletObj?.name || walletId}</span>
             </InsetGroupedRow>
 
             <InsetGroupedRow>
@@ -134,8 +139,8 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                 </div>
                 <span>Date & Heure</span>
               </div>
-              <span className="text-xs font-semibold text-zinc-900">
-                {new Date(transaction.date).toLocaleString('fr-FR')}
+              <span className="text-xs font-semibold text-zinc-900 capitalize">
+                {formatTransactionDateTime(transaction.date)}
               </span>
             </InsetGroupedRow>
           </InsetGroupedCard>
@@ -154,18 +159,6 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                 <TransactionItemRow key={idx} item={item} />
               ))}
             </InsetGroupedCard>
-          )}
-
-          {/* Raw SMS text if present */}
-          {transaction.rawSmsText && (
-            <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-2xl mb-2">
-              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider block mb-0.5">
-                SMS Original Reçu
-              </span>
-              <p className="text-xs text-zinc-600 font-mono leading-relaxed">
-                {transaction.rawSmsText}
-              </p>
-            </div>
           )}
         </motion.div>
       </div>

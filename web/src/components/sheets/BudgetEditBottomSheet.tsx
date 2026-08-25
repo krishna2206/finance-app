@@ -13,11 +13,15 @@ interface BudgetEditBottomSheetProps {
 export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomSheetProps) {
   const updateCategoryBudget = useBudgetStore(state => state.updateCategoryBudget);
   const [budgetInput, setBudgetInput] = useState('');
+  const [isEssential, setIsEssential] = useState(false);
+  const [isFixed, setIsFixed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (category) {
-      setBudgetInput(String(category.monthlyBudget));
+      setBudgetInput(String(category.monthlyLimit || 0));
+      setIsEssential(Boolean(category.isEssential));
+      setIsFixed(Boolean(category.isFixed));
     }
   }, [category]);
 
@@ -30,7 +34,7 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
 
     setIsSubmitting(true);
     try {
-      await updateCategoryBudget(category.id, newAmount);
+      await updateCategoryBudget(category.id, newAmount, isEssential, isFixed);
       onClose();
     } catch (err) {
       console.error(err);
@@ -64,9 +68,9 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
           <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
           {/* Header */}
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-3.5">
             <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-              Modifier le budget : {category.name}
+              Enveloppe : {category.name}
             </h2>
             <button
               onClick={onClose}
@@ -76,26 +80,65 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
             </button>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
-              Plafond mensuel alloué (Ariary)
-            </label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
+                Plafond mensuel alloué
+              </label>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 flex items-baseline justify-center gap-2 mb-5">
-              <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={budgetInput ? formatAmount(budgetInput) : ''}
-                onChange={(e) => setBudgetInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="0"
-                className="text-3xl font-bold text-zinc-900 bg-transparent text-center focus:outline-none w-44 tabular-nums tracking-tight"
-              />
-              <span className="text-lg font-semibold text-zinc-500">Ar</span>
+              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 flex items-baseline justify-center gap-2">
+                <input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={budgetInput ? formatAmount(budgetInput) : ''}
+                  onChange={(e) => setBudgetInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="0"
+                  className="text-3xl font-bold text-zinc-900 bg-transparent text-center focus:outline-none w-48 tabular-nums tracking-tight"
+                />
+                <span className="text-lg font-semibold text-zinc-500">Ar</span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            {/* Options Toggles */}
+            <div className="bg-white border border-zinc-200/90 rounded-2xl p-3 shadow-xs divide-y divide-zinc-100">
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-xs font-bold text-zinc-800 block">
+                    Charge Essentielle (Besoin vital)
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    Nourriture, logement, santé, factures vitales.
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isEssential}
+                  onChange={e => setIsEssential(e.target.checked)}
+                  className="w-4 h-4 rounded text-zinc-900 cursor-pointer"
+                />
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <div>
+                  <span className="text-xs font-bold text-zinc-800 block">
+                    Montant Fixe Incompressible
+                  </span>
+                  <span className="text-[10px] text-zinc-400">
+                    Loyer, forfait fixe (vs électricité variable).
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isFixed}
+                  onChange={e => setIsFixed(e.target.checked)}
+                  className="w-4 h-4 rounded text-zinc-900 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
               <button
                 type="button"
                 onClick={onClose}

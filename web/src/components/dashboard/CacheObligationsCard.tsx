@@ -19,10 +19,11 @@ export function CacheObligationsCard() {
     categories
       .filter(c => c.isEssential && c.type === 'EXPENSE')
       .forEach(c => {
-        fixedTotal += c.monthlyBudget;
+        const limit = c.monthlyLimit || 0;
+        fixedTotal += limit;
         const spent = spendingMap[c.id] || 0;
-        if (spent < c.monthlyBudget) {
-          fixedRemaining += (c.monthlyBudget - spent);
+        if (spent < limit) {
+          fixedRemaining += (limit - spent);
         }
       });
 

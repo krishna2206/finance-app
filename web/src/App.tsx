@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletStore } from './stores/useWalletStore';
+import { useSavingsStore } from './stores/useSavingsStore';
 import { useBudgetStore } from './stores/useBudgetStore';
 import { useTransactionStore } from './stores/useTransactionStore';
 import { useSettingsStore } from './stores/useSettingsStore';
@@ -14,7 +15,11 @@ import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
 import { AddWalletBottomSheet } from './components/sheets/AddWalletBottomSheet';
 import { TransactionDetailBottomSheet } from './components/sheets/TransactionDetailBottomSheet';
 import { BudgetEditBottomSheet } from './components/sheets/BudgetEditBottomSheet';
-import { Transaction, Category } from './types/models';
+import { CreateSavingsBottomSheet } from './components/sheets/CreateSavingsBottomSheet';
+import { CreateGoalBottomSheet } from './components/sheets/CreateGoalBottomSheet';
+import { GoalActionBottomSheet } from './components/sheets/GoalActionBottomSheet';
+import { SavingsActionBottomSheet, SavingsActionType } from './components/sheets/SavingsActionBottomSheet';
+import { Transaction, Category, Savings, SavingsGoal } from './types/models';
 
 const TAB_ORDER: Record<ActiveTab, number> = {
   dashboard: 0,
@@ -44,19 +49,34 @@ export function App() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
+  // Savings & Goals Bottom Sheets mounted at Root z-50
+  const [isCreateSavingsOpen, setIsCreateSavingsOpen] = useState(false);
+  const [isCreateGoalOpen, setIsCreateGoalOpen] = useState(false);
+  const [createGoalDefaultSavingsId, setCreateGoalDefaultSavingsId] = useState<string | undefined>(undefined);
+
+  const [isSavingsActionOpen, setIsSavingsActionOpen] = useState(false);
+  const [selectedSavingsForAction, setSelectedSavingsForAction] = useState<Savings | null>(null);
+  const [savingsDefaultAction, setSavingsDefaultAction] = useState<SavingsActionType>('DEPOSIT');
+
+  const [isGoalActionOpen, setIsGoalActionOpen] = useState(false);
+  const [selectedGoalForAction, setSelectedGoalForAction] = useState<SavingsGoal | null>(null);
+  const [goalDefaultAction, setGoalDefaultAction] = useState<'DEPOSIT' | 'WITHDRAW'>('DEPOSIT');
+
   const settings = useSettingsStore(state => state.settings);
   const isSettingsLoading = useSettingsStore(state => state.isLoading);
   const loadSettings = useSettingsStore(state => state.loadSettings);
   const loadWallets = useWalletStore(state => state.loadWallets);
+  const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
 
   useEffect(() => {
     loadSettings();
     loadWallets();
+    loadSavingsAndGoals();
     loadBudgets();
     loadTransactions();
-  }, []);
+  }, [loadSettings, loadWallets, loadSavingsAndGoals, loadBudgets, loadTransactions]);
 
   const handleTabChange = (newTab: ActiveTab) => {
     if (newTab === activeTab) return;
@@ -128,13 +148,30 @@ export function App() {
                   )}
 
                   {activeTab === 'budgets' && (
-                    <BudgetsView onEditCategory={setEditingCategory} />
+                    <BudgetsView
+                      onEditCategory={setEditingCategory}
+                      onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
+                      onOpenCreateGoal={(savingsId) => {
+                        setCreateGoalDefaultSavingsId(savingsId);
+                        setIsCreateGoalOpen(true);
+                      }}
+                      onOpenSavingsAction={(s, act) => {
+                        setSelectedSavingsForAction(s);
+                        setSavingsDefaultAction(act);
+                        setIsSavingsActionOpen(true);
+                      }}
+                      onOpenGoalAction={(g, act) => {
+                        setSelectedGoalForAction(g);
+                        setGoalDefaultAction(act);
+                        setIsGoalActionOpen(true);
+                      }}
+                    />
                   )}
                 </motion.div>
               </AnimatePresence>
             </main>
 
-            {/* Progressive Frosted Bottom Mask (Smooth progressive gradient blur with zero hard edge) */}
+            {/* Progressive Frosted Bottom Mask */}
             <div
               className="fixed bottom-0 left-0 right-0 max-w-[430px] mx-auto h-28 pointer-events-none z-30 bg-gradient-to-t from-zinc-50 via-zinc-50/70 to-transparent backdrop-blur-md"
               style={{
@@ -143,7 +180,7 @@ export function App() {
               }}
             />
 
-            {/* Floating Bottom Bar (Dynamically adapts on all screen sizes with guaranteed gap) */}
+            {/* Floating Bottom Bar */}
             <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex items-center gap-3">
               <div className="flex-1 min-w-0 pointer-events-auto">
                 <FloatingTabBar activeTab={activeTab} onChangeTab={handleTabChange} />
@@ -153,7 +190,7 @@ export function App() {
               </div>
             </div>
 
-            {/* Bottom Sheets */}
+            {/* Root-Level Bottom Sheets (z-50, Flush at Viewport Bottom) */}
             <QuickAddBottomSheet
               isOpen={isQuickAddOpen}
               onClose={() => setIsQuickAddOpen(false)}
@@ -172,6 +209,38 @@ export function App() {
             <BudgetEditBottomSheet
               category={editingCategory}
               onClose={() => setEditingCategory(null)}
+            />
+
+            <CreateSavingsBottomSheet
+              isOpen={isCreateSavingsOpen}
+              onClose={() => setIsCreateSavingsOpen(false)}
+            />
+
+            <CreateGoalBottomSheet
+              isOpen={isCreateGoalOpen}
+              onClose={() => setIsCreateGoalOpen(false)}
+              defaultSavingsId={createGoalDefaultSavingsId}
+              onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
+            />
+
+            <GoalActionBottomSheet
+              isOpen={isGoalActionOpen}
+              onClose={() => {
+                setIsGoalActionOpen(false);
+                setSelectedGoalForAction(null);
+              }}
+              goal={selectedGoalForAction}
+              defaultAction={goalDefaultAction}
+            />
+
+            <SavingsActionBottomSheet
+              isOpen={isSavingsActionOpen}
+              onClose={() => {
+                setIsSavingsActionOpen(false);
+                setSelectedSavingsForAction(null);
+              }}
+              savings={selectedSavingsForAction}
+              defaultAction={savingsDefaultAction}
             />
           </div>
         </motion.div>

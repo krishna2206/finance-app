@@ -16,6 +16,7 @@ import {
 interface WalletDraft {
   id: string;
   name: string;
+  type?: string;
   balance: string;
   isEnabled: boolean;
   isSpendable: boolean;
@@ -39,6 +40,7 @@ export function OnboardingView() {
     {
       id: 'CASH',
       name: 'Espèces',
+      type: 'CASH',
       balance: '',
       isEnabled: true,
       isSpendable: true,
@@ -47,6 +49,7 @@ export function OnboardingView() {
     {
       id: 'MVOLA',
       name: 'MVola',
+      type: 'MVOLA',
       balance: '',
       isEnabled: true,
       isSpendable: true,
@@ -55,6 +58,7 @@ export function OnboardingView() {
     {
       id: 'ORANGE_MONEY',
       name: 'Orange Money',
+      type: 'ORANGE_MONEY',
       balance: '',
       isEnabled: false,
       isSpendable: true,
@@ -63,6 +67,7 @@ export function OnboardingView() {
     {
       id: 'AIRTEL_MONEY',
       name: 'Airtel Money',
+      type: 'AIRTEL_MONEY',
       balance: '',
       isEnabled: false,
       isSpendable: true,
@@ -71,6 +76,7 @@ export function OnboardingView() {
     {
       id: 'BANK',
       name: 'Compte Bancaire',
+      type: 'BANK',
       balance: '',
       isEnabled: false,
       isSpendable: true,
@@ -104,6 +110,7 @@ export function OnboardingView() {
       {
         id,
         name: customName.trim(),
+        type: 'CUSTOM',
         balance: '',
         isEnabled: true,
         isSpendable: true,
@@ -126,23 +133,16 @@ export function OnboardingView() {
       // 1. Reset / clear old sample transactions so the user starts with 0 transactions
       await api.clearAllTransactions();
 
-      // 2. Prepare wallets to init (including mandatory SAVINGS_VAULT at 0)
+      // 2. Prepare wallets to init
       const walletsToInit = walletsDraft
         .filter(w => w.isEnabled)
         .map(w => ({
           id: w.id,
           name: w.name,
+          type: w.type || 'CUSTOM',
           balance: parseInt(w.balance, 10) || 0,
           isSpendable: w.isSpendable,
         }));
-
-      // Ensure SAVINGS_VAULT exists
-      walletsToInit.push({
-        id: 'SAVINGS_VAULT',
-        name: 'Coffre Épargne',
-        balance: 0,
-        isSpendable: false,
-      });
 
       // 3. Batch init wallets in SQLite
       await batchInitWallets(walletsToInit);
@@ -166,7 +166,6 @@ export function OnboardingView() {
   };
 
   // Automatic redirection to Dashboard on Step 3:
-  // Animation finishes at ~1.35s + 1.5s pause = 2850ms
   useEffect(() => {
     if (step === 3) {
       const timer = setTimeout(() => {
@@ -181,7 +180,7 @@ export function OnboardingView() {
       <div className="w-full max-w-[430px] h-full bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col justify-between shadow-sm px-5 pt-4 pb-6 overflow-hidden">
         {/* Progress Bar & Header */}
         <div className="flex-1 overflow-y-auto min-h-0 pr-0.5 flex flex-col">
-          {/* Steps Indicator Container (Fixed height reserved to avoid layout shift) */}
+          {/* Steps Indicator Container */}
           <div className="h-1.5 mb-4">
             {step < 3 && (
               <div className="flex items-center gap-2">
@@ -312,15 +311,11 @@ export function OnboardingView() {
                             </span>
                           </div>
 
-                          <div
-                            className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
-                              isSelected
-                                ? 'bg-white text-zinc-900'
-                                : 'border border-zinc-300'
-                            }`}
-                          >
-                            {isSelected && <CheckCircleBoldIcon size={16} className="text-white" />}
-                          </div>
+                          {isSelected ? (
+                            <CheckCircleBoldIcon size={18} className="text-white shrink-0" />
+                          ) : (
+                            <div className="w-4 h-4 rounded-full border border-zinc-300 shrink-0" />
+                          )}
                         </button>
                       );
                     })}
@@ -414,7 +409,6 @@ export function OnboardingView() {
                 transition={{ duration: 0.15 }}
                 className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 pointer-events-auto z-10 select-none"
               >
-                {/* Checkmark Circle (Starts at dead center y:0, then glides up to y:-45) */}
                 <motion.div
                   initial={{ y: 0 }}
                   animate={{ y: -45 }}
@@ -428,7 +422,6 @@ export function OnboardingView() {
                   className="relative cursor-pointer select-none"
                   title={isSubmitting ? 'Finalisation...' : 'Valider'}
                 >
-                  {/* Ambient Pulsing Glow Background */}
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: [1, 1.25, 1], opacity: [0.35, 0.65, 0.35] }}
@@ -436,14 +429,12 @@ export function OnboardingView() {
                     className="absolute -inset-3 bg-emerald-500/20 rounded-full blur-xl pointer-events-none"
                   />
 
-                  {/* Outer animated solid green ring */}
                   <motion.div
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 320, damping: 22, delay: 0.05 }}
                     className="relative w-24 h-24 rounded-full bg-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-600/25"
                   >
-                    {/* Animated SVG Checkmark Drawing */}
                     <svg
                       className="w-12 h-12 text-white"
                       viewBox="0 0 24 24"
@@ -466,7 +457,6 @@ export function OnboardingView() {
                   </motion.div>
                 </motion.div>
 
-                {/* Welcoming Text - Positioned directly below the checkmark final position */}
                 <motion.div
                   initial={{ opacity: 0, y: -25 }}
                   animate={{ opacity: 1, y: -45 }}
@@ -492,9 +482,8 @@ export function OnboardingView() {
           </AnimatePresence>
         </div>
 
-        {/* Footer Area with Animated Sticky Total on Step 2 & Navigation Buttons */}
+        {/* Footer Area */}
         <div className="shrink-0 pt-3 space-y-2.5">
-          {/* Animated Sticky Total Starting Balance Bar on Step 2 */}
           <AnimatePresence>
             {step === 2 && (
               <motion.div
@@ -510,37 +499,36 @@ export function OnboardingView() {
             )}
           </AnimatePresence>
 
-          {/* Navigation Buttons (Only on steps 1 and 2) */}
           {step < 3 && (
             <div className="flex items-center justify-between gap-2.5">
               {step > 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStep((step - 1) as any)}
-                    className="px-4 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs font-bold text-zinc-700 flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <AltArrowLeftLinearIcon size={14} />
-                    <span>Retour</span>
-                  </button>
-                ) : (
-                  <div />
-                )}
-
                 <button
                   type="button"
-                  disabled={step === 1 && !userName.trim()}
-                  onClick={() => {
-                    if (step === 1) {
-                      setStep(2);
-                    } else if (step === 2) {
-                      setStep(3);
-                    }
-                  }}
-                  className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all cursor-pointer ml-auto"
+                  onClick={() => setStep((step - 1) as any)}
+                  className="px-4 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs font-bold text-zinc-700 flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <span>Continuer</span>
-                  <AltArrowRightLinearIcon size={14} />
+                  <AltArrowLeftLinearIcon size={14} />
+                  <span>Retour</span>
                 </button>
+              ) : (
+                <div />
+              )}
+
+              <button
+                type="button"
+                disabled={step === 1 && !userName.trim()}
+                onClick={() => {
+                  if (step === 1) {
+                    setStep(2);
+                  } else if (step === 2) {
+                    setStep(3);
+                  }
+                }}
+                className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all cursor-pointer ml-auto"
+              >
+                <span>Continuer</span>
+                <AltArrowRightLinearIcon size={14} />
+              </button>
             </div>
           )}
         </div>

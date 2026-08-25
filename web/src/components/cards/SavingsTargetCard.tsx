@@ -1,4 +1,4 @@
-import { useWalletStore } from '../../stores/useWalletStore';
+import { useSavingsStore } from '../../stores/useSavingsStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import {
@@ -14,11 +14,11 @@ interface SavingsTargetCardProps {
 }
 
 export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardProps) {
-  const savingsVaultBalance = useWalletStore(state => state.wallets.SAVINGS_VAULT?.balance || 0);
+  const totalSavingsBalance = useSavingsStore(state => state.getTotalSavingsBalance());
   const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
 
   const percentage = monthlySavingsTarget > 0
-    ? Math.min(100, Math.round((savingsVaultBalance / monthlySavingsTarget) * 100))
+    ? Math.min(100, Math.round((totalSavingsBalance / monthlySavingsTarget) * 100))
     : 0;
 
   return (
@@ -36,7 +36,7 @@ export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardPr
       </div>
 
       <div className="text-2xl font-bold text-zinc-900 tracking-tight tabular-nums my-1.5">
-        {formatAmount(savingsVaultBalance)} <span className="text-sm text-zinc-500 font-normal">/ {formatCurrency(monthlySavingsTarget)}</span>
+        {formatAmount(totalSavingsBalance)} <span className="text-sm text-zinc-500 font-normal">/ {formatCurrency(monthlySavingsTarget)}</span>
       </div>
 
       {/* Progress */}

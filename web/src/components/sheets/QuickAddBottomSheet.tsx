@@ -6,6 +6,7 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
 import { CategoryIcon } from '../common/CategoryIcon';
+import { IOSDateTimePicker } from '../common/IOSDateTimePicker';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
   CloseLinearIcon,
@@ -33,10 +34,14 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [amount, setAmount] = useState('');
   const [isFocused, setIsFocused] = useState(true);
   const [title, setTitle] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   // Wallets selection
-  const [sourceWalletId, setSourceWalletId] = useState<string>('MVOLA');
-  const [destinationWalletId, setDestinationWalletId] = useState<string>('CASH');
+  const spendableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable), [wallets]);
+  const allWallets = useMemo(() => Object.values(wallets), [wallets]);
+
+  const [sourceWalletId, setSourceWalletId] = useState<string>('');
+  const [destinationWalletId, setDestinationWalletId] = useState<string>('');
 
   // Categories selection
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
@@ -48,19 +53,16 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Stacked picker sheets state
-  const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'DATE' | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const openPicker = (target: 'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY') => {
+  const openPicker = (target: 'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'DATE') => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
     setPickerTarget(target);
   };
-
-  const spendableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable), [wallets]);
-  const allWallets = useMemo(() => Object.values(wallets), [wallets]);
 
   // Filter out the other wallet in transfer mode so source !== destination
   const availableSourceWallets = useMemo(() => {
@@ -107,8 +109,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const { transferFee, withdrawalFee } = calculateMVolaFees(numericAmount);
 
   // Fee computation
-  const isCashWithdrawal = mode === 'TRANSFER' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'AIRTEL_MONEY' || selectedSourceWallet.id.includes('MVOLA')) && selectedDestWallet.type === 'CASH';
-  const isP2PTransfer = mode === 'EXPENSE' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.id.includes('MVOLA'));
+  const isCashWithdrawal = mode === 'TRANSFER' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'AIRTEL_MONEY' || selectedSourceWallet.name.toLowerCase().includes('mvola')) && (selectedDestWallet.type === 'CASH' || selectedDestWallet.name.toLowerCase().includes('espèce'));
+  const isP2PTransfer = mode === 'EXPENSE' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.name.toLowerCase().includes('mvola'));
 
   const feeAmount = useMemo(() => {
     if (!includeFees || numericAmount <= 0) return 0;
@@ -120,24 +122,43 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const totalImpact = numericAmount + feeAmount;
   const isInvalidTransfer = mode === 'TRANSFER' && selectedSourceWallet.id === selectedDestWallet.id;
 
+  // Formatted display for date button
+  const formattedDateLabel = useMemo(() => {
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = selectedDate.toDateString() === yesterday.toDateString();
+
+    const timeStr = `${String(selectedDate.getHours()).padStart(2, '0')}:${String(selectedDate.getMinutes()).padStart(2, '0')}`;
+
+    if (isToday) return `Aujourd'hui, ${timeStr}`;
+    if (isYesterday) return `Hier, ${timeStr}`;
+    return `${selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}, ${timeStr}`;
+  }, [selectedDate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (numericAmount <= 0) return;
 
     setIsSubmitting(true);
     try {
+      const dateIso = selectedDate.toISOString();
+
       if (mode === 'EXPENSE') {
         const finalTitle = title.trim() || selectedCategory?.name || 'Dépense';
         await addTransaction({
           flow: 'DEBIT',
           operationType: 'EXPENSE_GENERAL',
+          walletId: selectedSourceWallet.id,
           wallet: selectedSourceWallet.id,
           amount: numericAmount,
           feeAmount,
+          totalAmount: totalImpact,
           totalImpact,
           title: finalTitle,
-          categoryId: selectedCategory.id,
-          date: new Date().toISOString(),
+          categoryId: selectedCategory?.id,
+          date: dateIso,
           source: 'MANUAL',
         });
       } else if (mode === 'INCOME') {
@@ -145,54 +166,45 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
         await addTransaction({
           flow: 'CREDIT',
           operationType: 'INCOME_TRANSFER',
+          walletId: selectedDestWallet.id,
           wallet: selectedDestWallet.id,
           amount: numericAmount,
           feeAmount: 0,
+          totalAmount: numericAmount,
           totalImpact: numericAmount,
           title: finalTitle,
-          categoryId: selectedCategory.id,
-          date: new Date().toISOString(),
+          categoryId: selectedCategory?.id,
+          date: dateIso,
           source: 'MANUAL',
         });
       } else {
         // Mode TRANSFER
-        const isWithdrawal = destinationWalletId === 'CASH';
-        const isSavingsDeposit = destinationWalletId === 'SAVINGS_VAULT';
-        const isSavingsWithdrawal = sourceWalletId === 'SAVINGS_VAULT';
-
-        const opType = isWithdrawal
-          ? 'WITHDRAWAL_CASH'
-          : isSavingsDeposit
-            ? 'SAVINGS_DEPOSIT'
-            : isSavingsWithdrawal
-              ? 'SAVINGS_WITHDRAWAL'
-              : 'TRANSFER_P2P';
-
+        const isWithdrawal = selectedDestWallet.type === 'CASH' || selectedDestWallet.name.toLowerCase().includes('espèce');
         const defaultTitle = isWithdrawal
           ? `Retrait vers Espèces`
-          : isSavingsDeposit
-            ? `Versement Épargne`
-            : isSavingsWithdrawal
-              ? `Déblocage Épargne`
-              : `Transfert ${selectedSourceWallet.name} ➔ ${selectedDestWallet.name}`;
+          : `Transfert ${selectedSourceWallet.name} ➔ ${selectedDestWallet.name}`;
 
         await addTransaction({
           flow: 'DEBIT',
-          operationType: opType,
+          operationType: isWithdrawal ? 'WITHDRAWAL_CASH' : 'TRANSFER_P2P',
+          walletId: selectedSourceWallet.id,
+          destinationWalletId: selectedDestWallet.id,
           wallet: selectedSourceWallet.id,
           destinationWallet: selectedDestWallet.id,
           amount: numericAmount,
           feeAmount,
+          totalAmount: totalImpact,
           totalImpact,
           title: title.trim() || defaultTitle,
           categoryId: feeCategory?.id || categories[0]?.id,
-          date: new Date().toISOString(),
+          date: dateIso,
           source: 'MANUAL',
         });
       }
 
       setAmount('');
       setTitle('');
+      setSelectedDate(new Date());
       onClose();
     } catch (err) {
       console.error(err);
@@ -220,7 +232,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
             className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
           />
 
-          {/* Primary Form Bottom Sheet (Recedes slightly when stacked picker opens) */}
+          {/* Primary Form Bottom Sheet */}
           <motion.div
             initial={{ y: '100%' }}
             animate={
@@ -234,7 +246,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               isPickerOpen ? 'pointer-events-none select-none' : 'pointer-events-auto'
             }`}
           >
-            {/* Click Blocker Overlay over Receding Parent Sheet (Dismisses Picker on Tap) */}
             {isPickerOpen && (
               <div
                 onClick={() => setPickerTarget(null)}
@@ -243,10 +254,10 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               />
             )}
 
-            {/* Grabber - Positioned right at the top */}
+            {/* Grabber */}
             <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
-            {/* Header: Mode Segmented Toggle + Close Button on Right */}
+            {/* Header: Mode Segmented Toggle + Close Button */}
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-full">
                 <button
@@ -289,7 +300,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 </button>
               </div>
 
-              {/* Close (X) button on top right */}
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
@@ -299,7 +309,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Hero Amount Input (Clean, borderless, live formatted with custom breathing pill cursor) */}
+              {/* Hero Amount Input */}
               <div
                 onClick={() => inputRef.current?.focus()}
                 className="relative py-2 flex flex-col items-center justify-center cursor-text select-none"
@@ -329,7 +339,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     className="absolute inset-0 opacity-0 w-full h-full cursor-text"
                   />
 
-                  {/* Formatted Number Display + Custom Apple-Style Breathing Cursor */}
                   <div className="flex items-baseline gap-1.5 pointer-events-none">
                     <span
                       className={`text-5xl font-black tracking-tight tabular-nums transition-colors duration-150 ${
@@ -339,7 +348,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       {numericAmount > 0 ? formatAmount(numericAmount) : '0'}
                     </span>
 
-                    {/* Breathing Pill Cursor */}
                     {isFocused && (
                       <motion.div
                         animate={{ opacity: [1, 0.15, 1] }}
@@ -358,7 +366,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </div>
                 </div>
 
-                {/* Frais de transaction (Borderless with vertical reveal animation) */}
+                {/* Frais */}
                 <AnimatePresence>
                   {(isCashWithdrawal || isP2PTransfer) && feeAmount > 0 && (
                     <motion.div
@@ -388,7 +396,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 </AnimatePresence>
               </div>
 
-              {/* Inset Grouped Rows (Apple Style Cells with Description on top row) */}
+              {/* Inset Grouped Rows */}
               <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
                 {/* 1. Description Row */}
                 <div className="px-4 py-3 flex items-center gap-2.5">
@@ -427,7 +435,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </button>
                 )}
 
-                {/* 3. Compte Destination Row (for INCOME and TRANSFER) */}
+                {/* 3. Compte Destination Row */}
                 {(mode === 'INCOME' || mode === 'TRANSFER') && (
                   <button
                     type="button"
@@ -447,7 +455,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </button>
                 )}
 
-                {/* 4. Catégorie Row (for EXPENSE and INCOME) */}
+                {/* 4. Catégorie Row */}
                 {mode !== 'TRANSFER' && (
                   <button
                     type="button"
@@ -456,35 +464,42 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   >
                     <div className="flex items-center gap-2.5 min-w-0 pr-2">
                       <div
-                        style={{ backgroundColor: selectedCategory.color }}
+                        style={{ backgroundColor: selectedCategory?.color || '#34D399' }}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
                       >
-                        <CategoryIcon name={selectedCategory.icon || selectedCategory.name} weight="Bold" size={14} />
+                        <CategoryIcon name={selectedCategory?.icon || selectedCategory?.name} weight="Bold" size={14} />
                       </div>
                       <span className="text-xs font-bold text-zinc-900 truncate">
                         Catégorie
                       </span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
-                      <span className="truncate max-w-[120px]">{selectedCategory.name}</span>
+                      <span className="truncate max-w-[120px]">{selectedCategory?.name || 'Catégorie'}</span>
                       <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
                     </div>
                   </button>
                 )}
 
-                {/* 5. Date Row */}
-                <div className="px-4 py-3 flex items-center justify-between text-xs">
+                {/* 5. Date & Time Configurable Row */}
+                <button
+                  type="button"
+                  onClick={() => openPicker('DATE')}
+                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left text-xs"
+                >
                   <div className="flex items-center gap-2.5 text-zinc-900 font-bold">
                     <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
                       <CalendarLinearIcon size={14} />
                     </div>
-                    <span>Date</span>
+                    <span>Date & Heure</span>
                   </div>
-                  <span className="text-zinc-500 font-semibold">Aujourd'hui</span>
-                </div>
+                  <div className="flex items-center gap-1 text-xs text-zinc-600 font-semibold shrink-0">
+                    <span className="tabular-nums">{formattedDateLabel}</span>
+                    <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
+                  </div>
+                </button>
               </div>
 
-              {/* Submit CTA Button */}
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer}
@@ -501,7 +516,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
             </form>
           </motion.div>
 
-          {/* Secondary Stacked Picker Bottom Sheet (Slides on top of primary form) */}
+          {/* Secondary Stacked Picker Bottom Sheet */}
           <AnimatePresence>
             {isPickerOpen && (
               <motion.div
@@ -509,7 +524,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 animate={{ y: 0 }}
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-                className="absolute inset-x-0 bottom-0 w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-20 max-h-[75vh] overflow-y-auto pointer-events-auto text-zinc-900"
+                className="absolute inset-x-0 bottom-0 w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-20 max-h-[82vh] overflow-y-auto pointer-events-auto text-zinc-900"
               >
                 {/* Grabber */}
                 <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
@@ -521,7 +536,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       ? 'Choisir une catégorie'
                       : pickerTarget === 'SOURCE_WALLET'
                         ? 'Choisir le compte source'
-                        : 'Choisir le compte destinataire'}
+                        : pickerTarget === 'DEST_WALLET'
+                          ? 'Choisir le compte destinataire'
+                          : 'Choisir la date et l\'heure'}
                   </h3>
                   <button
                     onClick={() => setPickerTarget(null)}
@@ -531,13 +548,14 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </button>
                 </div>
 
-                {/* Content: Wallet Picker (Mutually filtered to prevent selecting same account) */}
+                {/* Wallet Picker */}
                 {(pickerTarget === 'SOURCE_WALLET' || pickerTarget === 'DEST_WALLET') && (
                   <div className="space-y-1.5">
                     {(pickerTarget === 'SOURCE_WALLET' ? availableSourceWallets : availableDestWallets).map(w => {
-                      const isSelected = pickerTarget === 'SOURCE_WALLET'
-                        ? sourceWalletId === w.id
-                        : destinationWalletId === w.id;
+                      const activeCurrentId = pickerTarget === 'SOURCE_WALLET'
+                        ? selectedSourceWallet.id
+                        : selectedDestWallet.id;
+                      const isSelected = activeCurrentId === w.id;
                       return (
                         <button
                           type="button"
@@ -568,19 +586,23 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                             <WalletLogo id={w.id} name={w.name} size="md" />
                             <div className="text-left">
                               <span className="text-xs font-bold block">{w.name}</span>
-                              <span className={`text-[10px] tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
-                                Solde : {formatCurrency(w.balance)}
+                              <span className={`text-[11px] tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-500'}`}>
+                                Solde : <strong className={`font-bold ${isSelected ? 'text-white' : 'text-zinc-900'}`}>{formatCurrency(w.balance)}</strong>
                               </span>
                             </div>
                           </div>
-                          {isSelected && <CheckCircleBoldIcon size={20} className="text-white" />}
+                          {isSelected ? (
+                            <CheckCircleBoldIcon size={20} className="text-white shrink-0" />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border border-zinc-300 shrink-0" />
+                          )}
                         </button>
                       );
                     })}
                   </div>
                 )}
 
-                {/* Content: Category Picker */}
+                {/* Category Picker */}
                 {pickerTarget === 'CATEGORY' && (
                   <div className="grid grid-cols-2 gap-2 max-h-[55vh] overflow-y-auto pr-1">
                     {(mode === 'INCOME' ? incomeCategories : expenseCategories).map(cat => {
@@ -593,24 +615,38 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                             setSelectedCategoryId(cat.id);
                             setPickerTarget(null);
                           }}
-                          className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
+                          className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
                               : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100'
                           }`}
                         >
-                          <div
-                            style={{ backgroundColor: cat.color }}
-                            className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
-                          >
-                            <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={16} />
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              style={{ backgroundColor: cat.color }}
+                              className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
+                            >
+                              <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={16} />
+                            </div>
+                            <span className="text-xs font-bold truncate text-left">
+                              {cat.name}
+                            </span>
                           </div>
-                          <span className="text-xs font-bold truncate text-left">
-                            {cat.name}
-                          </span>
+                          {isSelected && <CheckCircleBoldIcon size={16} className="text-white shrink-0" />}
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Date & Time iOS Wheel Picker */}
+                {pickerTarget === 'DATE' && (
+                  <div className="pt-1">
+                    <IOSDateTimePicker
+                      value={selectedDate}
+                      onChange={setSelectedDate}
+                      onConfirm={() => setPickerTarget(null)}
+                    />
                   </div>
                 )}
               </motion.div>

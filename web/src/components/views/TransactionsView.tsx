@@ -23,8 +23,8 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
   // Filter
   const filteredTransactions = useMemo(() => {
     if (filter === 'INCOME') return transactions.filter(t => t.flow === 'CREDIT' && t.operationType !== 'SAVINGS_WITHDRAWAL');
-    if (filter === 'EXPENSE') return transactions.filter(t => t.flow === 'DEBIT' && t.operationType !== 'WITHDRAWAL_CASH' && t.operationType !== 'SAVINGS_TRANSFER' && t.operationType !== 'SAVINGS_DEPOSIT');
-    if (filter === 'TRANSFER') return transactions.filter(t => t.operationType === 'WITHDRAWAL_CASH' || t.operationType === 'SAVINGS_TRANSFER' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'SAVINGS_WITHDRAWAL' || t.operationType === 'TRANSFER_P2P');
+    if (filter === 'EXPENSE') return transactions.filter(t => t.flow === 'DEBIT' && t.operationType !== 'WITHDRAWAL_CASH' && t.operationType !== 'SAVINGS_DEPOSIT');
+    if (filter === 'TRANSFER') return transactions.filter(t => t.operationType === 'WITHDRAWAL_CASH' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'SAVINGS_WITHDRAWAL' || t.operationType === 'TRANSFER_P2P');
     return transactions;
   }, [transactions, filter]);
 
