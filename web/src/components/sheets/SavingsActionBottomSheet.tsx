@@ -7,7 +7,7 @@ import { WalletLogo } from '../common/WalletLogo';
 import { WalletSource } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  CloseCircleLinearIcon,
+  CloseLinearIcon,
   ShieldCheckBoldIcon,
   ImportLinearIcon,
   ExportLinearIcon,
@@ -148,9 +148,9 @@ export function SavingsActionBottomSheet({
 
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <CloseCircleLinearIcon size={18} />
+                <CloseLinearIcon size={16} />
               </button>
             </div>
 

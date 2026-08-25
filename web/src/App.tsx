@@ -11,6 +11,7 @@ import { BudgetsView } from './components/views/BudgetsView';
 import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
 import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
+import { AddWalletBottomSheet } from './components/sheets/AddWalletBottomSheet';
 import { TransactionDetailBottomSheet } from './components/sheets/TransactionDetailBottomSheet';
 import { BudgetEditBottomSheet } from './components/sheets/BudgetEditBottomSheet';
 import { Transaction, Category } from './types/models';
@@ -39,6 +40,7 @@ const slideVariants = {
 export function App() {
   const [[activeTab, direction], setTabState] = useState<[ActiveTab, number]>(['dashboard', 0]);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
@@ -117,6 +119,7 @@ export function App() {
                     <DashboardView
                       onSelectTransaction={setSelectedTransaction}
                       onNavigateToTransactions={() => handleTabChange('transactions')}
+                      onOpenAddWallet={() => setIsAddWalletOpen(true)}
                     />
                   )}
 
@@ -154,6 +157,11 @@ export function App() {
             <QuickAddBottomSheet
               isOpen={isQuickAddOpen}
               onClose={() => setIsQuickAddOpen(false)}
+            />
+
+            <AddWalletBottomSheet
+              isOpen={isAddWalletOpen}
+              onClose={() => setIsAddWalletOpen(false)}
             />
 
             <TransactionDetailBottomSheet

@@ -8,7 +8,7 @@ import { WalletLogo } from '../common/WalletLogo';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  CloseCircleLinearIcon,
+  CloseLinearIcon,
   AltArrowRightLinearIcon,
   CheckCircleBoldIcon,
   CalendarLinearIcon,
@@ -292,9 +292,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               {/* Close (X) button on top right */}
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <CloseCircleLinearIcon size={18} />
+                <CloseLinearIcon size={16} />
               </button>
             </div>
 
@@ -525,9 +525,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </h3>
                   <button
                     onClick={() => setPickerTarget(null)}
-                    className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 flex items-center justify-center transition-colors cursor-pointer"
+                    className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    <CloseCircleLinearIcon size={18} />
+                    <CloseLinearIcon size={14} />
                   </button>
                 </div>
 

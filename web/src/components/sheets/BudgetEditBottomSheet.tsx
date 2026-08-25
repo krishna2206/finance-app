@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Category } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { formatAmount } from '../../utils/formatters';
-import { CloseCircleLinearIcon } from '@solar-icons/react';
+import { CloseLinearIcon } from '@solar-icons/react';
 
 interface BudgetEditBottomSheetProps {
   category: Category | null;
@@ -70,9 +70,9 @@ export function BudgetEditBottomSheet({ category, onClose }: BudgetEditBottomShe
             </h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
             >
-              <CloseCircleLinearIcon size={18} />
+              <CloseLinearIcon size={16} />
             </button>
           </div>
 

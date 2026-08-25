@@ -5,7 +5,6 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { DashboardHeader } from '../dashboard/DashboardHeader';
 import { WalletBalanceCard } from '../cards/WalletBalanceCard';
-import { AddWalletBottomSheet } from '../sheets/AddWalletBottomSheet';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
@@ -15,11 +14,11 @@ import { BillListLinearIcon, AltArrowRightLinearIcon } from '@solar-icons/react'
 interface DashboardViewProps {
   onSelectTransaction: (txn: Transaction) => void;
   onNavigateToTransactions: () => void;
+  onOpenAddWallet?: () => void;
 }
 
-export function DashboardView({ onSelectTransaction, onNavigateToTransactions }: DashboardViewProps) {
+export function DashboardView({ onSelectTransaction, onNavigateToTransactions, onOpenAddWallet }: DashboardViewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
 
   const settings = useSettingsStore(state => state.settings);
   const transactions = useTransactionStore(state => state.transactions);
@@ -65,7 +64,7 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
 
       {/* 2. Stat Grid (Solde Total Card taking half width / 1 tile) */}
       <div className="grid grid-cols-2 gap-3">
-        <WalletBalanceCard onAddWallet={() => setIsAddWalletOpen(true)} />
+        <WalletBalanceCard onAddWallet={onOpenAddWallet} />
       </div>
 
       {/* 3. Section Transactions Récentes */}
@@ -115,12 +114,6 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
           </div>
         )}
       </div>
-
-      {/* Add Wallet Modal */}
-      <AddWalletBottomSheet
-        isOpen={isAddWalletOpen}
-        onClose={() => setIsAddWalletOpen(false)}
-      />
     </div>
   );
 }
