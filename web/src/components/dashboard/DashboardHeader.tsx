@@ -1,4 +1,8 @@
-import { Bars3Icon, UserCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import {
+  HamburgerMenuLinearIcon,
+  UserCircleLinearIcon,
+  RestartLinearIcon,
+} from '@solar-icons/react';
 
 interface DashboardHeaderProps {
   userName?: string;
@@ -18,7 +22,7 @@ export function DashboardHeader({
       {/* Left profile info */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-700">
-          <Bars3Icon className="w-5 h-5 stroke-[2]" />
+          <HamburgerMenuLinearIcon size={20} />
         </div>
 
         <div>
@@ -41,12 +45,12 @@ export function DashboardHeader({
             title="Rafraîchir les données"
             className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer"
           >
-            <ArrowPathIcon className={`w-4 h-4 stroke-[2] ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
+            <RestartLinearIcon size={18} className={isRefreshing ? 'animate-spin text-emerald-600' : ''} />
           </button>
         )}
 
         <div className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600">
-          <UserCircleIcon className="w-5 h-5 stroke-[1.8]" />
+          <UserCircleLinearIcon size={22} />
         </div>
       </div>
     </header>

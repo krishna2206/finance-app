@@ -1,14 +1,12 @@
 import { motion } from 'framer-motion';
 import {
-  Squares2X2Icon,
-  ReceiptPercentIcon,
-  ChartPieIcon,
-} from '@heroicons/react/24/outline';
-import {
-  Squares2X2Icon as SquaresSolid,
-  ReceiptPercentIcon as ReceiptSolid,
-  ChartPieIcon as ChartPieSolid,
-} from '@heroicons/react/24/solid';
+  Widget2LinearIcon,
+  Widget2BoldIcon,
+  BillListLinearIcon,
+  BillListBoldIcon,
+  PieChartLinearIcon,
+  PieChartBoldIcon,
+} from '@solar-icons/react';
 
 export type ActiveTab = 'dashboard' | 'transactions' | 'budgets';
 
@@ -22,20 +20,20 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
     {
       id: 'dashboard' as const,
       label: 'Accueil',
-      outlineIcon: Squares2X2Icon,
-      solidIcon: SquaresSolid,
+      linearIcon: Widget2LinearIcon,
+      boldIcon: Widget2BoldIcon,
     },
     {
       id: 'transactions' as const,
       label: 'Historique',
-      outlineIcon: ReceiptPercentIcon,
-      solidIcon: ReceiptSolid,
+      linearIcon: BillListLinearIcon,
+      boldIcon: BillListBoldIcon,
     },
     {
       id: 'budgets' as const,
       label: 'Budgets',
-      outlineIcon: ChartPieIcon,
-      solidIcon: ChartPieSolid,
+      linearIcon: PieChartLinearIcon,
+      boldIcon: PieChartBoldIcon,
     },
   ];
 
@@ -43,7 +41,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
     <nav className="h-14 w-full bg-white/80 backdrop-blur-2xl border border-zinc-200/80 p-1.5 rounded-full shadow-lg shadow-zinc-900/10 flex items-center justify-between gap-1 relative">
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
-        const Icon = isActive ? tab.solidIcon : tab.outlineIcon;
+        const Icon = isActive ? tab.boldIcon : tab.linearIcon;
         return (
           <button
             key={tab.id}
@@ -60,7 +58,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
             )}
 
             <div className="relative z-10 flex items-center justify-center gap-1.5 min-w-0">
-              <Icon className={`w-4 h-4 shrink-0 transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
+              <Icon size={18} className={`shrink-0 transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
               <span className={`text-[11px] font-semibold truncate transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`}>
                 {tab.label}
               </span>

@@ -1,5 +1,5 @@
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { ClockIcon } from '@heroicons/react/24/outline';
+import { ClockCircleLinearIcon } from '@solar-icons/react';
 import { CadenceMetrics } from '../../types/models';
 import { formatAmount } from '../../utils/formatters';
 
@@ -20,7 +20,7 @@ export function CacheCoverageCard({ metrics }: CacheCoverageCardProps) {
     <InsetGroupedCard className="p-4 flex flex-col justify-between h-[165px]">
       <div>
         <div className="flex items-center gap-1.5 text-zinc-500 mb-1.5">
-          <ClockIcon className="w-3.5 h-3.5" />
+          <ClockCircleLinearIcon size={14} />
           <span className="text-[10px] font-bold uppercase tracking-wider">
             Couverture
           </span>

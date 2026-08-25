@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { formatAmount } from '../../utils/formatters';
-import { CreditCardIcon } from '@heroicons/react/24/outline';
+import { CardBoldIcon } from '@solar-icons/react';
 
 export function CacheBalanceCard() {
   const wallets = useWalletStore(state => state.wallets);
@@ -21,7 +21,7 @@ export function CacheBalanceCard() {
     <InsetGroupedCard className="p-4 flex flex-col justify-between h-[165px]">
       <div>
         <div className="flex items-center gap-1.5 text-zinc-500 mb-1.5">
-          <CreditCardIcon className="w-3.5 h-3.5" />
+          <CardBoldIcon size={14} />
           <span className="text-[10px] font-bold uppercase tracking-wider">
             Solde Total
           </span>

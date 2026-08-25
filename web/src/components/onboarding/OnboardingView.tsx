@@ -7,14 +7,11 @@ import { api } from '../../services/api';
 import { WalletLogo } from '../common/WalletLogo';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  BanknotesIcon,
-  DevicePhoneMobileIcon,
-  BuildingLibraryIcon,
-  CheckIcon,
-  PlusIcon,
-  ArrowRightIcon,
-  ArrowLeftIcon,
-} from '@heroicons/react/24/outline';
+  CheckCircleBoldIcon,
+  AddLinearIcon,
+  AltArrowRightLinearIcon,
+  AltArrowLeftLinearIcon,
+} from '@solar-icons/react';
 
 interface WalletDraft {
   id: string;
@@ -22,7 +19,6 @@ interface WalletDraft {
   balance: string;
   isEnabled: boolean;
   isSpendable: boolean;
-  icon: typeof BanknotesIcon;
   color: string;
 }
 
@@ -46,7 +42,6 @@ export function OnboardingView() {
       balance: '',
       isEnabled: true,
       isSpendable: true,
-      icon: BanknotesIcon,
       color: '#059669',
     },
     {
@@ -55,7 +50,6 @@ export function OnboardingView() {
       balance: '',
       isEnabled: true,
       isSpendable: true,
-      icon: DevicePhoneMobileIcon,
       color: '#D97706',
     },
     {
@@ -64,7 +58,6 @@ export function OnboardingView() {
       balance: '',
       isEnabled: false,
       isSpendable: true,
-      icon: DevicePhoneMobileIcon,
       color: '#EA580C',
     },
     {
@@ -73,7 +66,6 @@ export function OnboardingView() {
       balance: '',
       isEnabled: false,
       isSpendable: true,
-      icon: DevicePhoneMobileIcon,
       color: '#DC2626',
     },
     {
@@ -82,7 +74,6 @@ export function OnboardingView() {
       balance: '',
       isEnabled: false,
       isSpendable: true,
-      icon: BuildingLibraryIcon,
       color: '#2563EB',
     },
   ]);
@@ -116,7 +107,6 @@ export function OnboardingView() {
         balance: '',
         isEnabled: true,
         isSpendable: true,
-        icon: BuildingLibraryIcon,
         color: '#6366F1',
       },
     ]);
@@ -323,13 +313,13 @@ export function OnboardingView() {
                           </div>
 
                           <div
-                            className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 ${
+                            className={`w-4 h-4 rounded-md flex items-center justify-center shrink-0 ${
                               isSelected
                                 ? 'bg-white text-zinc-900'
                                 : 'border border-zinc-300'
                             }`}
                           >
-                            {isSelected && <CheckIcon className="w-2.5 h-2.5 stroke-[3]" />}
+                            {isSelected && <CheckCircleBoldIcon size={16} className="text-white" />}
                           </div>
                         </button>
                       );
@@ -342,7 +332,7 @@ export function OnboardingView() {
                         onClick={() => setShowAddCustom(true)}
                         className="p-2 rounded-xl border border-dashed border-zinc-300 hover:border-zinc-400 bg-white/50 text-zinc-600 hover:text-zinc-900 text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
-                        <PlusIcon className="w-3.5 h-3.5" />
+                        <AddLinearIcon size={14} />
                         <span>Autre compte</span>
                       </button>
                     ) : (
@@ -524,33 +514,33 @@ export function OnboardingView() {
           {step < 3 && (
             <div className="flex items-center justify-between gap-2.5">
               {step > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setStep((step - 1) as any)}
+                    className="px-4 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs font-bold text-zinc-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <AltArrowLeftLinearIcon size={14} />
+                    <span>Retour</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
+
                 <button
                   type="button"
-                  onClick={() => setStep((step - 1) as any)}
-                  className="px-4 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-xs font-bold text-zinc-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  disabled={step === 1 && !userName.trim()}
+                  onClick={() => {
+                    if (step === 1) {
+                      setStep(2);
+                    } else if (step === 2) {
+                      setStep(3);
+                    }
+                  }}
+                  className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all cursor-pointer ml-auto"
                 >
-                  <ArrowLeftIcon className="w-3.5 h-3.5" />
-                  <span>Retour</span>
+                  <span>Continuer</span>
+                  <AltArrowRightLinearIcon size={14} />
                 </button>
-              ) : (
-                <div />
-              )}
-
-              <button
-                type="button"
-                disabled={step === 1 && !userName.trim()}
-                onClick={() => {
-                  if (step === 1) {
-                    setStep(2);
-                  } else if (step === 2) {
-                    setStep(3);
-                  }
-                }}
-                className="px-5 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md transition-all cursor-pointer ml-auto"
-              >
-                <span>Continuer</span>
-                <ArrowRightIcon className="w-3.5 h-3.5" />
-              </button>
             </div>
           )}
         </div>

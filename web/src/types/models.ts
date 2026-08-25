@@ -1,6 +1,15 @@
 export type TransactionFlow = 'DEBIT' | 'CREDIT';
 
-export type WalletSource = 'MVOLA' | 'AIRTEL_MONEY' | 'CASH' | 'BANK' | 'SAVINGS_VAULT' | string;
+export type WalletType =
+  | 'MVOLA'
+  | 'ORANGE_MONEY'
+  | 'AIRTEL_MONEY'
+  | 'CASH'
+  | 'BANK'
+  | 'SAVINGS_VAULT'
+  | 'CUSTOM';
+
+export type WalletSource = string;
 
 export type OperationType =
   | 'EXPENSE_GENERAL'     // Achat direct de bien ou service
@@ -22,10 +31,13 @@ export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
 export type CategoryType = 'EXPENSE' | 'INCOME' | 'SAVINGS';
 
 export interface Wallet {
-  id: WalletSource;
+  id: string;                      // UUID v4
   name: string;
+  type: WalletType;
+  accountNumber?: string;
   balance: number;
   isSpendable: boolean;
+  createdAt: number;
   updatedAt: number;
 }
 

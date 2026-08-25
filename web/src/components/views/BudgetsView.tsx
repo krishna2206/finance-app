@@ -4,9 +4,10 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { SavingsTargetCard } from '../cards/SavingsTargetCard';
 import { SavingsActionBottomSheet, SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
+import { CategoryIcon } from '../common/CategoryIcon';
 import { Category } from '../../types/models';
 import { formatCurrency } from '../../utils/formatters';
-import { PencilSquareIcon } from '@heroicons/react/24/outline';
+import { PenNewSquareLinearIcon } from '@solar-icons/react';
 
 interface BudgetsViewProps {
   onEditCategory: (cat: Category) => void;
@@ -88,10 +89,12 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
               >
                 <div className="flex justify-between items-center mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span
+                    <div
                       style={{ backgroundColor: cat.color }}
-                      className="w-2.5 h-2.5 rounded-full inline-block"
-                    />
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0 shadow-2xs"
+                    >
+                      <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={14} />
+                    </div>
                     <span className="text-sm font-bold text-zinc-900">
                       {cat.name}
                     </span>
@@ -105,9 +108,9 @@ export function BudgetsView({ onEditCategory }: BudgetsViewProps) {
                   <button
                     onClick={() => onEditCategory(cat)}
                     title="Modifier le budget"
-                    className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                    className="w-7 h-7 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    <PencilSquareIcon className="w-4 h-4" />
+                    <PenNewSquareLinearIcon size={16} />
                   </button>
                 </div>
 

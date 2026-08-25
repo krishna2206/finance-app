@@ -1,7 +1,11 @@
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { ShieldCheckIcon, ArrowDownTrayIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import {
+  ShieldCheckBoldIcon,
+  ImportLinearIcon,
+  ExportLinearIcon,
+} from '@solar-icons/react';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 interface SavingsTargetCardProps {
@@ -22,7 +26,7 @@ export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardPr
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-            <ShieldCheckIcon className="w-4 h-4" />
+            <ShieldCheckBoldIcon size={18} />
           </div>
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
             Coffre Épargne & Réserve
@@ -50,7 +54,7 @@ export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardPr
           onClick={onDeposit}
           className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 text-emerald-800 text-xs font-bold transition-all cursor-pointer"
         >
-          <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+          <ImportLinearIcon size={16} />
           <span>Verser</span>
         </button>
 
@@ -59,7 +63,7 @@ export function SavingsTargetCard({ onDeposit, onWithdraw }: SavingsTargetCardPr
           onClick={onWithdraw}
           className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-700 text-xs font-bold transition-all cursor-pointer"
         >
-          <ArrowUpTrayIcon className="w-3.5 h-3.5 text-zinc-500" />
+          <ExportLinearIcon size={16} className="text-zinc-500" />
           <span>Débloquer</span>
         </button>
       </div>

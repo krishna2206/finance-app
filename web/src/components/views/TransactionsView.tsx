@@ -5,11 +5,11 @@ import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
 import { formatDateGroupLabel } from '../../utils/formatters';
 import {
-  ListBulletIcon,
-  ArrowUpRightIcon,
-  ArrowDownLeftIcon,
-  ArrowsRightLeftIcon,
-} from '@heroicons/react/24/outline';
+  BillListLinearIcon,
+  ArrowRightUpLinearIcon,
+  ArrowLeftDownLinearIcon,
+  TransferHorizontalLinearIcon,
+} from '@solar-icons/react';
 
 interface TransactionsViewProps {
   onSelectTransaction: (txn: Transaction) => void;
@@ -40,10 +40,10 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
   }, [filteredTransactions]);
 
   const filterTabs = [
-    { id: 'ALL' as const, label: 'Tous', icon: ListBulletIcon },
-    { id: 'EXPENSE' as const, label: 'Dépenses', icon: ArrowUpRightIcon },
-    { id: 'INCOME' as const, label: 'Entrées', icon: ArrowDownLeftIcon },
-    { id: 'TRANSFER' as const, label: 'Transferts', icon: ArrowsRightLeftIcon },
+    { id: 'ALL' as const, label: 'Tous', icon: BillListLinearIcon },
+    { id: 'EXPENSE' as const, label: 'Dépenses', icon: ArrowRightUpLinearIcon },
+    { id: 'INCOME' as const, label: 'Entrées', icon: ArrowLeftDownLinearIcon },
+    { id: 'TRANSFER' as const, label: 'Transferts', icon: TransferHorizontalLinearIcon },
   ];
 
   return (
@@ -58,7 +58,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
         </h1>
       </div>
 
-      {/* Filter Tabs (Apple Inset Style with Directional Icons) */}
+      {/* Filter Tabs (Apple Inset Style with Directional Solar Icons) */}
       <div className="flex gap-1 p-1 bg-white rounded-2xl border border-zinc-200/80 shadow-xs w-fit max-w-full overflow-x-auto">
         {filterTabs.map(item => {
           const isActive = filter === item.id;
@@ -73,7 +73,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
                   : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 stroke-[2.2] ${isActive ? 'text-white' : 'text-zinc-400'}`} />
+              <Icon size={14} className={isActive ? 'text-white' : 'text-zinc-400'} />
               <span>{item.label}</span>
             </button>
           );

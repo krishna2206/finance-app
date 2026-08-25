@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { formatAmount } from '../../utils/formatters';
 import {
-  XMarkIcon,
-  BuildingLibraryIcon,
-  DevicePhoneMobileIcon,
-  BanknotesIcon,
-} from '@heroicons/react/24/outline';
+  CloseCircleLinearIcon,
+  Buildings2BoldIcon,
+  Banknote2BoldIcon,
+  TransmissionBoldIcon,
+} from '@solar-icons/react';
 
 interface AddWalletBottomSheetProps {
   isOpen: boolean;
@@ -49,9 +49,9 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
   };
 
   const types = [
-    { id: 'MOBILE' as const, label: 'Mobile Money', icon: DevicePhoneMobileIcon, color: '#D97706' },
-    { id: 'BANK' as const, label: 'Banque', icon: BuildingLibraryIcon, color: '#2563EB' },
-    { id: 'CASH' as const, label: 'Espèces', icon: BanknotesIcon, color: '#059669' },
+    { id: 'MOBILE' as const, label: 'Mobile Money', icon: TransmissionBoldIcon, color: '#D97706' },
+    { id: 'BANK' as const, label: 'Banque', icon: Buildings2BoldIcon, color: '#2563EB' },
+    { id: 'CASH' as const, label: 'Espèces', icon: Banknote2BoldIcon, color: '#059669' },
   ];
 
   return (
@@ -74,10 +74,10 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
-            className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
+            className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
           >
             {/* Grabber */}
-            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
+            <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
@@ -86,9 +86,9 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
               </h2>
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <CloseCircleLinearIcon size={18} />
               </button>
             </div>
 
@@ -113,7 +113,7 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
                             : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100'
                         }`}
                       >
-                        <Icon className="w-4 h-4 mx-auto mb-1" style={{ color: isSelected ? '#FFFFFF' : t.color }} />
+                        <Icon size={18} className="mx-auto mb-1" style={{ color: isSelected ? '#FFFFFF' : t.color }} />
                         <span className="text-xs font-bold block truncate">
                           {t.label}
                         </span>

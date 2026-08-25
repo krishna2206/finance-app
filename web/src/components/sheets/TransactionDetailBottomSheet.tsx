@@ -5,23 +5,15 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionItemRow } from '../transactions/TransactionItemRow';
 import { LocationBadge } from '../transactions/LocationBadge';
 import { WalletLogo } from '../common/WalletLogo';
+import { CategoryIcon } from '../common/CategoryIcon';
 import { InsetGroupedCard, InsetGroupedRow } from '../common/InsetGroupedCard';
 import { formatAmount, formatCurrency, formatWalletName } from '../../utils/formatters';
 import {
-  XMarkIcon,
-  TrashIcon,
-  CalendarIcon,
-  TagIcon,
-  ShoppingBagIcon,
-  ShoppingCartIcon,
-  HomeIcon,
-  TruckIcon,
-  SignalIcon,
-  SparklesIcon,
-  ExclamationTriangleIcon,
-  CreditCardIcon,
-  ShieldCheckIcon,
-} from '@heroicons/react/24/outline';
+  CloseCircleLinearIcon,
+  TrashBinTrashLinearIcon,
+  CalendarLinearIcon,
+  Bag2LinearIcon,
+} from '@solar-icons/react';
 
 interface TransactionDetailBottomSheetProps {
   transaction: Transaction | null;
@@ -44,53 +36,6 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
     }
   };
 
-  const renderCategoryIcon = () => {
-    const iconName = category?.icon || 'TagIcon';
-    const color = category?.color || '#10B981';
-    const props = { className: 'w-3.5 h-3.5 text-white' };
-
-    let iconElement = <TagIcon {...props} />;
-    switch (iconName) {
-      case 'ShoppingCartIcon':
-        iconElement = <ShoppingCartIcon {...props} />;
-        break;
-      case 'HomeIcon':
-        iconElement = <HomeIcon {...props} />;
-        break;
-      case 'TruckIcon':
-        iconElement = <TruckIcon {...props} />;
-        break;
-      case 'SignalIcon':
-        iconElement = <SignalIcon {...props} />;
-        break;
-      case 'SparklesIcon':
-        iconElement = <SparklesIcon {...props} />;
-        break;
-      case 'ExclamationTriangleIcon':
-        iconElement = <ExclamationTriangleIcon {...props} />;
-        break;
-      case 'CreditCardIcon':
-        iconElement = <CreditCardIcon {...props} />;
-        break;
-      case 'ShieldCheckIcon':
-        iconElement = <ShieldCheckIcon {...props} />;
-        break;
-    }
-
-    return (
-      <div
-        style={{ backgroundColor: color }}
-        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-2xs"
-      >
-        {iconElement}
-      </div>
-    );
-  };
-
-  const renderWalletIcon = () => {
-    return <WalletLogo id={transaction.wallet} name={transaction.wallet} size="sm" />;
-  };
-
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-50 flex justify-center items-end pointer-events-none">
@@ -104,41 +49,41 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
         />
 
-        {/* Native Bottom Sheet Card - Anchored Flush at Bottom, Matching Mobile Frame Width (max-w-[430px]) */}
+        {/* Native Bottom Sheet Card - Anchored Flush at Bottom */}
         <motion.div
           initial={{ y: '100%' }}
           animate={{ y: 0 }}
           exit={{ y: '100%' }}
           transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
-          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
+          className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
         >
           {/* Grabber */}
-          <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
+          <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
           {/* Header */}
-          <div className="flex justify-between items-center mb-2">
+          <div className="flex justify-between items-center mb-3">
             <h2 className="text-base font-bold text-zinc-900 tracking-tight">
               Détail de l'opération
             </h2>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={handleDelete}
                 title="Supprimer la transaction"
-                className="p-1 rounded-full hover:bg-rose-50 text-zinc-400 hover:text-rose-600 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <TrashIcon className="w-4 h-4" />
+                <TrashBinTrashLinearIcon size={18} />
               </button>
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <CloseCircleLinearIcon size={18} />
               </button>
             </div>
           </div>
 
           {/* Hero Amount (Borderless, clean floating header) */}
-          <div className="text-center py-3 mb-4">
+          <div className="text-center py-2 mb-4">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block mb-1">
               {transaction.title}
             </span>
@@ -163,7 +108,12 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
           <InsetGroupedCard className="mb-4">
             <InsetGroupedRow>
               <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
-                {renderCategoryIcon()}
+                <div
+                  style={{ backgroundColor: category?.color || '#10B981' }}
+                  className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
+                >
+                  <CategoryIcon name={category?.icon || category?.name} weight="Bold" size={14} />
+                </div>
                 <span>Catégorie</span>
               </div>
               <span className="text-xs font-semibold text-zinc-900">{category?.name || 'Inconnue'}</span>
@@ -171,7 +121,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
             <InsetGroupedRow>
               <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
-                {renderWalletIcon()}
+                <WalletLogo id={transaction.wallet} name={transaction.wallet} size="sm" />
                 <span>Moyen de paiement</span>
               </div>
               <span className="text-xs font-semibold text-zinc-900">{formatWalletName(transaction.wallet)}</span>
@@ -180,7 +130,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             <InsetGroupedRow>
               <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                 <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <CalendarIcon className="w-3.5 h-3.5" />
+                  <CalendarLinearIcon size={14} />
                 </div>
                 <span>Date & Heure</span>
               </div>
@@ -195,7 +145,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             <InsetGroupedCard className="p-4 mb-4">
               <div className="flex items-center gap-2 mb-2 text-emerald-700 text-xs font-bold uppercase tracking-wider">
                 <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShoppingBagIcon className="w-3.5 h-3.5" />
+                  <Bag2LinearIcon size={14} />
                 </div>
                 <span>Articles du Ticket ({transaction.items.length})</span>
               </div>

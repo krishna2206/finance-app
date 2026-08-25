@@ -7,11 +7,11 @@ import { WalletLogo } from '../common/WalletLogo';
 import { WalletSource } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  XMarkIcon,
-  ShieldCheckIcon,
-  ArrowDownTrayIcon,
-  ArrowUpTrayIcon,
-} from '@heroicons/react/24/outline';
+  CloseCircleLinearIcon,
+  ShieldCheckBoldIcon,
+  ImportLinearIcon,
+  ExportLinearIcon,
+} from '@solar-icons/react';
 
 export type SavingsActionType = 'DEPOSIT' | 'WITHDRAWAL';
 
@@ -125,16 +125,16 @@ export function SavingsActionBottomSheet({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
-            className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
+            className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-10 max-h-[85vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
           >
             {/* Grabber */}
-            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
+            <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
             {/* Header */}
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                  <ShieldCheckIcon className="w-4 h-4" />
+                  <ShieldCheckBoldIcon size={18} />
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-zinc-900 tracking-tight">
@@ -148,9 +148,9 @@ export function SavingsActionBottomSheet({
 
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <CloseCircleLinearIcon size={18} />
               </button>
             </div>
 
@@ -163,7 +163,7 @@ export function SavingsActionBottomSheet({
                   isDeposit ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
                 }`}
               >
-                <ArrowDownTrayIcon className="w-4 h-4 text-emerald-600" />
+                <ImportLinearIcon size={16} className="text-emerald-600" />
                 <span>Épargner (Verser)</span>
               </button>
 
@@ -174,14 +174,14 @@ export function SavingsActionBottomSheet({
                   !isDeposit ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
                 }`}
               >
-                <ArrowUpTrayIcon className="w-4 h-4 text-amber-600" />
+                <ExportLinearIcon size={16} className="text-amber-600" />
                 <span>Débloquer / Retirer</span>
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Amount Input */}
-              <div className="text-center py-4 bg-zinc-50 rounded-2xl border border-zinc-200/80">
+              <div className="text-center py-3 bg-zinc-50 rounded-2xl border border-zinc-200/80">
                 <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest block mb-1">
                   {isDeposit ? 'Montant à sanctuariser' : 'Montant à débloquer'}
                 </span>

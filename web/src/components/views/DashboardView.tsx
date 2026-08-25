@@ -10,7 +10,7 @@ import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
 import { formatDateGroupLabel } from '../../utils/formatters';
-import { QueueListIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { BillListLinearIcon, AltArrowRightLinearIcon } from '@solar-icons/react';
 
 interface DashboardViewProps {
   onSelectTransaction: (txn: Transaction) => void;
@@ -72,7 +72,7 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
       <div className="pt-2">
         <div className="flex justify-between items-center mb-2 px-1">
           <div className="flex items-center gap-1.5 text-zinc-500">
-            <QueueListIcon className="w-4 h-4" />
+            <BillListLinearIcon size={16} />
             <span className="text-xs font-bold uppercase tracking-wider">
               Transactions Récentes
             </span>
@@ -83,7 +83,7 @@ export function DashboardView({ onSelectTransaction, onNavigateToTransactions }:
             className="flex items-center gap-1 text-xs font-semibold text-zinc-900 hover:text-emerald-600 transition-colors cursor-pointer"
           >
             <span>Voir tout</span>
-            <ArrowRightIcon className="w-3.5 h-3.5" />
+            <AltArrowRightLinearIcon size={14} />
           </button>
         </div>
 

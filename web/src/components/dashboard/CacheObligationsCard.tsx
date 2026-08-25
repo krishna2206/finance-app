@@ -3,7 +3,7 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { formatAmount } from '../../utils/formatters';
-import { CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { CalendarLinearIcon } from '@solar-icons/react';
 
 export function CacheObligationsCard() {
   const categories = useBudgetStore(state => state.categories);
@@ -41,7 +41,7 @@ export function CacheObligationsCard() {
     <InsetGroupedCard className="p-4 flex flex-col justify-between h-[165px]">
       <div>
         <div className="flex items-center gap-1.5 text-zinc-500 mb-1.5">
-          <CalendarDaysIcon className="w-3.5 h-3.5" />
+          <CalendarLinearIcon size={14} />
           <span className="text-[10px] font-bold uppercase tracking-wider">
             Obligations
           </span>

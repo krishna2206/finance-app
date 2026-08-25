@@ -1,18 +1,8 @@
 import { Transaction } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
-import {
-  ShoppingCartIcon,
-  HomeIcon,
-  TruckIcon,
-  SignalIcon,
-  SparklesIcon,
-  ExclamationTriangleIcon,
-  CreditCardIcon,
-  ShieldCheckIcon,
-  TagIcon,
-  ShoppingBagIcon,
-} from '@heroicons/react/24/outline';
+import { CategoryIcon } from '../common/CategoryIcon';
+import { Bag2LinearIcon } from '@solar-icons/react';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -26,32 +16,6 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const isDebit = transaction.flow === 'DEBIT';
   const hasItems = transaction.items && transaction.items.length > 0;
 
-  const renderCategoryIcon = () => {
-    const iconName = category?.icon || 'TagIcon';
-    const props = { className: 'w-5 h-5 text-zinc-800' };
-
-    switch (iconName) {
-      case 'ShoppingCartIcon':
-        return <ShoppingCartIcon {...props} />;
-      case 'HomeIcon':
-        return <HomeIcon {...props} />;
-      case 'TruckIcon':
-        return <TruckIcon {...props} />;
-      case 'SignalIcon':
-        return <SignalIcon {...props} />;
-      case 'SparklesIcon':
-        return <SparklesIcon {...props} />;
-      case 'ExclamationTriangleIcon':
-        return <ExclamationTriangleIcon {...props} />;
-      case 'CreditCardIcon':
-        return <CreditCardIcon {...props} />;
-      case 'ShieldCheckIcon':
-        return <ShieldCheckIcon {...props} />;
-      default:
-        return <TagIcon {...props} />;
-    }
-  };
-
   return (
     <div
       onClick={onClick}
@@ -60,9 +24,9 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
       }`}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0 pr-3">
-        {/* Category Icon (Clean monochrome, no colored box) */}
-        <div className="w-7 h-7 flex items-center justify-center shrink-0">
-          {renderCategoryIcon()}
+        {/* Category Icon (Clean monochrome Solar Icon, no colored box) */}
+        <div className="w-7 h-7 flex items-center justify-center shrink-0 text-zinc-800">
+          <CategoryIcon name={category?.icon || category?.name} weight="Linear" size={20} />
         </div>
 
         {/* Details */}
@@ -72,10 +36,10 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
               {transaction.title}
             </span>
 
-            {/* Receipt Items Indicator (Clean grey text + shopping bag icon, no colored border/frame) */}
+            {/* Receipt Items Indicator (Clean grey text + Solar bag icon) */}
             {hasItems && (
               <span className="inline-flex items-center gap-0.5 text-zinc-400 text-xs font-medium shrink-0">
-                <ShoppingBagIcon className="w-3.5 h-3.5 text-zinc-400 stroke-[2]" />
+                <Bag2LinearIcon size={14} className="text-zinc-400" />
                 <span>{transaction.items?.length}</span>
               </span>
             )}

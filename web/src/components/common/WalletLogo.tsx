@@ -1,9 +1,9 @@
 import {
-  BanknotesIcon,
-  BuildingLibraryIcon,
-  ShieldCheckIcon,
-  CreditCardIcon,
-} from '@heroicons/react/24/outline';
+  Banknote2BoldIcon,
+  Buildings2BoldIcon,
+  ShieldCheckBoldIcon,
+  CardBoldIcon,
+} from '@solar-icons/react';
 
 interface WalletLogoProps {
   id?: string;
@@ -23,9 +23,9 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
   }[size];
 
   const iconSizes = {
-    sm: 'w-3.5 h-3.5',
-    md: 'w-4.5 h-4.5',
-    lg: 'w-5 h-5',
+    sm: 14,
+    md: 18,
+    lg: 22,
   }[size];
 
   // 1. MVola (Official Logo - Full bleed object-cover)
@@ -41,7 +41,7 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
     );
   }
 
-  // 2. Orange Money (Official Logo - Exact match, will NOT match "compte")
+  // 2. Orange Money (Official Logo)
   if (upperId === 'ORANGE_MONEY' || upperId === 'OM' || lowerName.includes('orange')) {
     return (
       <div className={`${sizeClasses} overflow-hidden flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
@@ -54,7 +54,7 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
     );
   }
 
-  // 3. Airtel Money (Official Logo - Exact match)
+  // 3. Airtel Money (Official Logo)
   if (upperId === 'AIRTEL_MONEY' || upperId === 'AIRTEL' || upperId === 'AM' || lowerName.includes('airtel')) {
     return (
       <div className={`${sizeClasses} overflow-hidden flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
@@ -67,16 +67,16 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
     );
   }
 
-  // 4. Espèces / Cash (Solid Green background with crisp white icon)
+  // 4. Espèces / Cash (Solid Green background with crisp white Solar icon)
   if (upperId === 'CASH' || lowerName.includes('cash') || lowerName.includes('espèce') || lowerName.includes('espece')) {
     return (
       <div className={`${sizeClasses} bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
-        <BanknotesIcon className={iconSizes} />
+        <Banknote2BoldIcon size={iconSizes} />
       </div>
     );
   }
 
-  // 5. Compte Bancaire / Banque (Solid Blue background with crisp white icon)
+  // 5. Compte Bancaire / Banque (Solid Blue background with crisp white Solar icon)
   if (
     upperId === 'BANK' ||
     upperId.startsWith('BANK_') ||
@@ -93,12 +93,12 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
   ) {
     return (
       <div className={`${sizeClasses} bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
-        <BuildingLibraryIcon className={iconSizes} />
+        <Buildings2BoldIcon size={iconSizes} />
       </div>
     );
   }
 
-  // 6. Coffre Épargne (Solid Teal background with crisp white icon)
+  // 6. Coffre Épargne (Solid Teal background with crisp white Solar icon)
   if (
     upperId === 'SAVINGS_VAULT' ||
     lowerName.includes('saving') ||
@@ -108,15 +108,15 @@ export function WalletLogo({ id = '', name = '', className = '', size = 'md' }: 
   ) {
     return (
       <div className={`${sizeClasses} bg-teal-600 text-white flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
-        <ShieldCheckIcon className={iconSizes} />
+        <ShieldCheckBoldIcon size={iconSizes} />
       </div>
     );
   }
 
-  // 7. Custom Default Account (Solid Indigo background with crisp white icon)
+  // 7. Custom Default Account (Solid Indigo background with crisp white Solar icon)
   return (
     <div className={`${sizeClasses} bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-2xs ${className}`}>
-      <CreditCardIcon className={iconSizes} />
+      <CardBoldIcon size={iconSizes} />
     </div>
   );
 }

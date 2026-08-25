@@ -1,6 +1,6 @@
 import { CadenceMetrics } from '../../types/models';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
+import { CheckCircleBoldIcon, DangerTriangleBoldIcon } from '@solar-icons/react';
 import { formatAmount } from '../../utils/formatters';
 
 interface DailyBurnCardProps {
@@ -14,11 +14,11 @@ export function DailyBurnCard({ metrics }: DailyBurnCardProps) {
     <InsetGroupedCard className="p-5">
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isHealthy ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-xs ${isHealthy ? 'bg-emerald-600' : 'bg-rose-600'}`}>
             {isHealthy ? (
-              <CheckCircleIcon className="w-5 h-5" />
+              <CheckCircleBoldIcon size={18} />
             ) : (
-              <ExclamationTriangleIcon className="w-5 h-5" />
+              <DangerTriangleBoldIcon size={18} />
             )}
           </div>
           <div>

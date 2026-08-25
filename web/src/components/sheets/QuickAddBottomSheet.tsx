@@ -5,27 +5,17 @@ import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
-import { Category } from '../../types/models';
+import { CategoryIcon } from '../common/CategoryIcon';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  XMarkIcon,
-  ChevronRightIcon,
-  CheckIcon,
-  CalendarIcon,
-  ArrowUpRightIcon,
-  ArrowDownLeftIcon,
-  ArrowsRightLeftIcon,
-  TagIcon,
-  ShoppingCartIcon,
-  HomeIcon,
-  TruckIcon,
-  SignalIcon,
-  SparklesIcon,
-  ExclamationTriangleIcon,
-  CreditCardIcon,
-  ShieldCheckIcon,
-  BanknotesIcon,
-} from '@heroicons/react/24/outline';
+  CloseCircleLinearIcon,
+  AltArrowRightLinearIcon,
+  CheckCircleBoldIcon,
+  CalendarLinearIcon,
+  ArrowRightUpLinearIcon,
+  ArrowLeftDownLinearIcon,
+  TransferHorizontalLinearIcon,
+} from '@solar-icons/react';
 
 export type QuickAddMode = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
@@ -72,6 +62,21 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const spendableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable), [wallets]);
   const allWallets = useMemo(() => Object.values(wallets), [wallets]);
 
+  // Filter out the other wallet in transfer mode so source !== destination
+  const availableSourceWallets = useMemo(() => {
+    if (mode === 'TRANSFER') {
+      return spendableWallets.filter(w => w.id !== destinationWalletId);
+    }
+    return spendableWallets;
+  }, [spendableWallets, mode, destinationWalletId]);
+
+  const availableDestWallets = useMemo(() => {
+    if (mode === 'TRANSFER') {
+      return allWallets.filter(w => w.id !== sourceWalletId);
+    }
+    return allWallets;
+  }, [allWallets, mode, sourceWalletId]);
+
   // Set default category according to mode
   const activeCategoryId = useMemo(() => {
     if (selectedCategoryId) return selectedCategoryId;
@@ -85,19 +90,25 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   }, [categories, activeCategoryId]);
 
   const selectedSourceWallet = useMemo(() => {
-    return wallets[sourceWalletId] || spendableWallets[0] || { id: 'MVOLA', name: 'MVola', balance: 0, isSpendable: true };
-  }, [wallets, sourceWalletId, spendableWallets]);
+    if (wallets[sourceWalletId] && (mode !== 'TRANSFER' || sourceWalletId !== destinationWalletId)) {
+      return wallets[sourceWalletId];
+    }
+    return availableSourceWallets[0] || spendableWallets[0] || { id: 'w-source', name: 'Compte', type: 'MVOLA' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
+  }, [wallets, sourceWalletId, mode, destinationWalletId, availableSourceWallets, spendableWallets]);
 
   const selectedDestWallet = useMemo(() => {
-    return wallets[destinationWalletId] || allWallets.find(w => w.id !== sourceWalletId) || { id: 'CASH', name: 'Espèces', balance: 0, isSpendable: true };
-  }, [wallets, destinationWalletId, allWallets, sourceWalletId]);
+    if (wallets[destinationWalletId] && (mode !== 'TRANSFER' || destinationWalletId !== sourceWalletId)) {
+      return wallets[destinationWalletId];
+    }
+    return availableDestWallets[0] || allWallets.find(w => w.id !== selectedSourceWallet.id) || { id: 'w-dest', name: 'Compte', type: 'CASH' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
+  }, [wallets, destinationWalletId, mode, sourceWalletId, availableDestWallets, allWallets, selectedSourceWallet]);
 
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
   const { transferFee, withdrawalFee } = calculateMVolaFees(numericAmount);
 
   // Fee computation
-  const isCashWithdrawal = mode === 'TRANSFER' && (sourceWalletId === 'MVOLA' || sourceWalletId === 'AIRTEL_MONEY') && destinationWalletId === 'CASH';
-  const isP2PTransfer = mode === 'EXPENSE' && sourceWalletId === 'MVOLA';
+  const isCashWithdrawal = mode === 'TRANSFER' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'AIRTEL_MONEY' || selectedSourceWallet.id.includes('MVOLA')) && selectedDestWallet.type === 'CASH';
+  const isP2PTransfer = mode === 'EXPENSE' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.id.includes('MVOLA'));
 
   const feeAmount = useMemo(() => {
     if (!includeFees || numericAmount <= 0) return 0;
@@ -107,6 +118,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   }, [includeFees, numericAmount, isCashWithdrawal, isP2PTransfer, withdrawalFee, transferFee]);
 
   const totalImpact = numericAmount + feeAmount;
+  const isInvalidTransfer = mode === 'TRANSFER' && selectedSourceWallet.id === selectedDestWallet.id;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,33 +201,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     }
   };
 
-  const renderCategoryIcon = (cat: Category) => {
-    const iconName = cat.icon || 'TagIcon';
-    const props = { className: 'w-3.5 h-3.5 text-white' };
-    switch (iconName) {
-      case 'ShoppingCartIcon':
-        return <ShoppingCartIcon {...props} />;
-      case 'HomeIcon':
-        return <HomeIcon {...props} />;
-      case 'TruckIcon':
-        return <TruckIcon {...props} />;
-      case 'SignalIcon':
-        return <SignalIcon {...props} />;
-      case 'SparklesIcon':
-        return <SparklesIcon {...props} />;
-      case 'ExclamationTriangleIcon':
-        return <ExclamationTriangleIcon {...props} />;
-      case 'CreditCardIcon':
-        return <CreditCardIcon {...props} />;
-      case 'ShieldCheckIcon':
-        return <ShieldCheckIcon {...props} />;
-      case 'BanknotesIcon':
-        return <BanknotesIcon {...props} />;
-      default:
-        return <TagIcon {...props} />;
-    }
-  };
-
   const isPickerOpen = pickerTarget !== null;
 
   return (
@@ -273,7 +258,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                 >
-                  <ArrowUpRightIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'EXPENSE' ? 'text-white' : 'text-zinc-400'}`} />
+                  <ArrowRightUpLinearIcon size={14} className={mode === 'EXPENSE' ? 'text-white' : 'text-zinc-400'} />
                   <span>Dépense</span>
                 </button>
 
@@ -286,7 +271,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                 >
-                  <ArrowDownLeftIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'INCOME' ? 'text-white' : 'text-zinc-400'}`} />
+                  <ArrowLeftDownLinearIcon size={14} className={mode === 'INCOME' ? 'text-white' : 'text-zinc-400'} />
                   <span>Entrée</span>
                 </button>
 
@@ -299,7 +284,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                 >
-                  <ArrowsRightLeftIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'TRANSFER' ? 'text-white' : 'text-zinc-400'}`} />
+                  <TransferHorizontalLinearIcon size={14} className={mode === 'TRANSFER' ? 'text-white' : 'text-zinc-400'} />
                   <span>Transfert</span>
                 </button>
               </div>
@@ -309,7 +294,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 onClick={onClose}
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <XMarkIcon className="w-4 h-4 stroke-[2.5]" />
+                <CloseCircleLinearIcon size={18} />
               </button>
             </div>
 
@@ -437,7 +422,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     </div>
                     <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
                       <span>{selectedSourceWallet.name}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
                     </div>
                   </button>
                 )}
@@ -457,7 +442,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     </div>
                     <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
                       <span>{selectedDestWallet.name}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
                     </div>
                   </button>
                 )}
@@ -474,7 +459,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                         style={{ backgroundColor: selectedCategory.color }}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
                       >
-                        {renderCategoryIcon(selectedCategory)}
+                        <CategoryIcon name={selectedCategory.icon || selectedCategory.name} weight="Bold" size={14} />
                       </div>
                       <span className="text-xs font-bold text-zinc-900 truncate">
                         Catégorie
@@ -482,7 +467,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     </div>
                     <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
                       <span className="truncate max-w-[120px]">{selectedCategory.name}</span>
-                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
                     </div>
                   </button>
                 )}
@@ -491,7 +476,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 <div className="px-4 py-3 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2.5 text-zinc-900 font-bold">
                     <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
-                      <CalendarIcon className="w-3.5 h-3.5" />
+                      <CalendarLinearIcon size={14} />
                     </div>
                     <span>Date</span>
                   </div>
@@ -502,7 +487,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               {/* Submit CTA Button */}
               <button
                 type="submit"
-                disabled={numericAmount <= 0 || isSubmitting}
+                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
               >
                 {isSubmitting
@@ -542,14 +527,14 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     onClick={() => setPickerTarget(null)}
                     className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    <XMarkIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <CloseCircleLinearIcon size={18} />
                   </button>
                 </div>
 
-                {/* Content: Wallet Picker */}
+                {/* Content: Wallet Picker (Mutually filtered to prevent selecting same account) */}
                 {(pickerTarget === 'SOURCE_WALLET' || pickerTarget === 'DEST_WALLET') && (
                   <div className="space-y-1.5">
-                    {(pickerTarget === 'SOURCE_WALLET' ? spendableWallets : allWallets).map(w => {
+                    {(pickerTarget === 'SOURCE_WALLET' ? availableSourceWallets : availableDestWallets).map(w => {
                       const isSelected = pickerTarget === 'SOURCE_WALLET'
                         ? sourceWalletId === w.id
                         : destinationWalletId === w.id;
@@ -558,8 +543,19 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                           type="button"
                           key={w.id}
                           onClick={() => {
-                            if (pickerTarget === 'SOURCE_WALLET') setSourceWalletId(w.id);
-                            else setDestinationWalletId(w.id);
+                            if (pickerTarget === 'SOURCE_WALLET') {
+                              setSourceWalletId(w.id);
+                              if (w.id === destinationWalletId) {
+                                const other = allWallets.find(item => item.id !== w.id);
+                                if (other) setDestinationWalletId(other.id);
+                              }
+                            } else {
+                              setDestinationWalletId(w.id);
+                              if (w.id === sourceWalletId) {
+                                const other = spendableWallets.find(item => item.id !== w.id);
+                                if (other) setSourceWalletId(other.id);
+                              }
+                            }
                             setPickerTarget(null);
                           }}
                           className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
@@ -577,7 +573,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                               </span>
                             </div>
                           </div>
-                          {isSelected && <CheckIcon className="w-4 h-4 text-white stroke-[3]" />}
+                          {isSelected && <CheckCircleBoldIcon size={20} className="text-white" />}
                         </button>
                       );
                     })}
@@ -607,7 +603,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                             style={{ backgroundColor: cat.color }}
                             className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
                           >
-                            {renderCategoryIcon(cat)}
+                            <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={16} />
                           </div>
                           <span className="text-xs font-bold truncate text-left">
                             {cat.name}

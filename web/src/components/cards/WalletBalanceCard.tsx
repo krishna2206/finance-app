@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { CreditCardIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { CardBoldIcon, AddLinearIcon } from '@solar-icons/react';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 
 interface WalletBalanceCardProps {
@@ -22,6 +22,7 @@ export function WalletBalanceCard({ onAddWallet }: WalletBalanceCardProps) {
   const getWalletColor = (id: string, name: string) => {
     const lower = `${id} ${name}`.toLowerCase();
     if (lower.includes('mvola')) return '#D97706';
+    if (lower.includes('orange')) return '#EA580C';
     if (lower.includes('cash') || lower.includes('espèce')) return '#059669';
     if (lower.includes('airtel')) return '#E11D48';
     if (lower.includes('bank') || lower.includes('banque') || lower.includes('bni') || lower.includes('boa')) return '#2563EB';
@@ -34,7 +35,7 @@ export function WalletBalanceCard({ onAddWallet }: WalletBalanceCardProps) {
       <div>
         <div className="flex items-center justify-between text-zinc-500 mb-1">
           <div className="flex items-center gap-1.5">
-            <CreditCardIcon className="w-3.5 h-3.5" />
+            <CardBoldIcon size={14} />
             <span className="text-[10px] font-bold uppercase tracking-wider">
               Solde Total
             </span>
@@ -46,7 +47,7 @@ export function WalletBalanceCard({ onAddWallet }: WalletBalanceCardProps) {
               title="Ajouter un compte"
               className="p-0.5 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-800 transition-colors cursor-pointer"
             >
-              <PlusIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+              <AddLinearIcon size={14} />
             </button>
           )}
         </div>

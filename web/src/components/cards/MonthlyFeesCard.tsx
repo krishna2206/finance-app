@@ -1,5 +1,5 @@
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
-import { ExclamationCircleIcon } from '@heroicons/react/24/solid';
+import { DangerCircleBoldIcon } from '@solar-icons/react';
 import { formatCurrency } from '../../utils/formatters';
 
 interface MonthlyFeesCardProps {
@@ -13,7 +13,7 @@ export function MonthlyFeesCard({ fees }: MonthlyFeesCardProps) {
     <InsetGroupedCard className="p-4 border-amber-200 bg-amber-50/70">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <ExclamationCircleIcon className="w-5 h-5 text-amber-600" />
+          <DangerCircleBoldIcon size={20} className="text-amber-600 shrink-0" />
           <span className="text-xs text-amber-900 font-medium">
             Frais Mobile Money cumulés ce mois :
           </span>
