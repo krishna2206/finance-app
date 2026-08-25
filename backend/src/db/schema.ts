@@ -144,6 +144,33 @@ export const DEFAULT_CATEGORIES = [
     color: '#10B981',
     icon: 'ShieldCheckIcon',
     isEssential: 0,
+  },
+  {
+    id: '1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d',
+    name: 'Salaire & Rémunération',
+    type: 'INCOME',
+    monthlyBudget: 0,
+    color: '#10B981',
+    icon: 'BanknotesIcon',
+    isEssential: 0,
+  },
+  {
+    id: '2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e',
+    name: 'Freelance & Prestations',
+    type: 'INCOME',
+    monthlyBudget: 0,
+    color: '#3B82F6',
+    icon: 'SparklesIcon',
+    isEssential: 0,
+  },
+  {
+    id: '3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f',
+    name: 'Entrées Diverses & Ventes',
+    type: 'INCOME',
+    monthlyBudget: 0,
+    color: '#8B5CF6',
+    icon: 'TagIcon',
+    isEssential: 0,
   }
 ];
 
