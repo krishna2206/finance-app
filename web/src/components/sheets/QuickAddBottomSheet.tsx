@@ -5,16 +5,29 @@ import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
-import { WalletSource } from '../../types/models';
+import { Category } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
   XMarkIcon,
-  BanknotesIcon,
+  ChevronRightIcon,
+  CheckIcon,
+  CalendarIcon,
   ArrowUpRightIcon,
   ArrowDownLeftIcon,
+  ArrowsRightLeftIcon,
+  TagIcon,
+  ShoppingCartIcon,
+  HomeIcon,
+  TruckIcon,
+  SignalIcon,
+  SparklesIcon,
+  ExclamationTriangleIcon,
+  CreditCardIcon,
+  ShieldCheckIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 
-export type QuickAddMode = 'EXPENSE' | 'WITHDRAWAL';
+export type QuickAddMode = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
 interface QuickAddBottomSheetProps {
   isOpen: boolean;
@@ -30,36 +43,68 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [amount, setAmount] = useState('');
   const [isFocused, setIsFocused] = useState(true);
   const [title, setTitle] = useState('');
-  const [selectedWallet, setSelectedWallet] = useState<WalletSource>('CASH');
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(categories[0]?.id || '');
+
+  // Wallets selection
+  const [sourceWalletId, setSourceWalletId] = useState<string>('MVOLA');
+  const [destinationWalletId, setDestinationWalletId] = useState<string>('CASH');
+
+  // Categories selection
+  const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
+  const incomeCategories = useMemo(() => categories.filter(c => c.type === 'INCOME'), [categories]);
+  const feeCategory = useMemo(() => categories.find(c => c.name.toLowerCase().includes('frais')) || categories[0], [categories]);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [includeFees, setIncludeFees] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Stacked picker sheets state
+  const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
-  const feeCategory = useMemo(() => {
-    return categories.find(c => c.name.toLowerCase().includes('frais')) || categories[0];
-  }, [categories]);
+  const openPicker = (target: 'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY') => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    setPickerTarget(target);
+  };
 
   const spendableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable), [wallets]);
-  const withdrawableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable && w.id !== 'CASH'), [wallets]);
+  const allWallets = useMemo(() => Object.values(wallets), [wallets]);
+
+  // Set default category according to mode
+  const activeCategoryId = useMemo(() => {
+    if (selectedCategoryId) return selectedCategoryId;
+    if (mode === 'EXPENSE') return expenseCategories[0]?.id || categories[0]?.id || '';
+    if (mode === 'INCOME') return incomeCategories[0]?.id || categories[0]?.id || '';
+    return feeCategory?.id || categories[0]?.id || '';
+  }, [selectedCategoryId, mode, expenseCategories, incomeCategories, feeCategory, categories]);
+
+  const selectedCategory = useMemo(() => {
+    return categories.find(c => c.id === activeCategoryId) || categories[0];
+  }, [categories, activeCategoryId]);
+
+  const selectedSourceWallet = useMemo(() => {
+    return wallets[sourceWalletId] || spendableWallets[0] || { id: 'MVOLA', name: 'MVola', balance: 0, isSpendable: true };
+  }, [wallets, sourceWalletId, spendableWallets]);
+
+  const selectedDestWallet = useMemo(() => {
+    return wallets[destinationWalletId] || allWallets.find(w => w.id !== sourceWalletId) || { id: 'CASH', name: 'Espèces', balance: 0, isSpendable: true };
+  }, [wallets, destinationWalletId, allWallets, sourceWalletId]);
 
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
   const { transferFee, withdrawalFee } = calculateMVolaFees(numericAmount);
 
-  // Dynamic fee calculation based on mode & wallet
+  // Fee computation
+  const isCashWithdrawal = mode === 'TRANSFER' && (sourceWalletId === 'MVOLA' || sourceWalletId === 'AIRTEL_MONEY') && destinationWalletId === 'CASH';
+  const isP2PTransfer = mode === 'EXPENSE' && sourceWalletId === 'MVOLA';
+
   const feeAmount = useMemo(() => {
     if (!includeFees || numericAmount <= 0) return 0;
-    if (mode === 'EXPENSE') {
-      return selectedWallet === 'MVOLA' ? transferFee : 0;
-    }
-    // Mode WITHDRAWAL
-    if (selectedWallet === 'MVOLA' || selectedWallet === 'AIRTEL_MONEY') {
-      return withdrawalFee;
-    }
-    return 0; // Bank GAB default 0
-  }, [mode, selectedWallet, includeFees, numericAmount, transferFee, withdrawalFee]);
+    if (isCashWithdrawal) return withdrawalFee;
+    if (isP2PTransfer) return transferFee;
+    return 0;
+  }, [includeFees, numericAmount, isCashWithdrawal, isP2PTransfer, withdrawalFee, transferFee]);
 
   const totalImpact = numericAmount + feeAmount;
 
@@ -70,37 +115,64 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     setIsSubmitting(true);
     try {
       if (mode === 'EXPENSE') {
-        const finalTitle = title.trim() || categories.find(c => c.id === selectedCategoryId)?.name || 'Dépense';
+        const finalTitle = title.trim() || selectedCategory?.name || 'Dépense';
         await addTransaction({
           flow: 'DEBIT',
           operationType: 'EXPENSE_GENERAL',
-          wallet: selectedWallet,
+          wallet: selectedSourceWallet.id,
           amount: numericAmount,
           feeAmount,
           totalImpact,
           title: finalTitle,
-          categoryId: selectedCategoryId || categories[0]?.id,
+          categoryId: selectedCategory.id,
+          date: new Date().toISOString(),
+          source: 'MANUAL',
+        });
+      } else if (mode === 'INCOME') {
+        const finalTitle = title.trim() || selectedCategory?.name || 'Entrée d\'argent';
+        await addTransaction({
+          flow: 'CREDIT',
+          operationType: 'INCOME_TRANSFER',
+          wallet: selectedDestWallet.id,
+          amount: numericAmount,
+          feeAmount: 0,
+          totalImpact: numericAmount,
+          title: finalTitle,
+          categoryId: selectedCategory.id,
           date: new Date().toISOString(),
           source: 'MANUAL',
         });
       } else {
-        // Mode WITHDRAWAL (Retrait vers Espèces)
-        const defaultTitle = selectedWallet === 'MVOLA'
-          ? 'Retrait MVola Cash Point'
-          : selectedWallet === 'BANK'
-            ? 'Retrait GAB Banque'
-            : 'Retrait Espèces';
-        const finalTitle = title.trim() || defaultTitle;
+        // Mode TRANSFER
+        const isWithdrawal = destinationWalletId === 'CASH';
+        const isSavingsDeposit = destinationWalletId === 'SAVINGS_VAULT';
+        const isSavingsWithdrawal = sourceWalletId === 'SAVINGS_VAULT';
+
+        const opType = isWithdrawal
+          ? 'WITHDRAWAL_CASH'
+          : isSavingsDeposit
+            ? 'SAVINGS_DEPOSIT'
+            : isSavingsWithdrawal
+              ? 'SAVINGS_WITHDRAWAL'
+              : 'TRANSFER_P2P';
+
+        const defaultTitle = isWithdrawal
+          ? `Retrait vers Espèces`
+          : isSavingsDeposit
+            ? `Versement Épargne`
+            : isSavingsWithdrawal
+              ? `Déblocage Épargne`
+              : `Transfert ${selectedSourceWallet.name} ➔ ${selectedDestWallet.name}`;
 
         await addTransaction({
           flow: 'DEBIT',
-          operationType: 'WITHDRAWAL_CASH',
-          wallet: selectedWallet,
-          destinationWallet: 'CASH',
+          operationType: opType,
+          wallet: selectedSourceWallet.id,
+          destinationWallet: selectedDestWallet.id,
           amount: numericAmount,
           feeAmount,
           totalImpact,
-          title: finalTitle,
+          title: title.trim() || defaultTitle,
           categoryId: feeCategory?.id || categories[0]?.id,
           date: new Date().toISOString(),
           source: 'MANUAL',
@@ -117,6 +189,35 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     }
   };
 
+  const renderCategoryIcon = (cat: Category) => {
+    const iconName = cat.icon || 'TagIcon';
+    const props = { className: 'w-3.5 h-3.5 text-white' };
+    switch (iconName) {
+      case 'ShoppingCartIcon':
+        return <ShoppingCartIcon {...props} />;
+      case 'HomeIcon':
+        return <HomeIcon {...props} />;
+      case 'TruckIcon':
+        return <TruckIcon {...props} />;
+      case 'SignalIcon':
+        return <SignalIcon {...props} />;
+      case 'SparklesIcon':
+        return <SparklesIcon {...props} />;
+      case 'ExclamationTriangleIcon':
+        return <ExclamationTriangleIcon {...props} />;
+      case 'CreditCardIcon':
+        return <CreditCardIcon {...props} />;
+      case 'ShieldCheckIcon':
+        return <ShieldCheckIcon {...props} />;
+      case 'BanknotesIcon':
+        return <BanknotesIcon {...props} />;
+      default:
+        return <TagIcon {...props} />;
+    }
+  };
+
+  const isPickerOpen = pickerTarget !== null;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -127,31 +228,46 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            onClick={onClose}
+            onClick={() => {
+              if (isPickerOpen) setPickerTarget(null);
+              else onClose();
+            }}
             className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
           />
 
-          {/* Native Bottom Sheet Card */}
+          {/* Primary Form Bottom Sheet (Recedes slightly when stacked picker opens) */}
           <motion.div
             initial={{ y: '100%' }}
-            animate={{ y: 0 }}
+            animate={
+              isPickerOpen
+                ? { y: -12, scale: 0.94, filter: 'brightness(0.85)' }
+                : { y: 0, scale: 1, filter: 'brightness(1)' }
+            }
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 380, mass: 0.8 }}
-            className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 p-6 shadow-2xl z-10 max-h-[88vh] overflow-y-auto pointer-events-auto text-zinc-900 transform-gpu will-change-transform"
+            className={`relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] rounded-b-none border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-10 max-h-[88vh] overflow-y-auto text-zinc-900 transform-gpu will-change-transform ${
+              isPickerOpen ? 'pointer-events-none select-none' : 'pointer-events-auto'
+            }`}
           >
-            {/* Grabber */}
-            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
+            {/* Click Blocker Overlay over Receding Parent Sheet (Dismisses Picker on Tap) */}
+            {isPickerOpen && (
+              <div
+                onClick={() => setPickerTarget(null)}
+                className="absolute inset-0 z-30 cursor-pointer pointer-events-auto bg-black/5 rounded-t-[32px]"
+                title="Fermer le sélecteur"
+              />
+            )}
 
-            {/* Header with Mode Toggle */}
-            <div className="flex justify-between items-center mb-3">
+            {/* Grabber - Positioned right at the top */}
+            <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
+
+            {/* Header: Mode Segmented Toggle + Close Button on Right */}
+            <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-full">
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('EXPENSE');
-                    if (selectedWallet === 'AIRTEL_MONEY') setSelectedWallet('CASH');
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  onClick={() => setMode('EXPENSE')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     mode === 'EXPENSE'
                       ? 'bg-zinc-900 text-white shadow-xs'
                       : 'text-zinc-500 hover:text-zinc-900'
@@ -160,28 +276,40 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   <ArrowUpRightIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'EXPENSE' ? 'text-white' : 'text-zinc-400'}`} />
                   <span>Dépense</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => {
-                    setMode('WITHDRAWAL');
-                    if (selectedWallet === 'CASH') setSelectedWallet('MVOLA');
-                  }}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    mode === 'WITHDRAWAL'
+                  onClick={() => setMode('INCOME')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    mode === 'INCOME'
                       ? 'bg-zinc-900 text-white shadow-xs'
                       : 'text-zinc-500 hover:text-zinc-900'
                   }`}
                 >
-                  <ArrowDownLeftIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'WITHDRAWAL' ? 'text-white' : 'text-zinc-400'}`} />
-                  <span>Retrait</span>
+                  <ArrowDownLeftIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'INCOME' ? 'text-white' : 'text-zinc-400'}`} />
+                  <span>Entrée</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode('TRANSFER')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                    mode === 'TRANSFER'
+                      ? 'bg-zinc-900 text-white shadow-xs'
+                      : 'text-zinc-500 hover:text-zinc-900'
+                  }`}
+                >
+                  <ArrowsRightLeftIcon className={`w-3.5 h-3.5 stroke-[2.5] ${mode === 'TRANSFER' ? 'text-white' : 'text-zinc-400'}`} />
+                  <span>Transfert</span>
                 </button>
               </div>
 
+              {/* Close (X) button on top right */}
               <button
                 onClick={onClose}
-                className="p-1 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 flex items-center justify-center transition-colors cursor-pointer"
               >
-                <XMarkIcon className="w-5 h-5" />
+                <XMarkIcon className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
 
@@ -189,10 +317,14 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               {/* Hero Amount Input (Clean, borderless, live formatted with custom breathing pill cursor) */}
               <div
                 onClick={() => inputRef.current?.focus()}
-                className="relative py-3 flex flex-col items-center justify-center cursor-text select-none"
+                className="relative py-2 flex flex-col items-center justify-center cursor-text select-none"
               >
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
-                  {mode === 'EXPENSE' ? 'Montant de la Dépense' : 'Montant à Retirer en Espèces'}
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                  {mode === 'EXPENSE'
+                    ? 'Montant de la Dépense'
+                    : mode === 'INCOME'
+                      ? 'Montant Reçu'
+                      : 'Montant à Transférer'}
                 </span>
 
                 <div className="relative flex items-center justify-center">
@@ -205,9 +337,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     value={amount}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, '');
-                      if (val.length <= 10) {
-                        setAmount(val);
-                      }
+                      if (val.length <= 10) setAmount(val);
                     }}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
@@ -243,189 +373,253 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </div>
                 </div>
 
-                {/* Mode Retrait - Dynamic Cash Point Fee Indicator */}
-                {mode === 'WITHDRAWAL' && (
-                  <AnimatePresence>
-                    {(selectedWallet === 'MVOLA' || selectedWallet === 'AIRTEL_MONEY') && withdrawalFee > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, height: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto' }}
-                        exit={{ opacity: 0, y: -6, height: 0 }}
-                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIncludeFees(!includeFees);
-                          }}
-                          className={`mt-2 text-xs font-semibold tabular-nums transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                            includeFees
-                              ? 'text-amber-600 hover:text-amber-700'
-                              : 'text-zinc-400 line-through hover:text-zinc-500'
-                          }`}
-                        >
-                          <span>+{formatAmount(withdrawalFee)} Ar frais Cash Point</span>
-                          <span className="text-zinc-400 font-normal">• Total débité : {formatCurrency(totalImpact)}</span>
-                        </button>
-                      </motion.div>
-                    )}
-
-                    {selectedWallet === 'BANK' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 text-xs text-zinc-500 font-medium"
-                      >
-                        0 Ar de frais (GAB banque)
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                )}
-
-                {/* Mode Dépense - Mobile Money Fee Indicator */}
-                {mode === 'EXPENSE' && (
-                  <AnimatePresence>
-                    {selectedWallet === 'MVOLA' && transferFee > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, height: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto' }}
-                        exit={{ opacity: 0, y: -6, height: 0 }}
-                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIncludeFees(!includeFees);
-                          }}
-                          className={`mt-2 text-xs font-semibold tabular-nums transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                            includeFees
-                              ? 'text-amber-600 hover:text-amber-700'
-                              : 'text-zinc-400 line-through hover:text-zinc-500'
-                          }`}
-                        >
-                          <span>+{formatAmount(transferFee)} Ar frais</span>
-                          <span className="text-zinc-400 font-normal">• Total : {formatCurrency(totalImpact)}</span>
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                )}
-              </div>
-
-              {/* Mode Retrait - Destination Physical Cash Indicator */}
-              {mode === 'WITHDRAWAL' && (
-                <div className="p-3 bg-zinc-50 border border-zinc-200/80 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-                      <BanknotesIcon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-                        Destination Physique
-                      </span>
-                      <span className="text-xs font-bold text-zinc-900">
-                        Portefeuille Espèces (+{numericAmount > 0 ? formatCurrency(numericAmount) : '0 Ar'})
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Wallet Selection (Clean 2-column balanced layout with horizontal logo + name) */}
-              <div>
-                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
-                  {mode === 'EXPENSE' ? 'Moyen de Paiement' : 'Compte Source du Retrait'}
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(mode === 'EXPENSE' ? spendableWallets : withdrawableWallets).map(w => {
-                    const isSelected = selectedWallet === w.id;
-                    return (
+                {/* Frais de transaction (Borderless with vertical reveal animation) */}
+                <AnimatePresence>
+                  {(isCashWithdrawal || isP2PTransfer) && feeAmount > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -6, height: 0 }}
+                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                      className="overflow-hidden"
+                    >
                       <button
                         type="button"
-                        key={w.id}
-                        onClick={() => setSelectedWallet(w.id)}
-                        className={`flex items-center gap-2.5 p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
-                            : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIncludeFees(!includeFees);
+                        }}
+                        className={`mt-2 text-xs font-semibold tabular-nums transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                          includeFees
+                            ? 'text-amber-600 hover:text-amber-700'
+                            : 'text-zinc-400 line-through hover:text-zinc-500'
                         }`}
                       >
-                        <WalletLogo id={w.id} name={w.name} size="sm" />
-                        <span className="text-xs font-bold truncate text-left">
-                          {w.name}
-                        </span>
+                        <span>+{formatAmount(feeAmount)} Ar frais {isCashWithdrawal ? 'Cash Point' : ''}</span>
+                        <span className="text-zinc-400 font-normal">• Total débité : {formatCurrency(totalImpact)}</span>
                       </button>
-                    );
-                  })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Inset Grouped Rows (Apple Style Cells with Description on top row) */}
+              <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                {/* 1. Description Row */}
+                <div className="px-4 py-3 flex items-center gap-2.5">
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={
+                      mode === 'EXPENSE'
+                        ? 'Description (ex: Marché Anosibe, Déjeuner...)'
+                        : mode === 'INCOME'
+                          ? 'Description (ex: Salaire, Mission freelance...)'
+                          : 'Note (ex: Retrait Cash Point, Recharge MVola...)'
+                    }
+                    className="w-full bg-transparent text-xs font-medium text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                  />
+                </div>
+
+                {/* 2. Compte Source Row */}
+                {mode !== 'INCOME' && (
+                  <button
+                    type="button"
+                    onClick={() => openPicker('SOURCE_WALLET')}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <WalletLogo id={selectedSourceWallet.id} name={selectedSourceWallet.name} size="sm" />
+                      <span className="text-xs font-bold text-zinc-900 truncate">
+                        {mode === 'TRANSFER' ? 'Depuis le compte' : 'Moyen de paiement'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
+                      <span>{selectedSourceWallet.name}</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    </div>
+                  </button>
+                )}
+
+                {/* 3. Compte Destination Row (for INCOME and TRANSFER) */}
+                {(mode === 'INCOME' || mode === 'TRANSFER') && (
+                  <button
+                    type="button"
+                    onClick={() => openPicker('DEST_WALLET')}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <WalletLogo id={selectedDestWallet.id} name={selectedDestWallet.name} size="sm" />
+                      <span className="text-xs font-bold text-zinc-900 truncate">
+                        {mode === 'TRANSFER' ? 'Vers le compte' : 'Compte crédité'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
+                      <span>{selectedDestWallet.name}</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    </div>
+                  </button>
+                )}
+
+                {/* 4. Catégorie Row (for EXPENSE and INCOME) */}
+                {mode !== 'TRANSFER' && (
+                  <button
+                    type="button"
+                    onClick={() => openPicker('CATEGORY')}
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <div
+                        style={{ backgroundColor: selectedCategory.color }}
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
+                      >
+                        {renderCategoryIcon(selectedCategory)}
+                      </div>
+                      <span className="text-xs font-bold text-zinc-900 truncate">
+                        Catégorie
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
+                      <span className="truncate max-w-[120px]">{selectedCategory.name}</span>
+                      <ChevronRightIcon className="w-3.5 h-3.5 text-zinc-400" />
+                    </div>
+                  </button>
+                )}
+
+                {/* 5. Date Row */}
+                <div className="px-4 py-3 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5 text-zinc-900 font-bold">
+                    <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                      <CalendarIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Date</span>
+                  </div>
+                  <span className="text-zinc-500 font-semibold">Aujourd'hui</span>
                 </div>
               </div>
 
-              {/* Title / Description */}
-              <div>
-                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
-                  {mode === 'EXPENSE' ? 'Description' : 'Note (Optionnel)'}
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder={mode === 'EXPENSE' ? 'Ex: Marché Anosibe, Déjeuner...' : 'Ex: Retrait Cash Point Ankorondrano...'}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400"
-                />
-              </div>
+              {/* Submit CTA Button */}
+              <button
+                type="submit"
+                disabled={numericAmount <= 0 || isSubmitting}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
+              >
+                {isSubmitting
+                  ? 'Enregistrement...'
+                  : mode === 'EXPENSE'
+                    ? `Enregistrer Dépense (${formatCurrency(totalImpact)})`
+                    : mode === 'INCOME'
+                      ? `Enregistrer Entrée (${formatCurrency(numericAmount)})`
+                      : `Confirmer le Transfert (${formatCurrency(totalImpact)})`}
+              </button>
+            </form>
+          </motion.div>
 
-              {/* Category Selection (Only for EXPENSE mode) */}
-              {mode === 'EXPENSE' && (
-                <div>
-                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1">
-                    Catégorie
-                  </label>
-                  <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
-                    {expenseCategories.map(cat => {
-                      const isSelected = selectedCategoryId === cat.id;
+          {/* Secondary Stacked Picker Bottom Sheet (Slides on top of primary form) */}
+          <AnimatePresence>
+            {isPickerOpen && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+                className="absolute inset-x-0 bottom-0 w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] border-t border-x border-zinc-200 pt-2.5 px-5 pb-6 shadow-2xl z-20 max-h-[75vh] overflow-y-auto pointer-events-auto text-zinc-900"
+              >
+                {/* Grabber */}
+                <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
+
+                {/* Header */}
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="text-sm font-bold text-zinc-900 tracking-tight">
+                    {pickerTarget === 'CATEGORY'
+                      ? 'Choisir une catégorie'
+                      : pickerTarget === 'SOURCE_WALLET'
+                        ? 'Choisir le compte source'
+                        : 'Choisir le compte destinataire'}
+                  </h3>
+                  <button
+                    onClick={() => setPickerTarget(null)}
+                    className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <XMarkIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+                  </button>
+                </div>
+
+                {/* Content: Wallet Picker */}
+                {(pickerTarget === 'SOURCE_WALLET' || pickerTarget === 'DEST_WALLET') && (
+                  <div className="space-y-1.5">
+                    {(pickerTarget === 'SOURCE_WALLET' ? spendableWallets : allWallets).map(w => {
+                      const isSelected = pickerTarget === 'SOURCE_WALLET'
+                        ? sourceWalletId === w.id
+                        : destinationWalletId === w.id;
+                      return (
+                        <button
+                          type="button"
+                          key={w.id}
+                          onClick={() => {
+                            if (pickerTarget === 'SOURCE_WALLET') setSourceWalletId(w.id);
+                            else setDestinationWalletId(w.id);
+                            setPickerTarget(null);
+                          }}
+                          className={`w-full p-3 rounded-2xl border flex items-center justify-between transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
+                              : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <WalletLogo id={w.id} name={w.name} size="md" />
+                            <div className="text-left">
+                              <span className="text-xs font-bold block">{w.name}</span>
+                              <span className={`text-[10px] tabular-nums ${isSelected ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                                Solde : {formatCurrency(w.balance)}
+                              </span>
+                            </div>
+                          </div>
+                          {isSelected && <CheckIcon className="w-4 h-4 text-white stroke-[3]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Content: Category Picker */}
+                {pickerTarget === 'CATEGORY' && (
+                  <div className="grid grid-cols-2 gap-2 max-h-[55vh] overflow-y-auto pr-1">
+                    {(mode === 'INCOME' ? incomeCategories : expenseCategories).map(cat => {
+                      const isSelected = activeCategoryId === cat.id;
                       return (
                         <button
                           type="button"
                           key={cat.id}
-                          onClick={() => setSelectedCategoryId(cat.id)}
-                          className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all cursor-pointer ${
+                          onClick={() => {
+                            setSelectedCategoryId(cat.id);
+                            setPickerTarget(null);
+                          }}
+                          className={`p-2.5 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
-                              : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                              : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100'
                           }`}
                         >
-                          <span
-                            style={{ backgroundColor: isSelected ? '#FFFFFF' : cat.color }}
-                            className="w-2 h-2 rounded-full inline-block"
-                          />
-                          <span className="text-xs font-semibold">
+                          <div
+                            style={{ backgroundColor: cat.color }}
+                            className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
+                          >
+                            {renderCategoryIcon(cat)}
+                          </div>
+                          <span className="text-xs font-bold truncate text-left">
                             {cat.name}
                           </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={numericAmount <= 0 || isSubmitting}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-2"
-              >
-                {isSubmitting
-                  ? 'Enregistrement...'
-                  : mode === 'EXPENSE'
-                    ? `Enregistrer (${formatCurrency(totalImpact)})`
-                    : `Confirmer le Retrait (${formatCurrency(totalImpact)})`}
-              </button>
-            </form>
-          </motion.div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
     </AnimatePresence>

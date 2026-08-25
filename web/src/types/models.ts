@@ -19,7 +19,7 @@ export type OperationType =
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
 
-export type CategoryType = 'EXPENSE' | 'SAVINGS';
+export type CategoryType = 'EXPENSE' | 'INCOME' | 'SAVINGS';
 
 export interface Wallet {
   id: WalletSource;
