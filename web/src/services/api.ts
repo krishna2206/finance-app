@@ -1,6 +1,15 @@
-import { Wallet, Category, Transaction, WalletSource, AppSettings } from '../types/models';
+import {
+  Wallet,
+  Savings,
+  SavingsGoal,
+  Category,
+  Budget,
+  Transaction,
+  WalletSource,
+  AppSettings,
+} from '../types/models';
 
-const API_BASE = '/api';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export const api = {
   // Settings & Onboarding
@@ -27,7 +36,14 @@ export const api = {
     return res.json();
   },
 
-  async createWallet(wallet: { id: string; name: string; balance?: number; isSpendable?: boolean }): Promise<Wallet> {
+  async createWallet(wallet: {
+    id?: string;
+    name: string;
+    type?: string;
+    accountNumber?: string;
+    balance?: number;
+    isSpendable?: boolean;
+  }): Promise<Wallet> {
     const res = await fetch(`${API_BASE}/wallets`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,7 +53,14 @@ export const api = {
     return res.json();
   },
 
-  async batchInitWallets(wallets: Array<{ id: string; name: string; balance: number; isSpendable: boolean }>): Promise<Wallet[]> {
+  async batchInitWallets(wallets: Array<{
+    id?: string;
+    name: string;
+    type?: string;
+    accountNumber?: string;
+    balance: number;
+    isSpendable: boolean;
+  }>): Promise<Wallet[]> {
     const res = await fetch(`${API_BASE}/wallets/batch-init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -65,20 +88,144 @@ export const api = {
     return res.json();
   },
 
+  // Savings Receptacles (Pots d'Épargne)
+  async getSavings(): Promise<Savings[]> {
+    const res = await fetch(`${API_BASE}/savings`);
+    if (!res.ok) throw new Error('Failed to fetch savings');
+    return res.json();
+  },
+
+  async createSavings(data: {
+    id?: string;
+    walletId: string;
+    name: string;
+    mode?: string;
+    balance?: number;
+    color?: string;
+    icon?: string;
+  }): Promise<Savings> {
+    const res = await fetch(`${API_BASE}/savings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create savings');
+    return res.json();
+  },
+
+  async updateSavings(id: string, data: Partial<Savings>): Promise<Savings> {
+    const res = await fetch(`${API_BASE}/savings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update savings');
+    return res.json();
+  },
+
+  async deleteSavings(id: string): Promise<{ success: boolean; deletedId?: string }> {
+    const res = await fetch(`${API_BASE}/savings/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete savings');
+    return res.json();
+  },
+
+  async depositSavings(id: string, amount: number, sourceWalletId?: string, note?: string): Promise<{ success: boolean; newBalance: number }> {
+    const res = await fetch(`${API_BASE}/savings/${id}/deposit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, sourceWalletId, note }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to deposit to savings');
+    }
+    return res.json();
+  },
+
+  async withdrawSavings(id: string, amount: number, destinationWalletId?: string, note?: string): Promise<{ success: boolean; newBalance: number }> {
+    const res = await fetch(`${API_BASE}/savings/${id}/withdraw`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, destinationWalletId, note }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to withdraw from savings');
+    }
+    return res.json();
+  },
+
+  // Savings Goals (Projets / Wishlist)
+  async getSavingsGoals(): Promise<SavingsGoal[]> {
+    const res = await fetch(`${API_BASE}/savings-goals`);
+    if (!res.ok) throw new Error('Failed to fetch savings goals');
+    return res.json();
+  },
+
+  async createSavingsGoal(data: {
+    id?: string;
+    savingsId: string;
+    name: string;
+    targetAmount: number;
+    currentAmount?: number;
+    deadline?: string;
+    priority?: string;
+    color?: string;
+    icon?: string;
+    note?: string;
+  }): Promise<SavingsGoal> {
+    const res = await fetch(`${API_BASE}/savings-goals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create savings goal');
+    return res.json();
+  },
+
+  async updateSavingsGoal(id: string, data: Partial<SavingsGoal>): Promise<SavingsGoal> {
+    const res = await fetch(`${API_BASE}/savings-goals/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update savings goal');
+    return res.json();
+  },
+
+  async deleteSavingsGoal(id: string): Promise<{ success: boolean; deletedId?: string }> {
+    const res = await fetch(`${API_BASE}/savings-goals/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete savings goal');
+    return res.json();
+  },
+
+  async contributeToSavingsGoal(
+    id: string,
+    amount: number,
+    action: 'DEPOSIT' | 'WITHDRAW',
+    sourceWalletId?: string,
+    note?: string
+  ): Promise<{ success: boolean; newCurrentAmount: number; goal: SavingsGoal }> {
+    const res = await fetch(`${API_BASE}/savings-goals/${id}/contribute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, action, sourceWalletId, note }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Failed to contribute to savings goal');
+    }
+    return res.json();
+  },
+
   // Categories & Budgets
   async getCategories(): Promise<Category[]> {
     const res = await fetch(`${API_BASE}/categories`);
     if (!res.ok) throw new Error('Failed to fetch categories');
-    return res.json();
-  },
-
-  async updateCategoryBudget(id: string, monthlyBudget: number): Promise<Category> {
-    const res = await fetch(`${API_BASE}/categories/${id}/budget`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthlyBudget }),
-    });
-    if (!res.ok) throw new Error('Failed to update category budget');
     return res.json();
   },
 
@@ -89,6 +236,34 @@ export const api = {
       body: JSON.stringify(cat),
     });
     if (!res.ok) throw new Error('Failed to create category');
+    return res.json();
+  },
+
+  async updateCategory(id: string, cat: Partial<Category>): Promise<Category> {
+    const res = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cat),
+    });
+    if (!res.ok) throw new Error('Failed to update category');
+    return res.json();
+  },
+
+  async deleteCategory(id: string): Promise<{ success: boolean; deletedId?: string }> {
+    const res = await fetch(`${API_BASE}/categories/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete category');
+    return res.json();
+  },
+
+  async updateCategoryBudget(categoryId: string, monthlyLimit: number, isEssential?: boolean, isFixed?: boolean): Promise<Budget> {
+    const res = await fetch(`${API_BASE}/budgets/${categoryId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ monthlyLimit, isEssential, isFixed }),
+    });
+    if (!res.ok) throw new Error('Failed to update budget');
     return res.json();
   },
 

@@ -82,4 +82,49 @@ export function formatDateGroupLabel(dateStr: string): string {
   return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+/**
+ * Formate la date et l'heure au format lisible uniforme :
+ * Exemples :
+ * - "Aujourd'hui à 14:30"
+ * - "Hier à 09:15"
+ * - "Lun. 25 août à 16:45"
+ */
+export function formatTransactionDateTime(dateInput: string | Date | number | null | undefined): string {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    d.getFullYear() === yesterday.getFullYear() &&
+    d.getMonth() === yesterday.getMonth() &&
+    d.getDate() === yesterday.getDate();
+
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const timeStr = `${hours}:${minutes}`;
+
+  if (isToday) {
+    return `Aujourd'hui à ${timeStr}`;
+  }
+  if (isYesterday) {
+    return `Hier à ${timeStr}`;
+  }
+
+  const weekday = d.toLocaleDateString('fr-FR', { weekday: 'short' });
+  const day = d.getDate();
+  const month = d.toLocaleDateString('fr-FR', { month: 'short' });
+  const capWeekday = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '');
+
+  return `${capWeekday}. ${day} ${month} à ${timeStr}`;
+}
+
+
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Transaction } from '../types/models';
 import { api } from '../services/api';
 import { useWalletStore } from './useWalletStore';
+import { useSavingsStore } from './useSavingsStore';
 
 interface TransactionState {
   transactions: Transaction[];
@@ -24,6 +25,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       const list = await api.getTransactions();
       set({ transactions: list, isLoading: false });
     } catch (e) {
+      console.error(e);
       set({ isLoading: false });
     }
   },
@@ -31,7 +33,10 @@ export const useTransactionStore = create<TransactionState>((set) => ({
   addTransaction: async (txnData) => {
     const created = await api.createTransaction(txnData);
     set(state => ({ transactions: [created, ...state.transactions] }));
-    await useWalletStore.getState().loadWallets();
+    await Promise.all([
+      useWalletStore.getState().loadWallets(),
+      useSavingsStore.getState().loadSavingsAndGoals(),
+    ]);
     return created;
   },
 
@@ -40,7 +45,10 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     set(state => ({
       transactions: state.transactions.filter(t => t.id !== id),
     }));
-    await useWalletStore.getState().loadWallets();
+    await Promise.all([
+      useWalletStore.getState().loadWallets(),
+      useSavingsStore.getState().loadSavingsAndGoals(),
+    ]);
   },
 
   setFilter: (filter) => {

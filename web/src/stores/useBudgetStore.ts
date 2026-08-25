@@ -3,6 +3,7 @@ import { Category, Transaction, CadenceMetrics } from '../types/models';
 import { api } from '../services/api';
 import { calculateCadenceMetrics } from '../services/burnRateCalculator';
 import { useWalletStore } from './useWalletStore';
+import { useSavingsStore } from './useSavingsStore';
 
 interface BudgetState {
   categories: Category[];
@@ -11,8 +12,10 @@ interface BudgetState {
   isLoading: boolean;
 
   loadBudgets: () => Promise<void>;
-  updateCategoryBudget: (id: string, newBudget: number) => Promise<void>;
-  createCategory: (cat: Omit<Category, 'id' | 'createdAt'>) => Promise<Category>;
+  updateCategoryBudget: (id: string, monthlyLimit: number, isEssential?: boolean, isFixed?: boolean) => Promise<void>;
+  createCategory: (cat: Omit<Category, 'id' | 'createdAt'>, monthlyLimit?: number, isEssential?: boolean, isFixed?: boolean) => Promise<Category>;
+  updateCategory: (id: string, cat: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<boolean>;
   setMonthlySavingsTarget: (target: number) => void;
   setMonthlyIncomeTarget: (target: number) => void;
 
@@ -31,13 +34,34 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
       const list = await api.getCategories();
       set({ categories: list, isLoading: false });
     } catch (e) {
+      console.error(e);
       set({ isLoading: false });
     }
   },
 
-  updateCategoryBudget: async (id, newBudget) => {
+  updateCategoryBudget: async (id, monthlyLimit, isEssential, isFixed) => {
     try {
-      const updated = await api.updateCategoryBudget(id, newBudget);
+      await api.updateCategoryBudget(id, monthlyLimit, isEssential, isFixed);
+      await get().loadBudgets();
+    } catch (e) {
+      console.error(e);
+    }
+  },
+
+  createCategory: async (cat, monthlyLimit, isEssential, isFixed) => {
+    const created = await api.createCategory({
+      ...cat,
+      monthlyLimit,
+      isEssential,
+      isFixed,
+    } as any);
+    set(state => ({ categories: [...state.categories, created] }));
+    return created;
+  },
+
+  updateCategory: async (id, cat) => {
+    try {
+      const updated = await api.updateCategory(id, cat);
       set(state => ({
         categories: state.categories.map(c => (c.id === id ? updated : c)),
       }));
@@ -46,10 +70,20 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     }
   },
 
-  createCategory: async (cat) => {
-    const created = await api.createCategory(cat);
-    set(state => ({ categories: [...state.categories, created] }));
-    return created;
+  deleteCategory: async (id) => {
+    try {
+      const res = await api.deleteCategory(id);
+      if (res.success) {
+        set(state => ({
+          categories: state.categories.filter(c => c.id !== id),
+        }));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   },
 
   setMonthlySavingsTarget: (target) => {
@@ -65,8 +99,17 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     const map: Record<string, number> = {};
 
     transactions.forEach(t => {
-      if (t.flow === 'DEBIT' && t.date.startsWith(currentYearMonth)) {
-        map[t.categoryId] = (map[t.categoryId] || 0) + t.totalImpact;
+      if (
+        t.flow === 'DEBIT' &&
+        t.date.startsWith(currentYearMonth) &&
+        t.operationType !== 'SAVINGS_DEPOSIT' &&
+        t.operationType !== 'WITHDRAWAL_CASH'
+      ) {
+        const catId = t.categoryId;
+        const total = t.totalAmount ?? t.totalImpact ?? t.amount;
+        if (catId) {
+          map[catId] = (map[catId] || 0) + total;
+        }
       }
     });
 
@@ -78,7 +121,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     const spendableBalance = useWalletStore.getState().getTotalSpendableBalance();
 
     const expenseCategories = categories.filter(c => c.type === 'EXPENSE');
-    const totalBudget = expenseCategories.reduce((sum, c) => sum + c.monthlyBudget, 0);
+    const totalBudget = expenseCategories.reduce((sum, c) => sum + (c.monthlyLimit || 0), 0);
 
     let totalSpent = 0;
     let fixedChargesRemaining = 0;
@@ -86,15 +129,16 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     const spendingMap = get().getCategorySpendingMap(transactions);
 
     expenseCategories.forEach(c => {
+      const limit = c.monthlyLimit || 0;
       const spent = spendingMap[c.id] || 0;
       totalSpent += spent;
-      if (c.isEssential && spent < c.monthlyBudget) {
-        fixedChargesRemaining += (c.monthlyBudget - spent);
+      if (c.isEssential && spent < limit) {
+        fixedChargesRemaining += (limit - spent);
       }
     });
 
-    const savingsVaultBalance = useWalletStore.getState().wallets.SAVINGS_VAULT?.balance || 0;
-    const remainingSavings = Math.max(0, monthlySavingsTarget - savingsVaultBalance);
+    const totalSavingsBalance = useSavingsStore.getState().getTotalSavingsBalance();
+    const remainingSavings = Math.max(0, monthlySavingsTarget - totalSavingsBalance);
 
     return calculateCadenceMetrics(
       totalBudget,

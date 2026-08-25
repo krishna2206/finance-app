@@ -8,10 +8,12 @@ interface WalletState {
 
   loadWallets: () => Promise<void>;
   updateWalletBalance: (id: WalletSource, newBalance: number) => Promise<void>;
-  createWallet: (wallet: { id: string; name: string; balance?: number; isSpendable?: boolean }) => Promise<Wallet | null>;
+  createWallet: (wallet: { id?: string; name: string; type?: string; accountNumber?: string; balance?: number; isSpendable?: boolean }) => Promise<Wallet | null>;
   deleteWallet: (id: string) => Promise<boolean>;
-  batchInitWallets: (wallets: Array<{ id: string; name: string; balance: number; isSpendable: boolean }>) => Promise<void>;
+  batchInitWallets: (wallets: Array<{ id?: string; name: string; type?: string; accountNumber?: string; balance: number; isSpendable: boolean }>) => Promise<void>;
+  getTotalRealBalance: () => number;
   getTotalSpendableBalance: () => number;
+  getTotalVirtualLocked: () => number;
   getSpendableWallets: () => Wallet[];
   getWithdrawableWallets: () => Wallet[];
 }
@@ -95,10 +97,25 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
-  getTotalSpendableBalance: () => {
+  getTotalRealBalance: () => {
     return Object.values(get().wallets)
       .filter(w => w.isSpendable)
       .reduce((sum, w) => sum + w.balance, 0);
+  },
+
+  getTotalSpendableBalance: () => {
+    return Object.values(get().wallets)
+      .filter(w => w.isSpendable)
+      .reduce((sum, w) => {
+        const free = w.spendableBalance !== undefined ? w.spendableBalance : Math.max(0, w.balance - (w.virtualLocked || 0));
+        return sum + free;
+      }, 0);
+  },
+
+  getTotalVirtualLocked: () => {
+    return Object.values(get().wallets)
+      .filter(w => w.isSpendable)
+      .reduce((sum, w) => sum + (w.virtualLocked || 0), 0);
   },
 
   getSpendableWallets: () => {
@@ -106,6 +123,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   getWithdrawableWallets: () => {
-    return Object.values(get().wallets).filter(w => w.isSpendable && w.id !== 'CASH');
+    return Object.values(get().wallets).filter(w => w.isSpendable && w.id !== 'w-cash-physical-003' && w.type !== 'CASH');
   },
 }));

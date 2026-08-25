@@ -6,10 +6,15 @@ export type WalletType =
   | 'AIRTEL_MONEY'
   | 'CASH'
   | 'BANK'
-  | 'SAVINGS_VAULT'
   | 'CUSTOM';
 
 export type WalletSource = string;
+
+export type SavingsMode = 'NATIVE' | 'VIRTUAL_LOCK';
+
+export type SavingsGoalPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export type SavingsGoalStatus = 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
 
 export type OperationType =
   | 'EXPENSE_GENERAL'     // Achat direct de bien ou service
@@ -21,14 +26,13 @@ export type OperationType =
   | 'SALARY'              // Virement de salaire
   | 'INCOME_TRANSFER'     // Transfert reçu d'un tiers
   | 'DEPOSIT_CASH'        // Dépôt d'espèces sur compte mobile
-  | 'SAVINGS_TRANSFER'    // Déplacement de fonds vers l'épargne sanctuarisée
-  | 'SAVINGS_DEPOSIT'     // Versement vers le Coffre Épargne (Compte courant -> Épargne)
-  | 'SAVINGS_WITHDRAWAL'  // Retrait / Déblocage d'épargne (Épargne -> Compte courant)
-  | 'BALANCE_ADJUSTMENT'; // Réajustement de solde manuel ou par SMS
+  | 'SAVINGS_DEPOSIT'     // Versement vers une épargne (Wallet -> Savings / Goal)
+  | 'SAVINGS_WITHDRAWAL'  // Déblocage d'épargne vers compte courant (Savings -> Wallet)
+  | 'BALANCE_ADJUSTMENT'; // Réajustement de solde manuel
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
 
-export type CategoryType = 'EXPENSE' | 'INCOME' | 'SAVINGS';
+export type CategoryType = 'EXPENSE' | 'INCOME';
 
 export interface Wallet {
   id: string;                      // UUID v4
@@ -36,18 +40,85 @@ export interface Wallet {
   type: WalletType;
   accountNumber?: string;
   balance: number;
+  virtualLocked?: number;          // Montant gelé virtuellement pour les épargnes VIRTUAL_LOCK
+  spendableBalance?: number;       // balance - virtualLocked
   isSpendable: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
+export interface Savings {
+  id: string;                      // UUID v4
+  walletId: string;
+  walletName?: string;
+  walletType?: WalletType;
+  name: string;
+  mode: SavingsMode;
+  balance: number;
+  color: string;
+  icon: string;
+  totalGoalsAllocated?: number;
+  unallocatedBalance?: number;
+  goalsCount?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SavingsGoal {
+  id: string;                      // UUID v4
+  savingsId: string;
+  savingsName?: string;
+  savingsMode?: SavingsMode;
+  walletId?: string;
+  walletName?: string;
+  walletType?: WalletType;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  progressPercentage?: number;
+  remainingAmount?: number;
+  deadline?: string;               // ISO 8601 string
+  priority: SavingsGoalPriority;
+  status: SavingsGoalStatus;
+  color: string;
+  icon: string;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Category {
+  id: string;                      // UUID v4
+  name: string;
+  type: CategoryType;
+  color: string;
+  icon: string;
+  monthlyLimit?: number;           // Rejoint depuis la table budgets
+  isEssential?: boolean;           // Rejoint depuis la table budgets
+  isFixed?: boolean;               // Rejoint depuis la table budgets
+  createdAt: number;
+}
+
+export interface Budget {
+  id: string;                      // UUID v4
+  categoryId: string;
+  monthlyLimit: number;
+  isEssential: boolean;
+  isFixed: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface TransactionItem {
-  id: string;
+  id: string;                      // UUID v4
+  transactionId: string;
+  categoryId?: string;
   name: string;
   quantity: number;
   unitPrice?: number;
   totalPrice: number;
   unit?: string;
+  createdAt: number;
 }
 
 export interface TransactionLocation {
@@ -60,36 +131,38 @@ export interface Transaction {
   id: string;                      // UUID v4
   flow: TransactionFlow;
   operationType: OperationType;
-  wallet: WalletSource;
-  destinationWallet?: WalletSource;
+  walletId: string;
+  destinationWalletId?: string;
+  savingsId?: string;
+  goalId?: string;
+  categoryId?: string;
   amount: number;
   feeAmount: number;
-  totalImpact: number;
+  totalAmount: number;
+  totalImpact?: number;            // Alias pour backward-compatibility
+  wallet?: string;                 // Alias pour backward-compatibility (walletId)
+  destinationWallet?: string;      // Alias pour backward-compatibility (destinationWalletId)
   title: string;
-  categoryId: string;
-  icon?: string;
-  location?: TransactionLocation;
-  items?: TransactionItem[];
-  recipientOrSender?: string;
-  referenceNumber?: string;
+  recipient?: string;
+  sender?: string;
+  recipientOrSender?: string;      // Alias pour backward-compatibility
   date: string;                    // ISO 8601 UTC
   note?: string;
   source: TransactionSource;
-  rawSmsText?: string;
+  location?: TransactionLocation;
+  items?: TransactionItem[];
+  icon?: string;
   synced: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface Category {
+export interface RecipientMapping {
   id: string;                      // UUID v4
-  name: string;
-  type: CategoryType;
-  monthlyBudget: number;
-  color: string;
-  icon: string;
-  isEssential: boolean;
-  createdAt: number;
+  phoneNumber: string;
+  recipientName?: string;
+  categoryId: string;
+  lastUsedAt: number;
 }
 
 export interface AppSettings {
