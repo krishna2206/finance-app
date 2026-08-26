@@ -59,11 +59,14 @@ savingsRouter.post('/', async (c) => {
     return c.json({ error: 'Referenced wallet does not exist' }, 400);
   }
 
+  const isCashWallet = wallet.type === 'CASH' || wallet.name.toLowerCase().includes('espèce');
+  const mode: SavingsMode = isCashWallet ? 'VIRTUAL_LOCK' : ((body.mode || 'VIRTUAL_LOCK') as SavingsMode);
+
   const created = savingsRepository.createSavings({
     id: body.id,
     walletId: body.walletId,
     name: body.name,
-    mode: (body.mode || 'VIRTUAL_LOCK') as SavingsMode,
+    mode,
     balance: body.balance !== undefined ? Number(body.balance) : 0,
     color: body.color,
     icon: body.icon,

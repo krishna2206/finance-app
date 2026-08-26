@@ -31,18 +31,32 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
 
   const colors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EC4899', '#06B6D4'];
 
+  const selectedWallet = wallets[selectedWalletId] || walletList[0];
+  const isCashWallet = selectedWallet?.type === 'CASH' || selectedWallet?.name?.toLowerCase().includes('espèce');
+
   const numericBalance = parseInt(initialBalance.replace(/\s/g, ''), 10) || 0;
+
+  const handleSelectWallet = (walletId: string) => {
+    setSelectedWalletId(walletId);
+    const targetW = wallets[walletId];
+    if (targetW?.type === 'CASH' || targetW?.name?.toLowerCase().includes('espèce')) {
+      setMode('VIRTUAL_LOCK');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !selectedWalletId) return;
+
+    // Enforce VIRTUAL_LOCK on cash
+    const effectiveMode: SavingsMode = isCashWallet ? 'VIRTUAL_LOCK' : mode;
 
     setIsSubmitting(true);
     try {
       await createSavings({
         walletId: selectedWalletId,
         name: name.trim(),
-        mode,
+        mode: effectiveMode,
         balance: numericBalance,
         color: selectedColor,
       });
@@ -109,7 +123,7 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
                       <button
                         type="button"
                         key={w.id}
-                        onClick={() => setSelectedWalletId(w.id)}
+                        onClick={() => handleSelectWallet(w.id)}
                         className={`flex items-center justify-between p-2.5 rounded-2xl border text-left transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
@@ -135,6 +149,7 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
                   Type de Réceptacle
                 </label>
                 <div className="grid grid-cols-2 gap-2">
+                  {/* Gel Virtuel */}
                   <button
                     type="button"
                     onClick={() => setMode('VIRTUAL_LOCK')}
@@ -153,21 +168,29 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
                     </p>
                   </button>
 
+                  {/* Épargne Dédiée (Natif) - Disabled on Cash */}
                   <button
                     type="button"
-                    onClick={() => setMode('NATIVE')}
-                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                      mode === 'NATIVE'
-                        ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs'
-                        : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+                    disabled={isCashWallet}
+                    onClick={() => {
+                      if (!isCashWallet) setMode('NATIVE');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all ${
+                      isCashWallet
+                        ? 'opacity-40 bg-zinc-50 border-zinc-200 text-zinc-400 cursor-not-allowed'
+                        : mode === 'NATIVE'
+                          ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 shadow-xs cursor-pointer'
+                          : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100 cursor-pointer'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                      <ShieldCheckBoldIcon size={14} className="text-emerald-600 shrink-0" />
+                      <ShieldCheckBoldIcon size={14} className={isCashWallet ? 'text-zinc-400' : 'text-emerald-600'} />
                       <span>Épargne Dédiée</span>
                     </div>
-                    <p className="text-[10px] text-zinc-500 leading-tight">
-                      Compte d'épargne officiel ou tirelire physique isolée.
+                    <p className="text-[10px] text-zinc-400 leading-tight">
+                      {isCashWallet
+                        ? 'Non disponible pour les espèces (réservé Mobile Money / Banque).'
+                        : "Compte d'épargne officiel ou livret bancaire."}
                     </p>
                   </button>
                 </div>
@@ -183,7 +206,7 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Ex: Gel MVola Perso, Tirelire Chambre, Livret BNI..."
+                    placeholder="Ex: Gel MVola Perso, Enveloppe Cash, Livret BNI..."
                     className="w-full bg-transparent text-xs font-bold text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>

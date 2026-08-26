@@ -139,7 +139,9 @@ export function App() {
                     <DashboardView
                       onSelectTransaction={setSelectedTransaction}
                       onNavigateToTransactions={() => handleTabChange('transactions')}
+                      onNavigateToBudgets={() => handleTabChange('budgets')}
                       onOpenAddWallet={() => setIsAddWalletOpen(true)}
+                      onOpenSavingsAction={() => setIsSavingsActionOpen(true)}
                     />
                   )}
 
