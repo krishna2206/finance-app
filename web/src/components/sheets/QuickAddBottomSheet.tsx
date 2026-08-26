@@ -3,7 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
-import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
+import {
+  getTransferFee,
+  lookupTier,
+  MVOLA_P2P_TIERS,
+} from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { IOSDateTimePicker } from '../common/IOSDateTimePicker';
@@ -106,19 +110,43 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   }, [wallets, destinationWalletId, mode, sourceWalletId, availableDestWallets, allWallets, selectedSourceWallet]);
 
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
-  const { transferFee, withdrawalFee } = calculateMVolaFees(numericAmount);
 
-  // Fee computation
-  const isCashWithdrawal = mode === 'TRANSFER' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'AIRTEL_MONEY' || selectedSourceWallet.name.toLowerCase().includes('mvola')) && (selectedDestWallet.type === 'CASH' || selectedDestWallet.name.toLowerCase().includes('espèce'));
-  const isP2PTransfer = mode === 'EXPENSE' && (selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.name.toLowerCase().includes('mvola'));
+  // Declarative fee calculation via Strategy Matrix
+  const isMobileMoneySource = selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'ORANGE_MONEY' || selectedSourceWallet.type === 'AIRTEL_MONEY';
 
-  const feeAmount = useMemo(() => {
-    if (!includeFees || numericAmount <= 0) return 0;
-    if (isCashWithdrawal) return withdrawalFee;
-    if (isP2PTransfer) return transferFee;
-    return 0;
-  }, [includeFees, numericAmount, isCashWithdrawal, isP2PTransfer, withdrawalFee, transferFee]);
+  const { rawFee, feeLabel } = useMemo(() => {
+    if (numericAmount <= 0) return { rawFee: 0, feeLabel: '' };
 
+    if (mode === 'TRANSFER') {
+      const fee = getTransferFee(selectedSourceWallet.type, selectedDestWallet.type, numericAmount);
+      const isCashOut = selectedDestWallet.type === 'CASH';
+      const isInterop = (selectedDestWallet.type === 'AIRTEL_MONEY' || selectedDestWallet.type === 'ORANGE_MONEY' || selectedDestWallet.type === 'MVOLA') && selectedSourceWallet.type !== selectedDestWallet.type;
+      const label = isCashOut ? 'Cash Point' : isInterop ? 'inter-opérateur' : 'opérateur';
+      return { rawFee: fee, feeLabel: label };
+    }
+
+    if (mode === 'EXPENSE') {
+      const catNameLower = (selectedCategory?.name || '').toLowerCase();
+      // 1. Telecom / Yas Top-up -> 0 Ar
+      if (catNameLower.includes('télécom') || catNameLower.includes('telecom') || catNameLower.includes('crédit') || catNameLower.includes('forfait')) {
+        return { rawFee: 0, feeLabel: '' };
+      }
+      // 2. Facture Jirama -> 500 Ar (if paying via mobile money)
+      if (catNameLower.includes('jirama') && isMobileMoneySource) {
+        return { rawFee: 500, feeLabel: 'Jirama' };
+      }
+      // 3. Frais & P2P -> P2P tier if paying via mobile money
+      if ((catNameLower.includes('frais') || catNameLower.includes('transfert')) && isMobileMoneySource) {
+        return { rawFee: lookupTier(numericAmount, MVOLA_P2P_TIERS), feeLabel: 'envoi' };
+      }
+      // 4. Default direct merchant / grocery / restaurants -> 0 Ar for customer
+      return { rawFee: 0, feeLabel: '' };
+    }
+
+    return { rawFee: 0, feeLabel: '' };
+  }, [mode, numericAmount, selectedSourceWallet.type, selectedDestWallet.type, selectedCategory?.name, isMobileMoneySource]);
+
+  const feeAmount = includeFees ? rawFee : 0;
   const totalImpact = numericAmount + feeAmount;
   const isInvalidTransfer = mode === 'TRANSFER' && selectedSourceWallet.id === selectedDestWallet.id;
 
@@ -368,7 +396,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
 
                 {/* Frais */}
                 <AnimatePresence>
-                  {(isCashWithdrawal || isP2PTransfer) && feeAmount > 0 && (
+                  {rawFee > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: -6, height: 0 }}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
@@ -388,7 +416,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                             : 'text-zinc-400 line-through hover:text-zinc-500'
                         }`}
                       >
-                        <span>+{formatAmount(feeAmount)} Ar frais {isCashWithdrawal ? 'Cash Point' : ''}</span>
+                        <span>+{formatAmount(rawFee)} Ar frais {feeLabel}</span>
                         <span className="text-zinc-400 font-normal">• Total débité : {formatCurrency(totalImpact)}</span>
                       </button>
                     </motion.div>
