@@ -7,7 +7,6 @@ import { WalletLogo } from '../common/WalletLogo';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
   CloseLinearIcon,
-  ShieldCheckBoldIcon,
   ImportLinearIcon,
   ExportLinearIcon,
 } from '@solar-icons/react';
@@ -108,21 +107,13 @@ export function SavingsActionBottomSheet({
 
             {/* Header */}
             <div className="flex justify-between items-center mb-3">
-              <div className="flex items-center gap-2">
-                <div
-                  style={{ backgroundColor: activeSavings.color }}
-                  className="w-7 h-7 rounded-xl text-white flex items-center justify-center shadow-xs"
-                >
-                  <ShieldCheckBoldIcon size={16} />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-                    {activeSavings.name}
-                  </h2>
-                  <span className="text-[10px] text-zinc-400 font-medium block">
-                    Solde du pot : <strong className="text-zinc-700 tabular-nums">{formatCurrency(currentSavingsBalance)}</strong>
-                  </span>
-                </div>
+              <div>
+                <h2 className="text-base font-bold text-zinc-900 tracking-tight">
+                  {activeSavings.name}
+                </h2>
+                <span className="text-[10px] text-zinc-400 font-medium block">
+                  Solde du pot : <strong className="text-zinc-700 tabular-nums">{formatCurrency(currentSavingsBalance)}</strong>
+                </span>
               </div>
 
               <button

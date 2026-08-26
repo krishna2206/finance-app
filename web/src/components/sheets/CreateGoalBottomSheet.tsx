@@ -6,7 +6,6 @@ import { formatAmount, formatCurrency } from '../../utils/formatters';
 import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
 import {
   CloseLinearIcon,
-  TargetBoldIcon,
   ShieldCheckBoldIcon,
 } from '@solar-icons/react';
 
@@ -119,14 +118,9 @@ export function CreateGoalBottomSheet({
 
             {/* Header */}
             <div className="flex justify-between items-center mb-3.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                  <TargetBoldIcon size={16} />
-                </div>
-                <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-                  Nouvel Objectif d'Épargne
-                </h2>
-              </div>
+              <h2 className="text-base font-bold text-zinc-900 tracking-tight">
+                Nouvel Objectif d'Épargne
+              </h2>
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"

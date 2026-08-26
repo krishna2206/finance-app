@@ -6,7 +6,6 @@ import { formatAmount } from '../../utils/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
 import {
   CloseLinearIcon,
-  TagBoldIcon,
   ArrowRightUpLinearIcon,
   ArrowLeftDownLinearIcon,
 } from '@solar-icons/react';
@@ -109,14 +108,9 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
 
             {/* Header */}
             <div className="flex justify-between items-center mb-3.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-xs">
-                  <TagBoldIcon size={16} />
-                </div>
-                <h2 className="text-base font-bold text-zinc-900 tracking-tight">
-                  Nouvelle Catégorie / Enveloppe
-                </h2>
-              </div>
+              <h2 className="text-base font-bold text-zinc-900 tracking-tight">
+                Nouvelle Catégorie
+              </h2>
               <button
                 onClick={onClose}
                 className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
