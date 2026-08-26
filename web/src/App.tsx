@@ -181,7 +181,7 @@ export function App() {
             />
 
             {/* Floating Bottom Bar */}
-            <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex items-center gap-3">
+            <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex items-center gap-2">
               <div className="flex-1 min-w-0 pointer-events-auto">
                 <FloatingTabBar activeTab={activeTab} onChangeTab={handleTabChange} />
               </div>

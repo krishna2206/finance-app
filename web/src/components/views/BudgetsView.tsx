@@ -13,8 +13,10 @@ import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
   PenNewSquareLinearIcon,
   ShieldCheckBoldIcon,
+  ShieldCheckLinearIcon,
   TargetBoldIcon,
   PieChartBoldIcon,
+  PieChartLinearIcon,
   AddCircleBoldIcon,
 } from '@solar-icons/react';
 
@@ -128,7 +130,11 @@ export function BudgetsView({
                 : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
-            <PieChartBoldIcon size={15} className={activeTab === 'ENVELOPES' ? 'text-zinc-900' : 'text-zinc-400'} />
+            {activeTab === 'ENVELOPES' ? (
+              <PieChartBoldIcon size={15} className="text-zinc-900" />
+            ) : (
+              <PieChartLinearIcon size={15} className="text-zinc-400" />
+            )}
             <span>Enveloppes ({expenseCategories.length})</span>
           </button>
 
@@ -141,7 +147,11 @@ export function BudgetsView({
                 : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
-            <ShieldCheckBoldIcon size={15} className={activeTab === 'SAVINGS' ? 'text-emerald-600' : 'text-zinc-400'} />
+            {activeTab === 'SAVINGS' ? (
+              <ShieldCheckBoldIcon size={15} className="text-emerald-600" />
+            ) : (
+              <ShieldCheckLinearIcon size={15} className="text-zinc-400" />
+            )}
             <span>Épargnes & Projets ({savingsList.length})</span>
           </button>
         </div>
@@ -302,14 +312,16 @@ export function BudgetsView({
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
                 Réceptacles d'Épargne ({savingsList.length})
               </span>
-              <button
-                type="button"
-                onClick={onOpenCreateSavings}
-                className="flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
-              >
-                <AddCircleBoldIcon size={15} />
-                <span>Nouveau Pot</span>
-              </button>
+              {savingsList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onOpenCreateSavings}
+                  className="flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
+                >
+                  <AddCircleBoldIcon size={15} />
+                  <span>Nouveau Pot</span>
+                </button>
+              )}
             </div>
 
             {savingsList.length === 0 ? (
@@ -350,18 +362,20 @@ export function BudgetsView({
                   Projets & Wishlist ({goalsList.length})
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => onOpenCreateGoal()}
-                className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
-              >
-                <AddCircleBoldIcon size={15} />
-                <span>Nouvel Objectif</span>
-              </button>
+              {goalsList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onOpenCreateGoal()}
+                  className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
+                >
+                  <AddCircleBoldIcon size={15} />
+                  <span>Nouvel Objectif</span>
+                </button>
+              )}
             </div>
 
             {goalsList.length === 0 ? (
-              <InsetGroupedCard className="p-5 text-center space-y-2 border-dashed border-zinc-300">
+              <InsetGroupedCard className="p-5 text-center space-y-2">
                 <p className="text-xs text-zinc-500">
                   Aucun objectif d'achat en cours (Téléphone, Vacances, Matériel...).
                 </p>

@@ -38,7 +38,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
   ];
 
   return (
-    <nav className="h-14 w-full bg-white/80 backdrop-blur-2xl border border-zinc-200/80 p-1.5 rounded-full shadow-lg shadow-zinc-900/10 flex items-center justify-between gap-1 relative">
+    <nav className="h-14 w-full bg-white/80 backdrop-blur-2xl border border-zinc-200/80 p-1 rounded-full shadow-lg shadow-zinc-900/10 flex items-center justify-between gap-0.5 relative">
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         const Icon = isActive ? tab.boldIcon : tab.linearIcon;
@@ -46,7 +46,7 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
           <button
             key={tab.id}
             onClick={() => onChangeTab(tab.id)}
-            className="relative h-10 flex-1 min-w-0 flex items-center justify-center gap-1.5 px-2 rounded-full cursor-pointer select-none focus:outline-none"
+            className="relative h-10 flex-1 min-w-0 flex items-center justify-center gap-1 px-1 rounded-full cursor-pointer select-none focus:outline-none"
           >
             {/* Sliding Pill Background Indicator */}
             {isActive && (
@@ -57,9 +57,9 @@ export function FloatingTabBar({ activeTab, onChangeTab }: FloatingTabBarProps) 
               />
             )}
 
-            <div className="relative z-10 flex items-center justify-center gap-1.5 min-w-0">
-              <Icon size={18} className={`shrink-0 transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
-              <span className={`text-[11px] font-semibold truncate transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`}>
+            <div className="relative z-10 flex items-center justify-center gap-1 min-w-0">
+              <Icon size={17} className={`shrink-0 transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
+              <span className={`text-[11px] font-bold truncate transition-colors duration-150 ${isActive ? 'text-white' : 'text-zinc-500'}`}>
                 {tab.label}
               </span>
             </div>

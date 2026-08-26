@@ -1,5 +1,6 @@
 import { Transaction } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
+import { useWalletStore } from '../../stores/useWalletStore';
 import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { Bag2LinearIcon } from '@solar-icons/react';
@@ -11,10 +12,14 @@ interface TransactionRowProps {
 
 export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const categories = useBudgetStore(state => state.categories);
+  const wallets = useWalletStore(state => state.wallets);
   const category = categories.find(c => c.id === transaction.categoryId);
 
   const isDebit = transaction.flow === 'DEBIT';
   const hasItems = transaction.items && transaction.items.length > 0;
+
+  const walletId = transaction.walletId || transaction.wallet || '';
+  const walletName = wallets[walletId]?.name || formatWalletName(walletId) || '';
 
   return (
     <div
@@ -47,8 +52,12 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5 truncate">
             <span className="truncate">{category?.name || 'Catégorie'}</span>
-            <span className="text-zinc-300 shrink-0">•</span>
-            <span className="text-zinc-400 font-medium shrink-0">{formatWalletName(transaction.wallet)}</span>
+            {walletName && (
+              <>
+                <span className="text-zinc-300 shrink-0">•</span>
+                <span className="text-zinc-400 font-medium shrink-0">{walletName}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

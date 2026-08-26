@@ -6,9 +6,13 @@ import { Transaction } from '../../types/models';
 import { formatDateGroupLabel } from '../../utils/formatters';
 import {
   BillListLinearIcon,
+  BillListBoldIcon,
   ArrowRightUpLinearIcon,
+  ArrowRightUpBoldIcon,
   ArrowLeftDownLinearIcon,
+  ArrowLeftDownBoldIcon,
   TransferHorizontalLinearIcon,
+  TransferHorizontalBoldIcon,
 } from '@solar-icons/react';
 
 interface TransactionsViewProps {
@@ -40,10 +44,30 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
   }, [filteredTransactions]);
 
   const filterTabs = [
-    { id: 'ALL' as const, label: 'Tous', icon: BillListLinearIcon },
-    { id: 'EXPENSE' as const, label: 'Dépenses', icon: ArrowRightUpLinearIcon },
-    { id: 'INCOME' as const, label: 'Entrées', icon: ArrowLeftDownLinearIcon },
-    { id: 'TRANSFER' as const, label: 'Transferts', icon: TransferHorizontalLinearIcon },
+    {
+      id: 'ALL' as const,
+      label: 'Tous',
+      linearIcon: BillListLinearIcon,
+      boldIcon: BillListBoldIcon,
+    },
+    {
+      id: 'EXPENSE' as const,
+      label: 'Dépenses',
+      linearIcon: ArrowRightUpLinearIcon,
+      boldIcon: ArrowRightUpBoldIcon,
+    },
+    {
+      id: 'INCOME' as const,
+      label: 'Entrées',
+      linearIcon: ArrowLeftDownLinearIcon,
+      boldIcon: ArrowLeftDownBoldIcon,
+    },
+    {
+      id: 'TRANSFER' as const,
+      label: 'Transferts',
+      linearIcon: TransferHorizontalLinearIcon,
+      boldIcon: TransferHorizontalBoldIcon,
+    },
   ];
 
   return (
@@ -55,23 +79,23 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
         </h1>
       </div>
 
-      {/* Filter Tabs (Apple Inset Style with Directional Solar Icons) */}
-      <div className="flex gap-1 p-1 bg-white rounded-2xl border border-zinc-200/80 shadow-xs w-fit max-w-full overflow-x-auto">
+      {/* Filter Tabs (Full Width 4-Column Grid - Apple Segmented Control Style) */}
+      <div className="w-full grid grid-cols-4 gap-1 p-1 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 shadow-2xs">
         {filterTabs.map(item => {
           const isActive = filter === item.id;
-          const Icon = item.icon;
+          const Icon = isActive ? item.boldIcon : item.linearIcon;
           return (
             <button
               key={item.id}
               onClick={() => setFilter(item.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center justify-center gap-1 py-2 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
                 isActive
-                  ? 'bg-zinc-900 text-white shadow-xs'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+                  ? 'bg-white text-zinc-900 shadow-xs'
+                  : 'text-zinc-500 hover:text-zinc-800'
               }`}
             >
-              <Icon size={14} className={isActive ? 'text-white' : 'text-zinc-400'} />
-              <span>{item.label}</span>
+              <Icon size={14} className={`shrink-0 ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`} />
+              <span className="truncate">{item.label}</span>
             </button>
           );
         })}
