@@ -422,15 +422,15 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     onClick={() => openPicker('SOURCE_WALLET')}
                     className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <WalletLogo id={selectedSourceWallet.id} name={selectedSourceWallet.name} size="sm" />
-                      <span className="text-xs font-bold text-zinc-900 truncate">
+                      <span className="text-xs font-bold text-zinc-900">
                         {mode === 'TRANSFER' ? 'Depuis le compte' : 'Moyen de paiement'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
-                      <span>{selectedSourceWallet.name}</span>
-                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
+                    <div className="flex items-center justify-end gap-1 text-xs text-zinc-500 font-semibold min-w-0 flex-1 pl-3">
+                      <span className="truncate text-right">{selectedSourceWallet.name}</span>
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                     </div>
                   </button>
                 )}
@@ -442,15 +442,15 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     onClick={() => openPicker('DEST_WALLET')}
                     className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <WalletLogo id={selectedDestWallet.id} name={selectedDestWallet.name} size="sm" />
-                      <span className="text-xs font-bold text-zinc-900 truncate">
+                      <span className="text-xs font-bold text-zinc-900">
                         {mode === 'TRANSFER' ? 'Vers le compte' : 'Compte crédité'}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
-                      <span>{selectedDestWallet.name}</span>
-                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
+                    <div className="flex items-center justify-end gap-1 text-xs text-zinc-500 font-semibold min-w-0 flex-1 pl-3">
+                      <span className="truncate text-right">{selectedDestWallet.name}</span>
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                     </div>
                   </button>
                 )}
@@ -462,20 +462,20 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     onClick={() => openPicker('CATEGORY')}
                     className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <div
                         style={{ backgroundColor: selectedCategory?.color || '#34D399' }}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
                       >
                         <CategoryIcon name={selectedCategory?.icon || selectedCategory?.name} weight="Bold" size={14} />
                       </div>
-                      <span className="text-xs font-bold text-zinc-900 truncate">
+                      <span className="text-xs font-bold text-zinc-900">
                         Catégorie
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold shrink-0">
-                      <span className="truncate max-w-[120px]">{selectedCategory?.name || 'Catégorie'}</span>
-                      <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
+                    <div className="flex items-center justify-end gap-1 text-xs text-zinc-500 font-semibold min-w-0 flex-1 pl-3">
+                      <span className="truncate text-right">{selectedCategory?.name || 'Catégorie'}</span>
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                     </div>
                   </button>
                 )}
@@ -486,15 +486,15 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   onClick={() => openPicker('DATE')}
                   className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left text-xs"
                 >
-                  <div className="flex items-center gap-2.5 text-zinc-900 font-bold">
+                  <div className="flex items-center gap-2.5 text-zinc-900 font-bold shrink-0">
                     <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
                       <CalendarLinearIcon size={14} />
                     </div>
                     <span>Date & Heure</span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-zinc-600 font-semibold shrink-0">
-                    <span className="tabular-nums">{formattedDateLabel}</span>
-                    <AltArrowRightLinearIcon size={14} className="text-zinc-400" />
+                  <div className="flex items-center justify-end gap-1 text-xs text-zinc-600 font-semibold min-w-0 flex-1 pl-3">
+                    <span className="truncate text-right tabular-nums">{formattedDateLabel}</span>
+                    <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                   </div>
                 </button>
               </div>
@@ -615,20 +615,20 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                             setSelectedCategoryId(cat.id);
                             setPickerTarget(null);
                           }}
-                          className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                          className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-all cursor-pointer min-h-[56px] ${
                             isSelected
                               ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
                               : 'bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100'
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
                             <div
                               style={{ backgroundColor: cat.color }}
                               className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
                             >
                               <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={16} />
                             </div>
-                            <span className="text-xs font-bold truncate text-left">
+                            <span className="text-[11px] font-bold leading-snug text-left break-words">
                               {cat.name}
                             </span>
                           </div>

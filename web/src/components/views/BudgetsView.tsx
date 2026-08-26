@@ -96,9 +96,6 @@ export function BudgetsView({
     <div className="space-y-4 pb-20">
       {/* 1. Header & Segmented Tab Switch */}
       <div className="py-1">
-        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest block">
-          Pilotage Financier
-        </span>
         <h1 className="text-2xl font-bold text-zinc-900 tracking-tight mb-3">
           Budgets & Épargne
         </h1>

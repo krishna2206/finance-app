@@ -50,9 +50,6 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
     <div className="space-y-4 pb-20">
       {/* Header */}
       <div className="py-1">
-        <span className="text-xs font-semibold text-zinc-400 uppercase tracking-widest block">
-          Grand Livre
-        </span>
         <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
           Historique ({filteredTransactions.length})
         </h1>
