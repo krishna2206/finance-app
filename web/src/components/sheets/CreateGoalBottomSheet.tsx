@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSavingsStore } from '../../stores/useSavingsStore';
 import { SavingsGoalPriority } from '../../types/models';
@@ -37,6 +37,16 @@ export function CreateGoalBottomSheet({
   const [selectedColor, setSelectedColor] = useState('#3B82F6');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultSavingsId) {
+        setSelectedSavingsId(defaultSavingsId);
+      } else if (savingsList.length > 0) {
+        setSelectedSavingsId(savingsList[0].id);
+      }
+    }
+  }, [isOpen, defaultSavingsId, savingsList]);
 
   const colors = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#EF4444'];
 

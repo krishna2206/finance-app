@@ -4,8 +4,6 @@ import { useSavingsStore } from '../../stores/useSavingsStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { CategoryIcon } from '../common/CategoryIcon';
-import { SavingsReceptacleCard } from '../savings/SavingsReceptacleCard';
-import { SavingsGoalCard } from '../savings/SavingsGoalCard';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { Category, Savings, SavingsGoal } from '../../types/models';
@@ -17,7 +15,57 @@ import {
   PieChartBoldIcon,
   PieChartLinearIcon,
   AddCircleBoldIcon,
+  LockBoldIcon,
+  IPhoneBoldIcon,
+  LaptopBoldIcon,
+  BusBoldIcon,
+  TrashBinTrashLinearIcon,
 } from '@solar-icons/react';
+
+function getGoalIcon(name: string) {
+  const lower = name.toLowerCase();
+  if (
+    lower.includes('phone') ||
+    lower.includes('iphone') ||
+    lower.includes('smartphone') ||
+    lower.includes('tel') ||
+    lower.includes('mobile')
+  ) {
+    return <IPhoneBoldIcon size={14} />;
+  }
+  if (
+    lower.includes('laptop') ||
+    lower.includes('ordi') ||
+    lower.includes('pc') ||
+    lower.includes('mac') ||
+    lower.includes('ordinateur')
+  ) {
+    return <LaptopBoldIcon size={14} />;
+  }
+  if (
+    lower.includes('moto') ||
+    lower.includes('auto') ||
+    lower.includes('voiture') ||
+    lower.includes('transport') ||
+    lower.includes('voyage')
+  ) {
+    return <BusBoldIcon size={14} />;
+  }
+  return <TargetBoldIcon size={14} />;
+}
+
+function formatGoalDeadline(deadline?: string): string {
+  if (!deadline) return 'sans date';
+  try {
+    const d = new Date(deadline);
+    if (isNaN(d.getTime())) return 'sans date';
+    const month = d.toLocaleDateString('fr-FR', { month: 'long' });
+    const year = d.getFullYear();
+    return `objectif ${month} ${year}`;
+  } catch {
+    return 'sans date';
+  }
+}
 
 interface BudgetsViewProps {
   onEditCategory: (cat: Category) => void;
@@ -399,136 +447,289 @@ export function BudgetsView({
           )}
         </div>
       ) : (
-        /* Volet 2 : Épargnes & Projets / Wishlist */
+        /* Volet 2 : Épargne & Projets / Wishlist (Refonte Design System) */
         <div className="space-y-4">
-          {/* Top Savings Global Card */}
-          <InsetGroupedCard className="p-4 bg-gradient-to-br from-emerald-900 to-zinc-900 text-white border-0 shadow-md space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-400/30">
-                  <ShieldCheckBoldIcon size={16} />
-                </div>
-                <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
-                  Trésorerie d'Épargne Globale
-                </span>
-              </div>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-400/20">
-                {savingsList.length} pot{savingsList.length > 1 ? 's' : ''}
-              </span>
+          {/* Top Hero Section: ÉPARGNE TOTALE */}
+          <div className="pt-1 pb-1 space-y-1">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
+              Épargne totale
+            </span>
+            <div className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
+              {formatAmount(totalSavingsBalance)} <span className="text-xl font-bold text-zinc-500">Ar</span>
             </div>
 
-            <div className="text-2xl font-bold text-white tracking-tight tabular-nums">
-              {formatAmount(totalSavingsBalance)} <span className="text-xs text-zinc-300 font-normal">Ar</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10 text-xs">
-              <div>
-                <span className="text-[10px] text-zinc-400 block">Alloué aux Projets</span>
-                <strong className="text-emerald-300 tabular-nums">{formatCurrency(totalGoalsAllocated)}</strong>
-              </div>
-              <div>
-                <span className="text-[10px] text-zinc-400 block">Réserve Libre</span>
-                <strong className="text-white tabular-nums">{formatCurrency(totalFreeReserve)}</strong>
-              </div>
-            </div>
-          </InsetGroupedCard>
-
-          {/* Section A: Réceptacles d'Épargne */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5 px-1">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                Réceptacles d'Épargne ({savingsList.length})
-              </span>
-              {savingsList.length > 0 && (
-                <button
-                  type="button"
-                  onClick={onOpenCreateSavings}
-                  className="flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800 transition-colors cursor-pointer"
-                >
-                  <AddCircleBoldIcon size={15} />
-                  <span>Nouveau Pot</span>
-                </button>
+            {/* Dual Segment Progress Bar */}
+            <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden flex mt-2.5 mb-1.5">
+              {totalSavingsBalance > 0 ? (
+                <>
+                  <div
+                    style={{
+                      width: `${Math.min(100, Math.round((totalGoalsAllocated / totalSavingsBalance) * 100))}%`,
+                    }}
+                    className="h-full bg-emerald-800 transition-all duration-500 ease-out"
+                  />
+                  <div
+                    style={{
+                      width: `${Math.max(0, 100 - Math.min(100, Math.round((totalGoalsAllocated / totalSavingsBalance) * 100)))}%`,
+                    }}
+                    className="h-full bg-emerald-300 transition-all duration-500 ease-out"
+                  />
+                </>
+              ) : (
+                <div className="w-full h-full bg-zinc-200" />
               )}
             </div>
 
-            {savingsList.length === 0 ? (
-              <InsetGroupedCard className="p-5 text-center space-y-2">
-                <p className="text-xs text-zinc-500">
-                  Aucun pot d'épargne créé pour le moment.
+            {/* Legend */}
+            <div className="flex items-center justify-between text-xs font-semibold text-zinc-700 pt-0.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-800 shrink-0 inline-block" />
+                <span className="truncate tabular-nums">
+                  {formatAmount(totalGoalsAllocated)} réservés pour {goalsList.length} projet{goalsList.length > 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                <span className="w-2.5 h-2.5 rounded-xs bg-emerald-300 shrink-0 inline-block" />
+                <span className="tabular-nums">{formatAmount(totalFreeReserve)} libres</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section Header: MES POTS · X & + Nouveau pot */}
+          <div className="flex justify-between items-center px-1 pt-1">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              Mes Pots · {savingsList.length}
+            </span>
+            {onOpenCreateSavings && (
+              <button
+                type="button"
+                onClick={onOpenCreateSavings}
+                className="text-xs font-bold text-zinc-900 hover:text-zinc-700 transition-colors cursor-pointer"
+              >
+                + Nouveau pot
+              </button>
+            )}
+          </div>
+
+          {/* Pot Cards List */}
+          {savingsList.length === 0 ? (
+            <div className="p-6 bg-white border border-zinc-200/90 rounded-3xl text-center space-y-3 shadow-xs">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200/50 shadow-2xs">
+                <ShieldCheckBoldIcon size={20} />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-zinc-900 mb-0.5">
+                  Aucun pot d'épargne
+                </h3>
+                <p className="text-[11px] text-zinc-500 max-w-xs mx-auto">
+                  Créez des coffres et cagnottes bloqués sur vos comptes pour sécuriser votre épargne et financer vos projets.
                 </p>
-                <button
-                  type="button"
-                  onClick={onOpenCreateSavings}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold cursor-pointer"
-                >
-                  <AddCircleBoldIcon size={14} />
-                  <span>Créer mon premier pot d'épargne</span>
-                </button>
-              </InsetGroupedCard>
-            ) : (
-              <div className="space-y-2.5">
-                {savingsList.map(s => (
-                  <SavingsReceptacleCard
+              </div>
+              <button
+                type="button"
+                onClick={onOpenCreateSavings}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold cursor-pointer transition-all shadow-xs"
+              >
+                <AddCircleBoldIcon size={15} />
+                <span>Créer un pot d'épargne</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {savingsList.map((s) => {
+                const potGoals = goalsList.filter(g => g.savingsId === s.id);
+                const potGoalsAllocated = potGoals.reduce((sum, g) => sum + g.currentAmount, 0);
+                const potUnallocated = Math.max(0, s.balance - potGoalsAllocated);
+                const potReservedPercent = s.balance > 0 ? Math.min(100, Math.round((potGoalsAllocated / s.balance) * 100)) : 0;
+                const potFreePercent = s.balance > 0 ? Math.max(0, 100 - potReservedPercent) : 0;
+
+                return (
+                  <div
                     key={s.id}
-                    savings={s}
-                    onDeposit={() => onOpenSavingsAction(s, 'DEPOSIT')}
-                    onWithdraw={() => onOpenSavingsAction(s, 'WITHDRAWAL')}
-                    onAddGoal={() => onOpenCreateGoal(s.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+                    className="bg-white border border-zinc-200/90 rounded-3xl p-4 shadow-xs space-y-3.5"
+                  >
+                    {/* 1. Pot Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          style={{
+                            backgroundColor: `${s.color || '#10B981'}18`,
+                            color: s.color || '#10B981',
+                          }}
+                          className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border border-black/5 shadow-2xs"
+                        >
+                          <ShieldCheckBoldIcon size={20} />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-zinc-900 tracking-tight truncate">
+                            {s.name}
+                          </h3>
+                          <div className="flex items-center gap-1 text-[11px] text-zinc-400 font-medium mt-0.5">
+                            <LockBoldIcon size={11} className="shrink-0 text-zinc-400" />
+                            <span className="truncate">
+                              bloqué {s.walletName ? (s.walletType === 'CASH' || s.walletName.toLowerCase().includes('espèce') ? 'en espèces' : `sur ${s.walletName}`) : 'sur compte'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
-          {/* Section B: Objectifs d'Épargne & Projets */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5 px-1">
-              <div className="flex items-center gap-1.5">
-                <TargetBoldIcon size={15} className="text-blue-600" />
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                  Projets & Wishlist ({goalsList.length})
-                </span>
-              </div>
-              {goalsList.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => onOpenCreateGoal()}
-                  className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer"
-                >
-                  <AddCircleBoldIcon size={15} />
-                  <span>Nouvel Objectif</span>
-                </button>
-              )}
+                      <div className="text-right shrink-0">
+                        <div className="text-lg font-black text-zinc-900 tracking-tight tabular-nums">
+                          {formatAmount(s.balance)} <span className="text-xs font-bold text-zinc-500">Ar</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Dual-Tone Progress Bar & Subtitle */}
+                    <div className="space-y-1">
+                      <div className="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden flex">
+                        {s.balance > 0 ? (
+                          <>
+                            <div
+                              style={{ width: `${potReservedPercent}%` }}
+                              className="h-full bg-emerald-800 transition-all duration-300"
+                            />
+                            <div
+                              style={{ width: `${potFreePercent}%` }}
+                              className="h-full bg-emerald-300 transition-all duration-300"
+                            />
+                          </>
+                        ) : (
+                          <div className="w-full h-full bg-zinc-200" />
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-zinc-500 font-medium tabular-nums">
+                        {potGoalsAllocated > 0 ? (
+                          `${formatAmount(potGoalsAllocated)} réservés · ${formatAmount(potUnallocated)} libres`
+                        ) : (
+                          'Tout est libre · aucun projet'
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 3. Sub-Items (Goals in this pot) */}
+                    {potGoals.length > 0 ? (
+                      <div className="space-y-2 pt-0.5">
+                        {potGoals.map((g) => {
+                          const progress = g.targetAmount > 0
+                            ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100))
+                            : 0;
+                          const isCompleted = g.currentAmount >= g.targetAmount || g.status === 'COMPLETED';
+
+                          return (
+                            <div
+                              key={g.id}
+                              onClick={() => onOpenGoalAction(g, 'DEPOSIT')}
+                              className="bg-zinc-50/80 hover:bg-zinc-100/70 border border-zinc-100 rounded-2xl p-3 space-y-2 transition-colors cursor-pointer group"
+                            >
+                              {/* Goal Header */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <div
+                                    style={{
+                                      backgroundColor: isCompleted ? '#10B98118' : `${g.color || '#3B82F6'}18`,
+                                      color: isCompleted ? '#10B981' : (g.color || '#3B82F6'),
+                                    }}
+                                    className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border border-black/5"
+                                  >
+                                    {getGoalIcon(g.name)}
+                                  </div>
+                                  <span className="text-xs font-bold text-zinc-900 truncate">
+                                    {g.name}
+                                  </span>
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span className="text-xs font-bold text-zinc-900 tabular-nums">
+                                    {formatAmount(g.currentAmount)}
+                                  </span>
+                                  <span className="text-xs font-medium text-zinc-400 tabular-nums">
+                                    {' '}/ {formatAmount(g.targetAmount)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Goal Progress Bar */}
+                              <div className="w-full h-1 bg-zinc-200/80 rounded-full overflow-hidden">
+                                <div
+                                  style={{
+                                    width: `${progress}%`,
+                                    backgroundColor: isCompleted ? '#10B981' : (g.color || '#2563EB'),
+                                  }}
+                                  className="h-full rounded-full transition-all duration-300"
+                                />
+                              </div>
+
+                              {/* Goal Sub-footer */}
+                              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium">
+                                <span className="tabular-nums">
+                                  {progress} % · {formatGoalDeadline(g.deadline)}
+                                </span>
+                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setGoalToDelete(g);
+                                    }}
+                                    title="Supprimer le projet"
+                                    className="w-5 h-5 rounded-md hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                                  >
+                                    <TrashBinTrashLinearIcon size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* Dotted Add Goal prompt for empty pot */
+                      <button
+                        type="button"
+                        onClick={() => onOpenCreateGoal(s.id)}
+                        className="w-full border border-dashed border-zinc-300 hover:border-zinc-400 bg-zinc-50/40 hover:bg-zinc-100/60 rounded-2xl py-2.5 px-3 flex items-center justify-center gap-1.5 text-xs font-bold text-zinc-600 hover:text-zinc-900 transition-all cursor-pointer"
+                      >
+                        <TargetBoldIcon size={14} className="text-zinc-500" />
+                        <span>Donner un objectif à ce pot</span>
+                      </button>
+                    )}
+
+                    {/* 4. Action Buttons */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => onOpenSavingsAction(s, 'DEPOSIT')}
+                        className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
+                      >
+                        <span>↓ Verser</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenSavingsAction(s, 'WITHDRAWAL')}
+                        disabled={s.balance <= 0}
+                        className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        <span>Débloquer</span>
+                      </button>
+
+                      {potGoals.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenCreateGoal(s.id)}
+                          className="text-xs font-bold text-zinc-500 hover:text-zinc-900 px-2.5 py-2 rounded-xl hover:bg-zinc-100 transition-colors cursor-pointer ml-auto flex items-center gap-1"
+                        >
+                          <span>+ Projet</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-
-            {goalsList.length === 0 ? (
-              <InsetGroupedCard className="p-5 text-center space-y-2">
-                <p className="text-xs text-zinc-500">
-                  Aucun objectif d'achat en cours (Téléphone, Vacances, Matériel...).
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onOpenCreateGoal()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
-                >
-                  <TargetBoldIcon size={14} />
-                  <span>Fixer un Objectif</span>
-                </button>
-              </InsetGroupedCard>
-            ) : (
-              <div className="space-y-2.5">
-                {goalsList.map(g => (
-                  <SavingsGoalCard
-                    key={g.id}
-                    goal={g}
-                    onContribute={(action) => onOpenGoalAction(g, action)}
-                    onEdit={() => onOpenGoalAction(g, 'DEPOSIT')}
-                    onDelete={() => setGoalToDelete(g)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       )}
 
