@@ -5,10 +5,10 @@ import {
   Home2LinearIcon,
   BusBoldIcon,
   BusLinearIcon,
-  TransmissionBoldIcon,
-  TransmissionLinearIcon,
-  StarsBoldIcon,
-  StarsLinearIcon,
+  WiFiBoldIcon,
+  WiFiLinearIcon,
+  WineglassTriangleBoldIcon,
+  WineglassTriangleLinearIcon,
   DangerTriangleBoldIcon,
   DangerTriangleLinearIcon,
   CardTransferBoldIcon,
@@ -62,14 +62,14 @@ export function CategoryIcon({
     return isBold ? <BusBoldIcon {...props} /> : <BusLinearIcon {...props} />;
   }
 
-  // 4. Telecom / Internet
-  if (lower.includes('signal') || lower.includes('transmission') || lower.includes('télécom') || lower.includes('telecom') || lower.includes('internet') || lower.includes('wifi')) {
-    return isBold ? <TransmissionBoldIcon {...props} /> : <TransmissionLinearIcon {...props} />;
+  // 4. Telecom / Internet / Wifi
+  if (lower.includes('wifi') || lower.includes('signal') || lower.includes('transmission') || lower.includes('télécom') || lower.includes('telecom') || lower.includes('internet')) {
+    return isBold ? <WiFiBoldIcon {...props} /> : <WiFiLinearIcon {...props} />;
   }
 
-  // 5. Outings / Restaurants / Leisure
-  if (lower.includes('sparkle') || lower.includes('star') || lower.includes('sortie') || lower.includes('restaurant')) {
-    return isBold ? <StarsBoldIcon {...props} /> : <StarsLinearIcon {...props} />;
+  // 5. Outings / Restaurants / Leisure / Drinks
+  if (lower.includes('wine') || lower.includes('sortie') || lower.includes('restaurant') || lower.includes('cuphot') || lower.includes('sparkle') || lower.includes('star') || lower.includes('bar')) {
+    return isBold ? <WineglassTriangleBoldIcon {...props} /> : <WineglassTriangleLinearIcon {...props} />;
   }
 
   // 6. Emergency / Issues

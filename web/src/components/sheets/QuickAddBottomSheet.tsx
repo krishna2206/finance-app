@@ -6,6 +6,7 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import {
   getTransferFee,
   lookupTier,
+  resolveWalletType,
   MVOLA_P2P_TIERS,
 } from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
@@ -112,15 +113,17 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
 
   // Declarative fee calculation via Strategy Matrix
-  const isMobileMoneySource = selectedSourceWallet.type === 'MVOLA' || selectedSourceWallet.type === 'ORANGE_MONEY' || selectedSourceWallet.type === 'AIRTEL_MONEY';
+  const sourceType = resolveWalletType(selectedSourceWallet);
+  const destType = resolveWalletType(selectedDestWallet);
+  const isMobileMoneySource = sourceType === 'MVOLA' || sourceType === 'ORANGE_MONEY' || sourceType === 'AIRTEL_MONEY';
 
   const { rawFee, feeLabel } = useMemo(() => {
     if (numericAmount <= 0) return { rawFee: 0, feeLabel: '' };
 
     if (mode === 'TRANSFER') {
-      const fee = getTransferFee(selectedSourceWallet.type, selectedDestWallet.type, numericAmount);
-      const isCashOut = selectedDestWallet.type === 'CASH';
-      const isInterop = (selectedDestWallet.type === 'AIRTEL_MONEY' || selectedDestWallet.type === 'ORANGE_MONEY' || selectedDestWallet.type === 'MVOLA') && selectedSourceWallet.type !== selectedDestWallet.type;
+      const fee = getTransferFee(sourceType, destType, numericAmount);
+      const isCashOut = destType === 'CASH';
+      const isInterop = (destType === 'AIRTEL_MONEY' || destType === 'ORANGE_MONEY' || destType === 'MVOLA') && sourceType !== destType;
       const label = isCashOut ? 'Cash Point' : isInterop ? 'inter-opérateur' : 'opérateur';
       return { rawFee: fee, feeLabel: label };
     }
@@ -144,7 +147,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     }
 
     return { rawFee: 0, feeLabel: '' };
-  }, [mode, numericAmount, selectedSourceWallet.type, selectedDestWallet.type, selectedCategory?.name, isMobileMoneySource]);
+  }, [mode, numericAmount, sourceType, destType, selectedCategory?.name, isMobileMoneySource]);
 
   const feeAmount = includeFees ? rawFee : 0;
   const totalImpact = numericAmount + feeAmount;

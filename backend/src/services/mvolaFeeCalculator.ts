@@ -12,6 +12,33 @@ export function lookupTier(amount: number, tiers: FeeTier[]): number {
   return match ? match.fee : tiers[tiers.length - 1].fee;
 }
 
+/**
+ * Résout le type réel d'un portefeuille (avec détection de secours sur le nom si CUSTOM)
+ */
+export function resolveWalletType(wallet?: { type?: string; name?: string } | null): string {
+  if (!wallet) return 'CUSTOM';
+  if (wallet.type && wallet.type !== 'CUSTOM') return wallet.type;
+  const nameLower = (wallet.name || '').toLowerCase();
+  if (nameLower.includes('mvola')) return 'MVOLA';
+  if (nameLower.includes('orange')) return 'ORANGE_MONEY';
+  if (nameLower.includes('airtel')) return 'AIRTEL_MONEY';
+  if (
+    nameLower.includes('bancaire') ||
+    nameLower.includes('banque') ||
+    nameLower.includes('bni') ||
+    nameLower.includes('boa') ||
+    nameLower.includes('bmoi') ||
+    nameLower.includes('bfv') ||
+    nameLower.includes('sg')
+  ) {
+    return 'BANK';
+  }
+  if (nameLower.includes('espèce') || nameLower.includes('espece') || nameLower.includes('cash')) {
+    return 'CASH';
+  }
+  return wallet.type || 'CUSTOM';
+}
+
 // 1. Grille Retrait Cash Point & DAB BNI (Officiel Février 2025)
 export const MVOLA_WITHDRAWAL_TIERS: FeeTier[] = [
   { max: 1_000, fee: 100 },

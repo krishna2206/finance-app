@@ -47,6 +47,8 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
       await createWallet({
         id: crypto.randomUUID(),
         name: name.trim(),
+        type: selectedType,
+        accountNumber: accountNumber.trim() || undefined,
         balance: numericAmount,
         isSpendable: true,
       });

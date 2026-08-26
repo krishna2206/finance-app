@@ -11,7 +11,6 @@ import { SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { Category, Savings, SavingsGoal } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
-  PenNewSquareLinearIcon,
   ShieldCheckBoldIcon,
   ShieldCheckLinearIcon,
   TargetBoldIcon,
@@ -83,9 +82,23 @@ export function BudgetsView({
     return Object.values(spendingMap).reduce((sum, val) => sum + val, 0);
   }, [spendingMap]);
 
+  const totalAvailableThisMonth = Math.max(0, totalEnvelopesBudget - totalEnvelopesSpent);
+
   const envelopesPercentage = totalEnvelopesBudget > 0
     ? Math.min(100, Math.round((totalEnvelopesSpent / totalEnvelopesBudget) * 100))
     : 0;
+
+  // Group categories into Vital and Confort
+  const vitalCategories = useMemo(() => expenseCategories.filter(c => c.isEssential), [expenseCategories]);
+  const comfortCategories = useMemo(() => expenseCategories.filter(c => !c.isEssential), [expenseCategories]);
+
+  const vitalRemaining = useMemo(() => {
+    return vitalCategories.reduce((sum, c) => sum + Math.max(0, (c.monthlyLimit || 0) - (spendingMap[c.id] || 0)), 0);
+  }, [vitalCategories, spendingMap]);
+
+  const comfortRemaining = useMemo(() => {
+    return comfortCategories.reduce((sum, c) => sum + Math.max(0, (c.monthlyLimit || 0) - (spendingMap[c.id] || 0)), 0);
+  }, [comfortCategories, spendingMap]);
 
   // Overall Savings calculation
   const totalSavingsBalance = useMemo(() => {
@@ -111,12 +124,88 @@ export function BudgetsView({
     }
   };
 
+  const renderCategoryRow = (cat: Category) => {
+    const spent = spendingMap[cat.id] || 0;
+    const limit = cat.monthlyLimit || 0;
+    const remaining = limit - spent;
+    const percentage = limit > 0
+      ? Math.min(100, Math.round((spent / limit) * 100))
+      : 0;
+    const isOverBudget = spent > limit;
+
+    return (
+      <div
+        key={cat.id}
+        onClick={() => onEditCategory(cat)}
+        className="p-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 active:bg-zinc-100 transition-colors cursor-pointer"
+      >
+        {/* Left Icon + Middle Details */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          {/* Icon Badge with gentle tinted background */}
+          <div
+            style={{ backgroundColor: `${cat.color}15`, color: cat.color }}
+            className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 border border-black/5 shadow-2xs"
+          >
+            <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={20} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-xs font-bold text-zinc-900 truncate">
+                {cat.name}
+              </span>
+              {cat.isFixed && (
+                <span className="bg-zinc-100 text-zinc-500 text-[9px] font-bold px-1.5 py-0.5 rounded border border-zinc-200 shrink-0">
+                  Fixe
+                </span>
+              )}
+            </div>
+
+            {/* Subtitle / Progress */}
+            {spent > 0 ? (
+              <div className="mt-0.5 space-y-1">
+                <span className="text-[11px] text-zinc-500 font-medium tabular-nums block">
+                  {formatAmount(spent)} dépensés{percentage > 0 ? ` · ${percentage} %` : ''}
+                </span>
+                <div className="w-full h-1 bg-zinc-200/60 rounded-full overflow-hidden">
+                  <div
+                    style={{
+                      width: `${percentage}%`,
+                      backgroundColor: isOverBudget ? '#EF4444' : percentage > 75 ? '#F59E0B' : cat.color,
+                    }}
+                    className="h-full rounded-full transition-all duration-300"
+                  />
+                </div>
+              </div>
+            ) : (
+              <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
+                {cat.isFixed ? 'Pas encore prélevée' : 'Pas encore utilisée'}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Right Balance */}
+        <div className="text-right shrink-0">
+          <div className={`text-sm font-black tabular-nums ${isOverBudget ? 'text-rose-600' : 'text-zinc-900'}`}>
+            {isOverBudget
+              ? `-${formatAmount(Math.abs(remaining))}`
+              : formatAmount(remaining > 0 ? remaining : limit)}
+          </div>
+          <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
+            {spent > 0 ? `sur ${formatAmount(limit)}` : 'plafond'}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4 pb-20">
-      {/* 1. Header & Segmented Tab Switch */}
+      {/* 1. Header & Native iOS Segmented Control */}
       <div className="py-1">
-        <h1 className="text-2xl font-bold text-zinc-900 tracking-tight mb-3">
-          Budgets & Épargne
+        <h1 className="text-2xl font-black text-zinc-900 tracking-tight mb-3">
+          Budgets et épargne
         </h1>
 
         {/* Dual Segmented Control */}
@@ -135,7 +224,7 @@ export function BudgetsView({
             ) : (
               <PieChartLinearIcon size={15} className="text-zinc-400" />
             )}
-            <span>Enveloppes ({expenseCategories.length})</span>
+            <span>Enveloppes · {expenseCategories.length}</span>
           </button>
 
           <button
@@ -152,124 +241,70 @@ export function BudgetsView({
             ) : (
               <ShieldCheckLinearIcon size={15} className="text-zinc-400" />
             )}
-            <span>Épargnes & Projets ({savingsList.length})</span>
+            <span>Épargne · {savingsList.length}</span>
           </button>
         </div>
       </div>
 
       {/* 2. Content based on active tab */}
       {activeTab === 'ENVELOPES' ? (
-        <div className="space-y-3.5">
-          {/* Cadence Summary Card */}
-          <InsetGroupedCard className="p-4 space-y-2.5">
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-                Rythme Mensuel des Dépenses
-              </span>
-              <span className={`text-xs font-bold tabular-nums ${totalEnvelopesSpent > totalEnvelopesBudget ? 'text-rose-600' : 'text-emerald-600'}`}>
-                {envelopesPercentage}% consommé
-              </span>
+        <div className="space-y-4">
+          {/* Hero Disponible ce mois Header */}
+          <div className="pt-1 pb-1 space-y-1">
+            <span className="text-xs text-zinc-500 font-medium block">
+              Disponible ce mois
+            </span>
+            <div className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
+              {formatAmount(totalAvailableThisMonth)} <span className="text-xl font-bold text-zinc-500">Ar</span>
+            </div>
+            <div className="text-xs text-zinc-500 font-medium tabular-nums pt-0.5">
+              {formatAmount(totalEnvelopesSpent)} dépensés sur {formatAmount(totalEnvelopesBudget)} · {envelopesPercentage} %
             </div>
 
-            <div className="text-xl font-bold text-zinc-900 tabular-nums">
-              {formatAmount(totalEnvelopesSpent)} <span className="text-xs text-zinc-400 font-normal">/ {formatCurrency(totalEnvelopesBudget)}</span>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full h-2.5 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/60">
+            {/* Mini Progress Bar */}
+            <div className="w-full h-1.5 bg-zinc-200/60 rounded-full overflow-hidden mt-2">
               <div
-                style={{ width: `${envelopesPercentage}%` }}
-                className={`h-full rounded-full transition-all duration-500 ease-out ${
-                  totalEnvelopesSpent > totalEnvelopesBudget ? 'bg-rose-500' : 'bg-emerald-500'
-                }`}
+                style={{ width: `${Math.min(100, envelopesPercentage)}%` }}
+                className="h-full bg-zinc-900 rounded-full transition-all duration-500 ease-out"
               />
             </div>
-          </InsetGroupedCard>
-
-          {/* Categories List */}
-          <div className="space-y-2.5">
-            {expenseCategories.map(cat => {
-              const spent = spendingMap[cat.id] || 0;
-              const limit = cat.monthlyLimit || 0;
-              const percentage = limit > 0
-                ? Math.min(100, Math.round((spent / limit) * 100))
-                : 0;
-              const isOverBudget = spent > limit;
-              const remaining = limit - spent;
-
-              return (
-                <InsetGroupedCard
-                  key={cat.id}
-                  className="p-4 transition-all hover:border-zinc-300"
-                >
-                  <div className="flex justify-between items-center mb-1.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        style={{ backgroundColor: cat.color }}
-                        className="w-7 h-7 rounded-xl flex items-center justify-center text-white shrink-0 shadow-2xs"
-                      >
-                        <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={15} />
-                      </div>
-                      <span className="text-xs font-bold text-zinc-900 truncate">
-                        {cat.name}
-                      </span>
-                      {cat.isFixed && (
-                        <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-[9px] text-zinc-500 font-semibold uppercase border border-zinc-200 shrink-0">
-                          Fixe
-                        </span>
-                      )}
-                      {cat.isEssential && (
-                        <span className="bg-blue-50 px-1.5 py-0.5 rounded text-[9px] text-blue-600 font-semibold uppercase border border-blue-200 shrink-0">
-                          Vital
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => onEditCategory(cat)}
-                      title="Modifier le budget"
-                      className="w-7 h-7 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                    >
-                      <PenNewSquareLinearIcon size={15} />
-                    </button>
-                  </div>
-
-                  {/* Amounts */}
-                  <div className="flex justify-between items-baseline text-xs text-zinc-500 my-1">
-                    <span>
-                      Dépensé : <strong className="text-zinc-800 tabular-nums">{formatCurrency(spent)}</strong>
-                    </span>
-                    <span>
-                      Plafond : <strong className="text-zinc-800 tabular-nums">{formatCurrency(limit)}</strong>
-                    </span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full h-2 bg-zinc-100 rounded-full overflow-hidden my-1.5 border border-zinc-200/50">
-                    <div
-                      style={{
-                        width: `${percentage}%`,
-                        backgroundColor: isOverBudget ? '#F43F5E' : cat.color,
-                      }}
-                      className="h-full rounded-full transition-all duration-500 ease-out"
-                    />
-                  </div>
-
-                  {/* Status Footer */}
-                  <div className="flex justify-between items-center text-[10px]">
-                    <span className="text-zinc-400 tabular-nums">
-                      {percentage}% consommé
-                    </span>
-                    <span className={`font-bold tabular-nums ${isOverBudget ? 'text-rose-600' : 'text-emerald-600'}`}>
-                      {isOverBudget
-                        ? `Dépassement de ${formatCurrency(Math.abs(remaining))}`
-                        : `Reste : ${formatCurrency(remaining)}`}
-                    </span>
-                  </div>
-                </InsetGroupedCard>
-              );
-            })}
           </div>
+
+          {/* Grouped Section 1: Vital (Essential Expenses) */}
+          {vitalCategories.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline px-1">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Vital
+                </span>
+                <span className="text-xs font-semibold text-zinc-500 tabular-nums">
+                  {formatCurrency(vitalRemaining)} restants
+                </span>
+              </div>
+
+              <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                {vitalCategories.map(cat => renderCategoryRow(cat))}
+              </div>
+            </div>
+          )}
+
+          {/* Grouped Section 2: Confort (Discretionary Expenses) */}
+          {comfortCategories.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-baseline px-1">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Confort
+                </span>
+                <span className="text-xs font-semibold text-zinc-500 tabular-nums">
+                  {formatCurrency(comfortRemaining)} restants
+                </span>
+              </div>
+
+              <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                {comfortCategories.map(cat => renderCategoryRow(cat))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* Volet 2 : Épargnes & Projets / Wishlist */
