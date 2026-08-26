@@ -277,7 +277,7 @@ export function BudgetsView({
           <button
             type="button"
             onClick={() => setActiveTab('ENVELOPES')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`h-10 flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'ENVELOPES'
                 ? 'bg-white text-zinc-900 shadow-xs'
                 : 'text-zinc-500 hover:text-zinc-800'
@@ -294,14 +294,14 @@ export function BudgetsView({
           <button
             type="button"
             onClick={() => setActiveTab('SAVINGS')}
-            className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`h-10 flex items-center justify-center gap-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'SAVINGS'
                 ? 'bg-white text-zinc-900 shadow-xs'
                 : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
             {activeTab === 'SAVINGS' ? (
-              <ShieldCheckBoldIcon size={15} className="text-emerald-600" />
+              <ShieldCheckBoldIcon size={15} className="text-zinc-900" />
             ) : (
               <ShieldCheckLinearIcon size={15} className="text-zinc-400" />
             )}

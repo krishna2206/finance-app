@@ -74,8 +74,8 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
     <div className="space-y-4 pb-20">
       {/* Header */}
       <div className="py-1">
-        <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">
-          Historique ({filteredTransactions.length})
+        <h1 className="text-2xl font-black text-zinc-900 tracking-tight mb-3">
+          Historique
         </h1>
       </div>
 
@@ -88,7 +88,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
             <button
               key={item.id}
               onClick={() => setFilter(item.id)}
-              className={`flex items-center justify-center gap-1 py-2 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
+              className={`h-10 flex items-center justify-center gap-1 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
                 isActive
                   ? 'bg-white text-zinc-900 shadow-xs'
                   : 'text-zinc-500 hover:text-zinc-800'
