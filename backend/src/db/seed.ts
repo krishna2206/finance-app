@@ -1,6 +1,5 @@
 import { BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import * as schema from './schema';
-import { eq } from 'drizzle-orm';
 
 export const DEFAULT_WALLETS = [
   { id: 'w-mvola-primary-001', name: 'MVola', type: 'MVOLA', balance: 0, isSpendable: 1 },
@@ -16,10 +15,7 @@ export const DEFAULT_CATEGORIES = [
     name: 'Nourriture & Marché',
     type: 'EXPENSE',
     color: '#34D399',
-    icon: 'CartLarge2BoldIcon',
-    monthlyLimit: 350000,
-    isEssential: 1,
-    isFixed: 0,
+    icon: 'CartLarge4BoldIcon',
   },
   {
     id: 'c-fixed-002',
@@ -27,9 +23,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'EXPENSE',
     color: '#60A5FA',
     icon: 'Home2BoldIcon',
-    monthlyLimit: 250000,
-    isEssential: 1,
-    isFixed: 1,
   },
   {
     id: 'c-transport-003',
@@ -37,9 +30,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'EXPENSE',
     color: '#FBBF24',
     icon: 'BusBoldIcon',
-    monthlyLimit: 80000,
-    isEssential: 1,
-    isFixed: 0,
   },
   {
     id: 'c-telecom-004',
@@ -47,9 +37,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'EXPENSE',
     color: '#A78BFA',
     icon: 'WiFiBoldIcon',
-    monthlyLimit: 75000,
-    isEssential: 1,
-    isFixed: 1,
   },
   {
     id: 'c-outings-005',
@@ -57,29 +44,20 @@ export const DEFAULT_CATEGORIES = [
     type: 'EXPENSE',
     color: '#F472B6',
     icon: 'WineglassTriangleBoldIcon',
-    monthlyLimit: 120000,
-    isEssential: 0,
-    isFixed: 0,
   },
   {
     id: 'c-unexpected-006',
     name: 'Dépannages & Imprévus',
     type: 'EXPENSE',
     color: '#FB7185',
-    icon: 'DangerBoldIcon',
-    monthlyLimit: 100000,
-    isEssential: 0,
-    isFixed: 0,
+    icon: 'DangerTriangleBoldIcon',
   },
   {
     id: 'c-fees-007',
     name: 'Frais Mobiles & Services',
     type: 'EXPENSE',
     color: '#9CA3AF',
-    icon: 'CardBoldIcon',
-    monthlyLimit: 15000,
-    isEssential: 1,
-    isFixed: 0,
+    icon: 'CardTransferBoldIcon',
   },
   {
     id: 'c-salary-101',
@@ -87,9 +65,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'INCOME',
     color: '#10B981',
     icon: 'Banknote2BoldIcon',
-    monthlyLimit: 0,
-    isEssential: 0,
-    isFixed: 0,
   },
   {
     id: 'c-freelance-102',
@@ -97,9 +72,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'INCOME',
     color: '#3B82F6',
     icon: 'LaptopBoldIcon',
-    monthlyLimit: 0,
-    isEssential: 0,
-    isFixed: 0,
   },
   {
     id: 'c-misc-income-103',
@@ -107,9 +79,6 @@ export const DEFAULT_CATEGORIES = [
     type: 'INCOME',
     color: '#8B5CF6',
     icon: 'TagBoldIcon',
-    monthlyLimit: 0,
-    isEssential: 0,
-    isFixed: 0,
   },
 ];
 
@@ -133,7 +102,7 @@ export function seedDatabase(db: BunSQLiteDatabase<typeof schema>): void {
     }
   }
 
-  // 2. Categories & Budgets
+  // 2. Categories (Seeded without any budget allocation by default)
   const existingCategories = db.select().from(schema.categories).all();
   if (existingCategories.length === 0) {
     for (const c of DEFAULT_CATEGORIES) {
@@ -145,22 +114,12 @@ export function seedDatabase(db: BunSQLiteDatabase<typeof schema>): void {
         icon: c.icon,
         createdAt: now,
       }).run();
-
-      if (c.type === 'EXPENSE') {
-        db.insert(schema.budgets).values({
-          id: `b-${c.id}`,
-          categoryId: c.id,
-          monthlyLimit: c.monthlyLimit,
-          isEssential: c.isEssential,
-          isFixed: c.isFixed,
-          createdAt: now,
-          updatedAt: now,
-        }).run();
-      }
     }
   }
 
-  // 3. Settings
+  // 3. Budgets table starts completely empty (User defines limits themselves)
+
+  // 4. Settings
   const existingSettings = db.select().from(schema.settings).all();
   if (existingSettings.length === 0) {
     db.insert(schema.settings).values({

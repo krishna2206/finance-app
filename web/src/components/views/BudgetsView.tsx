@@ -21,6 +21,7 @@ import {
 
 interface BudgetsViewProps {
   onEditCategory: (cat: Category) => void;
+  onOpenCreateCategory?: () => void;
   onOpenCreateSavings: () => void;
   onOpenCreateGoal: (savingsId?: string) => void;
   onOpenSavingsAction: (savings: Savings, action: SavingsActionType) => void;
@@ -29,6 +30,7 @@ interface BudgetsViewProps {
 
 export function BudgetsView({
   onEditCategory,
+  onOpenCreateCategory,
   onOpenCreateSavings,
   onOpenCreateGoal,
   onOpenSavingsAction,
@@ -53,6 +55,10 @@ export function BudgetsView({
 
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
 
+  // Only categories that actually have a defined budget limit > 0
+  const budgetedCategories = useMemo(() => expenseCategories.filter(c => (c.monthlyLimit || 0) > 0), [expenseCategories]);
+  const unbudgetedCategories = useMemo(() => expenseCategories.filter(c => !(c.monthlyLimit || 0)), [expenseCategories]);
+
   const spendingMap = useMemo(() => {
     const currentYearMonth = new Date().toISOString().slice(0, 7);
     const map: Record<string, number> = {};
@@ -73,10 +79,10 @@ export function BudgetsView({
     return map;
   }, [transactions]);
 
-  // Overall Envelopes calculation
+  // Overall Envelopes calculation (based on budgeted categories only)
   const totalEnvelopesBudget = useMemo(() => {
-    return expenseCategories.reduce((sum, c) => sum + (c.monthlyLimit || 0), 0);
-  }, [expenseCategories]);
+    return budgetedCategories.reduce((sum, c) => sum + (c.monthlyLimit || 0), 0);
+  }, [budgetedCategories]);
 
   const totalEnvelopesSpent = useMemo(() => {
     return Object.values(spendingMap).reduce((sum, val) => sum + val, 0);
@@ -88,9 +94,9 @@ export function BudgetsView({
     ? Math.min(100, Math.round((totalEnvelopesSpent / totalEnvelopesBudget) * 100))
     : 0;
 
-  // Group categories into Vital and Confort
-  const vitalCategories = useMemo(() => expenseCategories.filter(c => c.isEssential), [expenseCategories]);
-  const comfortCategories = useMemo(() => expenseCategories.filter(c => !c.isEssential), [expenseCategories]);
+  // Group budgeted categories into Vital and Confort
+  const vitalCategories = useMemo(() => budgetedCategories.filter(c => c.isEssential), [budgetedCategories]);
+  const comfortCategories = useMemo(() => budgetedCategories.filter(c => !c.isEssential), [budgetedCategories]);
 
   const vitalRemaining = useMemo(() => {
     return vitalCategories.reduce((sum, c) => sum + Math.max(0, (c.monthlyLimit || 0) - (spendingMap[c.id] || 0)), 0);
@@ -131,7 +137,7 @@ export function BudgetsView({
     const percentage = limit > 0
       ? Math.min(100, Math.round((spent / limit) * 100))
       : 0;
-    const isOverBudget = spent > limit;
+    const isOverBudget = limit > 0 && spent > limit;
 
     return (
       <div
@@ -154,7 +160,7 @@ export function BudgetsView({
               <span className="text-xs font-bold text-zinc-900 truncate">
                 {cat.name}
               </span>
-              {cat.isFixed && (
+              {cat.isFixed && limit > 0 && (
                 <span className="bg-zinc-100 text-zinc-500 text-[9px] font-bold px-1.5 py-0.5 rounded border border-zinc-200 shrink-0">
                   Fixe
                 </span>
@@ -162,24 +168,30 @@ export function BudgetsView({
             </div>
 
             {/* Subtitle / Progress */}
-            {spent > 0 ? (
-              <div className="mt-0.5 space-y-1">
-                <span className="text-[11px] text-zinc-500 font-medium tabular-nums block">
-                  {formatAmount(spent)} dépensés{percentage > 0 ? ` · ${percentage} %` : ''}
-                </span>
-                <div className="w-full h-1 bg-zinc-200/60 rounded-full overflow-hidden">
-                  <div
-                    style={{
-                      width: `${percentage}%`,
-                      backgroundColor: isOverBudget ? '#EF4444' : percentage > 75 ? '#F59E0B' : cat.color,
-                    }}
-                    className="h-full rounded-full transition-all duration-300"
-                  />
+            {limit > 0 ? (
+              spent > 0 ? (
+                <div className="mt-0.5 space-y-1">
+                  <span className="text-[11px] text-zinc-500 font-medium tabular-nums block">
+                    {formatAmount(spent)} dépensés{percentage > 0 ? ` · ${percentage} %` : ''}
+                  </span>
+                  <div className="w-full h-1 bg-zinc-200/60 rounded-full overflow-hidden">
+                    <div
+                      style={{
+                        width: `${percentage}%`,
+                        backgroundColor: isOverBudget ? '#EF4444' : percentage > 75 ? '#F59E0B' : cat.color,
+                      }}
+                      className="h-full rounded-full transition-all duration-300"
+                    />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
+                  {cat.isFixed ? 'Pas encore prélevée' : 'Pas encore utilisée'}
+                </span>
+              )
             ) : (
-              <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
-                {cat.isFixed ? 'Pas encore prélevée' : 'Pas encore utilisée'}
+              <span className="text-[11px] text-blue-600 font-semibold block mt-0.5">
+                {spent > 0 ? `${formatAmount(spent)} Ar dépensés · + Fixer plafond` : '+ Fixer un plafond'}
               </span>
             )}
           </div>
@@ -188,12 +200,16 @@ export function BudgetsView({
         {/* Right Balance */}
         <div className="text-right shrink-0">
           <div className={`text-sm font-black tabular-nums ${isOverBudget ? 'text-rose-600' : 'text-zinc-900'}`}>
-            {isOverBudget
-              ? `-${formatAmount(Math.abs(remaining))}`
-              : formatAmount(remaining > 0 ? remaining : limit)}
+            {limit > 0 ? (
+              isOverBudget
+                ? `-${formatAmount(Math.abs(remaining))}`
+                : formatAmount(remaining > 0 ? remaining : limit)
+            ) : (
+              <span className="text-xs font-bold text-zinc-400">0 Ar</span>
+            )}
           </div>
           <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
-            {spent > 0 ? `sur ${formatAmount(limit)}` : 'plafond'}
+            {limit > 0 ? (spent > 0 ? `sur ${formatAmount(limit)}` : 'plafond') : 'sans limite'}
           </div>
         </div>
       </div>
@@ -224,7 +240,7 @@ export function BudgetsView({
             ) : (
               <PieChartLinearIcon size={15} className="text-zinc-400" />
             )}
-            <span>Enveloppes · {expenseCategories.length}</span>
+            <span>Enveloppes · {budgetedCategories.length}</span>
           </button>
 
           <button
@@ -258,52 +274,128 @@ export function BudgetsView({
               {formatAmount(totalAvailableThisMonth)} <span className="text-xl font-bold text-zinc-500">Ar</span>
             </div>
             <div className="text-xs text-zinc-500 font-medium tabular-nums pt-0.5">
-              {formatAmount(totalEnvelopesSpent)} dépensés sur {formatAmount(totalEnvelopesBudget)} · {envelopesPercentage} %
+              {totalEnvelopesBudget > 0 ? (
+                `${formatAmount(totalEnvelopesSpent)} dépensés sur ${formatAmount(totalEnvelopesBudget)} · ${envelopesPercentage} %`
+              ) : (
+                `${formatAmount(totalEnvelopesSpent)} dépensés au total · Aucun plafond budgétisé`
+              )}
             </div>
 
             {/* Mini Progress Bar */}
-            <div className="w-full h-1.5 bg-zinc-200/60 rounded-full overflow-hidden mt-2">
-              <div
-                style={{ width: `${Math.min(100, envelopesPercentage)}%` }}
-                className="h-full bg-zinc-900 rounded-full transition-all duration-500 ease-out"
-              />
-            </div>
+            {totalEnvelopesBudget > 0 && (
+              <div className="w-full h-1.5 bg-zinc-200/60 rounded-full overflow-hidden mt-2">
+                <div
+                  style={{ width: `${Math.min(100, envelopesPercentage)}%` }}
+                  className="h-full bg-zinc-900 rounded-full transition-all duration-500 ease-out"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Grouped Section 1: Vital (Essential Expenses) */}
-          {vitalCategories.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline px-1">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Vital
-                </span>
-                <span className="text-xs font-semibold text-zinc-500 tabular-nums">
-                  {formatCurrency(vitalRemaining)} restants
-                </span>
+          {/* Header Action Row */}
+          <div className="flex justify-between items-center px-1">
+            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+              Vos Enveloppes ({budgetedCategories.length})
+            </span>
+            {onOpenCreateCategory && (
+              <button
+                type="button"
+                onClick={onOpenCreateCategory}
+                className="flex items-center gap-1 text-xs font-bold text-zinc-700 hover:text-zinc-900 transition-colors cursor-pointer"
+              >
+                <AddCircleBoldIcon size={15} />
+                <span>Nouvelle Catégorie</span>
+              </button>
+            )}
+          </div>
+
+          {budgetedCategories.length === 0 ? (
+            <InsetGroupedCard className="p-5 text-center space-y-3">
+              <div>
+                <h3 className="text-xs font-bold text-zinc-900 mb-0.5">
+                  Aucun plafond fixé
+                </h3>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Fixez un plafond mensuel aux catégories de votre choix pour suivre vos dépenses.
+                </p>
               </div>
 
-              <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
-                {vitalCategories.map(cat => renderCategoryRow(cat))}
-              </div>
-            </div>
-          )}
+              {/* List of unbudgeted categories to easily assign limits */}
+              {unbudgetedCategories.length > 0 && (
+                <div className="space-y-1.5 pt-1 text-left">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block px-1">
+                    Catégories disponibles ({unbudgetedCategories.length})
+                  </span>
+                  <div className="bg-white border border-zinc-200/80 rounded-2xl overflow-hidden divide-y divide-zinc-100 shadow-2xs">
+                    {unbudgetedCategories.map(cat => (
+                      <div
+                        key={cat.id}
+                        onClick={() => onEditCategory(cat)}
+                        className="p-2.5 px-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div style={{ backgroundColor: `${cat.color}18`, color: cat.color }} className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0">
+                            <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={14} />
+                          </div>
+                          <span className="text-xs font-bold text-zinc-900 truncate">{cat.name}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-blue-600 shrink-0">+ Fixer plafond</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </InsetGroupedCard>
+          ) : (
+            <>
+              {/* Grouped Section 1: Vital (Essential Expenses) */}
+              {vitalCategories.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-baseline px-1">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                      Vital ({vitalCategories.length})
+                    </span>
+                    <span className="text-xs font-semibold text-zinc-500 tabular-nums">
+                      {formatCurrency(vitalRemaining)} restants
+                    </span>
+                  </div>
 
-          {/* Grouped Section 2: Confort (Discretionary Expenses) */}
-          {comfortCategories.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-baseline px-1">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                  Confort
-                </span>
-                <span className="text-xs font-semibold text-zinc-500 tabular-nums">
-                  {formatCurrency(comfortRemaining)} restants
-                </span>
-              </div>
+                  <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                    {vitalCategories.map(cat => renderCategoryRow(cat))}
+                  </div>
+                </div>
+              )}
 
-              <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
-                {comfortCategories.map(cat => renderCategoryRow(cat))}
-              </div>
-            </div>
+              {/* Grouped Section 2: Confort (Discretionary Expenses) */}
+              {comfortCategories.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-baseline px-1">
+                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                      Confort ({comfortCategories.length})
+                    </span>
+                    <span className="text-xs font-semibold text-zinc-500 tabular-nums">
+                      {formatCurrency(comfortRemaining)} restants
+                    </span>
+                  </div>
+
+                  <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                    {comfortCategories.map(cat => renderCategoryRow(cat))}
+                  </div>
+                </div>
+              )}
+
+              {/* Section 3: Catégories sans plafond fixé */}
+              {unbudgetedCategories.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">
+                    Autres Catégories ({unbudgetedCategories.length})
+                  </span>
+                  <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+                    {unbudgetedCategories.map(cat => renderCategoryRow(cat))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (

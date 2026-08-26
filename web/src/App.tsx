@@ -15,6 +15,7 @@ import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
 import { AddWalletBottomSheet } from './components/sheets/AddWalletBottomSheet';
 import { TransactionDetailBottomSheet } from './components/sheets/TransactionDetailBottomSheet';
 import { BudgetEditBottomSheet } from './components/sheets/BudgetEditBottomSheet';
+import { CreateCategoryBottomSheet } from './components/sheets/CreateCategoryBottomSheet';
 import { CreateSavingsBottomSheet } from './components/sheets/CreateSavingsBottomSheet';
 import { CreateGoalBottomSheet } from './components/sheets/CreateGoalBottomSheet';
 import { GoalActionBottomSheet } from './components/sheets/GoalActionBottomSheet';
@@ -48,6 +49,7 @@ export function App() {
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
 
   // Savings & Goals Bottom Sheets mounted at Root z-50
   const [isCreateSavingsOpen, setIsCreateSavingsOpen] = useState(false);
@@ -152,6 +154,7 @@ export function App() {
                   {activeTab === 'budgets' && (
                     <BudgetsView
                       onEditCategory={setEditingCategory}
+                      onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
                       onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
                       onOpenCreateGoal={(savingsId) => {
                         setCreateGoalDefaultSavingsId(savingsId);
@@ -192,7 +195,7 @@ export function App() {
               </div>
             </div>
 
-            {/* Root-Level Bottom Sheets (z-50, Flush at Viewport Bottom) */}
+            {/* Root-Level Bottom Sheets */}
             <QuickAddBottomSheet
               isOpen={isQuickAddOpen}
               onClose={() => setIsQuickAddOpen(false)}
@@ -211,6 +214,11 @@ export function App() {
             <BudgetEditBottomSheet
               category={editingCategory}
               onClose={() => setEditingCategory(null)}
+            />
+
+            <CreateCategoryBottomSheet
+              isOpen={isCreateCategoryOpen}
+              onClose={() => setIsCreateCategoryOpen(false)}
             />
 
             <CreateSavingsBottomSheet
