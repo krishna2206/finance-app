@@ -8,18 +8,21 @@ import {
   CalendarLinearIcon,
   CheckCircleBoldIcon,
   PenNewSquareLinearIcon,
+  TrashBinTrashLinearIcon,
 } from '@solar-icons/react';
 
 interface SavingsGoalCardProps {
   goal: SavingsGoal;
   onContribute: (action: 'DEPOSIT' | 'WITHDRAW') => void;
   onEdit: () => void;
+  onDelete?: () => void;
 }
 
 export function SavingsGoalCard({
   goal,
   onContribute,
   onEdit,
+  onDelete,
 }: SavingsGoalCardProps) {
   const percentage = goal.targetAmount > 0
     ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
@@ -62,7 +65,7 @@ export function SavingsGoalCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border uppercase tracking-wider ${priorityColor}`}>
             {priorityLabel}
           </span>
@@ -74,6 +77,16 @@ export function SavingsGoalCard({
           >
             <PenNewSquareLinearIcon size={13} />
           </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Supprimer l'objectif"
+              className="w-6 h-6 rounded-full hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <TrashBinTrashLinearIcon size={13} />
+            </button>
+          )}
         </div>
       </div>
 

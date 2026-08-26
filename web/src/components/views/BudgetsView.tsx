@@ -6,6 +6,7 @@ import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { SavingsReceptacleCard } from '../savings/SavingsReceptacleCard';
 import { SavingsGoalCard } from '../savings/SavingsGoalCard';
+import { ConfirmationModal } from '../common/ConfirmationModal';
 import { SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { Category, Savings, SavingsGoal } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
@@ -33,12 +34,15 @@ export function BudgetsView({
   onOpenGoalAction,
 }: BudgetsViewProps) {
   const [activeTab, setActiveTab] = useState<'ENVELOPES' | 'SAVINGS'>('ENVELOPES');
+  const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
+  const [isDeletingGoal, setIsDeletingGoal] = useState(false);
 
   const categories = useBudgetStore(state => state.categories);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const savingsList = useSavingsStore(state => state.savings);
   const goalsList = useSavingsStore(state => state.savingsGoals);
   const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
+  const deleteGoal = useSavingsStore(state => state.deleteGoal);
   const transactions = useTransactionStore(state => state.transactions);
 
   useEffect(() => {
@@ -91,6 +95,19 @@ export function BudgetsView({
   }, [goalsList]);
 
   const totalFreeReserve = Math.max(0, totalSavingsBalance - totalGoalsAllocated);
+
+  const handleConfirmDeleteGoal = async () => {
+    if (!goalToDelete) return;
+    setIsDeletingGoal(true);
+    try {
+      await deleteGoal(goalToDelete.id);
+      setGoalToDelete(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeletingGoal(false);
+    }
+  };
 
   return (
     <div className="space-y-4 pb-20">
@@ -365,6 +382,7 @@ export function BudgetsView({
                     goal={g}
                     onContribute={(action) => onOpenGoalAction(g, action)}
                     onEdit={() => onOpenGoalAction(g, 'DEPOSIT')}
+                    onDelete={() => setGoalToDelete(g)}
                   />
                 ))}
               </div>
@@ -372,6 +390,20 @@ export function BudgetsView({
           </div>
         </div>
       )}
+
+      {/* Confirmation Modal for Goal Deletion */}
+      <ConfirmationModal
+        isOpen={Boolean(goalToDelete)}
+        title={goalToDelete ? `Supprimer l'objectif "${goalToDelete.name}" ?` : ''}
+        message="Cette action supprimera l'objectif. Les montants épargnés resteront disponibles dans votre pot d'épargne."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        isDestructive={true}
+        isLoading={isDeletingGoal}
+        icon="trash"
+        onConfirm={handleConfirmDeleteGoal}
+        onCancel={() => setGoalToDelete(null)}
+      />
     </div>
   );
 }
