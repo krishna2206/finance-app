@@ -104,8 +104,12 @@ export function DashboardView({
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const remainingDays = Math.max(1, daysInMonth - today.getDate() + 1);
 
-  const remainingBudget = Math.max(0, totalMonthlyBudget - totalSpentThisMonth);
-  const dailyBurnRate = Math.round(remainingBudget / remainingDays);
+  // Daily burn rate is capped by real available spendable money!
+  const availableToBurn = totalMonthlyBudget > 0
+    ? Math.min(totalSpendableAvailable, Math.max(0, totalMonthlyBudget - totalSpentThisMonth))
+    : totalSpendableAvailable;
+
+  const dailyBurnRate = Math.round(availableToBurn / remainingDays);
 
   // 3. Calculations for Épargné ce mois (across all savings pots)
   const monthlySavingsDeposited = useMemo(() => {
