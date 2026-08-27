@@ -183,7 +183,7 @@ export function App() {
           className="min-h-screen bg-zinc-100 flex justify-center text-zinc-900 selection:bg-zinc-900 selection:text-white"
         >
           {/* Mobile-Only Frame (Locked in Portrait ~430px width) */}
-          <div className="w-full max-w-[430px] min-h-screen bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col shadow-sm overflow-x-hidden px-4 pt-4 pb-28">
+          <div className="w-full max-w-[430px] min-h-screen bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col shadow-sm px-4 pb-28">
             {/* Active Tab View with Instant Simultaneous Directional Slide */}
             <main className="flex-1 relative w-full">
               <AnimatePresence mode="wait" custom={direction} initial={false}>

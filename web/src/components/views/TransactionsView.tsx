@@ -72,33 +72,36 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
 
   return (
     <div className="space-y-4 pb-20">
-      {/* Header */}
-      <div className="py-1">
-        <h1 className="text-2xl font-black text-zinc-900 tracking-tight mb-3">
+      {/* 1. Sticky Header & Filter Tabs */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-5 pb-3 bg-zinc-50 space-y-3 relative">
+        {/* Progressive Bottom Gradient Fade */}
+        <div className="absolute -bottom-6 left-0 right-0 h-6 bg-gradient-to-b from-zinc-50 via-zinc-50/80 to-transparent pointer-events-none" />
+
+        <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
           Historique
         </h1>
-      </div>
 
-      {/* Filter Tabs (Full Width 4-Column Grid - Apple Segmented Control Style) */}
-      <div className="w-full grid grid-cols-4 gap-1 p-1 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 shadow-2xs">
-        {filterTabs.map(item => {
-          const isActive = filter === item.id;
-          const Icon = isActive ? item.boldIcon : item.linearIcon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setFilter(item.id)}
-              className={`h-10 flex items-center justify-center gap-1 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
-                isActive
-                  ? 'bg-white text-zinc-900 shadow-xs'
-                  : 'text-zinc-500 hover:text-zinc-800'
-              }`}
-            >
-              <Icon size={14} className={`shrink-0 ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`} />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
+        {/* Filter Tabs (Full Width 4-Column Grid - Apple Segmented Control Style) */}
+        <div className="w-full grid grid-cols-4 gap-1 p-1 bg-zinc-100/90 rounded-2xl border border-zinc-200/60 shadow-2xs">
+          {filterTabs.map(item => {
+            const isActive = filter === item.id;
+            const Icon = isActive ? item.boldIcon : item.linearIcon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setFilter(item.id)}
+                className={`h-10 flex items-center justify-center gap-1 px-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer truncate ${
+                  isActive
+                    ? 'bg-white text-zinc-900 shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-800'
+                }`}
+              >
+                <Icon size={14} className={`shrink-0 ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Grouped Lists */}

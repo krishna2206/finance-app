@@ -346,9 +346,12 @@ export function BudgetsView({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* 1. Header & Native iOS Segmented Control */}
-      <div className="py-1">
-        <h1 className="text-2xl font-black text-zinc-900 tracking-tight mb-3">
+      {/* 1. Sticky Header & Segmented Control */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-5 pb-3 bg-zinc-50 space-y-3 relative">
+        {/* Progressive Bottom Gradient Fade */}
+        <div className="absolute -bottom-6 left-0 right-0 h-6 bg-gradient-to-b from-zinc-50 via-zinc-50/80 to-transparent pointer-events-none" />
+
+        <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
           Budgets et épargne
         </h1>
 

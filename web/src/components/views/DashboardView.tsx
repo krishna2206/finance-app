@@ -207,7 +207,7 @@ export function DashboardView({
       )}
 
       {/* 2. Hero Section: DISPONIBLE */}
-      <div className="pt-0.5 pb-1 space-y-1">
+      <div className="pt-3 pb-1 space-y-1">
         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block">
           Disponible
         </span>

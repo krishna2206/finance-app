@@ -33,8 +33,11 @@ export function NotificationsView({
 
   return (
     <div className="space-y-4 pb-20">
-      {/* 1. Header with Back Button */}
-      <div className="flex items-center justify-between py-1">
+      {/* 1. Sticky Header with Back Button */}
+      <div className="sticky top-0 z-20 -mx-4 px-4 pt-5 pb-3 bg-zinc-50 flex items-center justify-between relative">
+        {/* Progressive Bottom Gradient Fade */}
+        <div className="absolute -bottom-6 left-0 right-0 h-6 bg-gradient-to-b from-zinc-50 via-zinc-50/80 to-transparent pointer-events-none" />
+
         <div className="flex items-center gap-3">
           <button
             type="button"
