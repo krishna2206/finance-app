@@ -415,7 +415,7 @@ export function BudgetsView({
               {/* Flat Recommendation Section: COMMENCER PAR */}
               {sortedUnbudgetedCategories.length > 0 && (
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1 block">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-1 block">
                     Commencer par
                   </span>
 
@@ -596,7 +596,7 @@ export function BudgetsView({
               {vitalCategories.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-baseline px-1">
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       Vital ({vitalCategories.length})
                     </span>
                     <span className="text-xs font-semibold text-zinc-500 tabular-nums">
@@ -614,7 +614,7 @@ export function BudgetsView({
               {comfortCategories.length > 0 && (
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-baseline px-1">
-                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       Confort ({comfortCategories.length})
                     </span>
                     <span className="text-xs font-semibold text-zinc-500 tabular-nums">
@@ -631,7 +631,7 @@ export function BudgetsView({
               {/* Section 3: Catégories sans plafond fixé */}
               {unbudgetedCategories.length > 0 && (
                 <div className="space-y-1.5 pt-2">
-                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">
+                  <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-1">
                     Autres Catégories ({unbudgetedCategories.length})
                   </span>
                   <div className="bg-white border border-zinc-200/80 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
@@ -693,7 +693,7 @@ export function BudgetsView({
 
           {/* Section Header: MES POTS · X & + Nouveau pot */}
           <div className="flex justify-between items-center px-1 pt-1">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
               Mes Pots · {savingsList.length}
             </span>
             {onOpenCreateSavings && (

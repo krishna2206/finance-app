@@ -111,7 +111,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
       ) : (
         Object.entries(groupedTransactions).map(([dateKey, txns]) => (
           <div key={dateKey} className="space-y-1.5">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider px-1 block capitalize">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider px-1 block capitalize">
               {formatDateGroupLabel(dateKey)}
             </span>
             <InsetGroupedCard>

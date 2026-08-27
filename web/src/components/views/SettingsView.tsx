@@ -11,11 +11,6 @@ import { formatAmount, formatCurrency } from '../../utils/formatters';
 import { api } from '../../services/api';
 import {
   AltArrowLeftLinearIcon,
-  UserCircleBoldIcon,
-  TagBoldIcon,
-  WalletBoldIcon,
-  CpuBoldIcon,
-  DatabaseBoldIcon,
   TrashBinTrashLinearIcon,
   PenNewSquareLinearIcon,
   AddBoldIcon,
@@ -171,10 +166,9 @@ export function SettingsView({
       </div>
 
       {/* 2. Section: Mon Profil & Cibles */}
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-2 px-1">
-          <UserCircleBoldIcon size={16} className="text-zinc-700" />
-          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div>
+        <div className="px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
             Profil & Cibles Mensuelles
           </h2>
         </div>
@@ -268,14 +262,11 @@ export function SettingsView({
       </div>
 
       {/* 3. Section: Gestion des Catégories */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <TagBoldIcon size={16} className="text-zinc-700" />
-            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Catégories
-            </h2>
-          </div>
+      <div>
+        <div className="flex items-center justify-between px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+            Catégories
+          </h2>
 
           <button
             type="button"
@@ -350,15 +341,12 @@ export function SettingsView({
         </div>
       </div>
 
-      {/* 4. Section: Mes Comptes & Portefeuilles */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <WalletBoldIcon size={16} className="text-zinc-700" />
-            <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
-              Mes Comptes
-            </h2>
-          </div>
+      {/* 4. Section: Mes Comptes */}
+      <div>
+        <div className="flex items-center justify-between px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+            Mes Comptes
+          </h2>
 
           <button
             type="button"
@@ -417,10 +405,9 @@ export function SettingsView({
       </div>
 
       {/* 5. Section: Agent IA & Automatisation */}
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-2 px-1">
-          <CpuBoldIcon size={16} className="text-zinc-700" />
-          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div>
+        <div className="px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
             Agent IA & Automatisation
           </h2>
         </div>
@@ -456,10 +443,9 @@ export function SettingsView({
       </div>
 
       {/* 6. Section: Sauvegarde & Données */}
-      <div className="space-y-2.5">
-        <div className="flex items-center gap-2 px-1">
-          <DatabaseBoldIcon size={16} className="text-zinc-700" />
-          <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+      <div>
+        <div className="px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
             Données & Sauvegarde
           </h2>
         </div>

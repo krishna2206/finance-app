@@ -12,7 +12,6 @@ import { WalletLogo } from '../common/WalletLogo';
 import { Transaction } from '../../types/models';
 import { formatAmount, formatDateGroupLabel } from '../../utils/formatters';
 import {
-  BillListLinearIcon,
   AltArrowRightLinearIcon,
   AddLinearIcon,
   Safe2BoldIcon,
@@ -231,7 +230,7 @@ export function DashboardView({
 
       {/* 3. Section MES COMPTES (Horizontal Carousel) */}
       <div>
-        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-2 px-0.5">
+        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-2 px-1">
           Mes Comptes
         </span>
 
@@ -271,7 +270,7 @@ export function DashboardView({
 
       {/* 4. Section CE MOIS (2 Tuiles Dépensé & Rythme) */}
       <div>
-        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-2 px-0.5">
+        <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-2 px-1">
           Ce Mois
         </span>
 
@@ -393,17 +392,14 @@ export function DashboardView({
 
       {/* 7. Section TRANSACTIONS RÉCENTES */}
       <div className="pt-1">
-        <div className="flex justify-between items-center mb-2 px-0.5">
-          <div className="flex items-center gap-1.5 text-zinc-400">
-            <BillListLinearIcon size={15} />
-            <span className="text-[11px] font-bold uppercase tracking-wider">
-              Transactions Récentes
-            </span>
-          </div>
+        <div className="flex justify-between items-center mb-2 px-1">
+          <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+            Transactions Récentes
+          </span>
 
           <button
             onClick={onNavigateToTransactions}
-            className="flex items-center gap-1 text-xs font-bold text-zinc-900 hover:text-emerald-600 transition-colors cursor-pointer"
+            className="flex items-center gap-1 text-xs font-bold text-zinc-900 hover:text-zinc-700 transition-colors cursor-pointer"
           >
             <span>Voir tout</span>
             <AltArrowRightLinearIcon size={14} />

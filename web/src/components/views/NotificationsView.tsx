@@ -111,7 +111,7 @@ export function NotificationsView({
                         <ShieldCheckBoldIcon size={18} />
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block">
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
                           Bilan de {periodLabel}
                         </span>
                         <h3 className="text-base font-black tracking-tight text-white mt-0.5">
