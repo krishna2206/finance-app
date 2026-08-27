@@ -191,3 +191,56 @@ export interface CadenceMetrics {
   remainingDays: number;
   dailyBurnRate: number;
 }
+
+export interface CategorySavingsBreakdown {
+  categoryId: string;
+  name: string;
+  color: string;
+  icon: string;
+  monthlyLimit: number;
+  spent: number;
+  surplus: number;
+  isOverspent: boolean;
+  overspentAmount: number;
+  isEssential: boolean;
+  isFixed: boolean;
+}
+
+export interface MonthlySavingsReport {
+  period: string; // 'YYYY-MM'
+  totalBudget: number;
+  totalSpent: number;
+  totalSurplus: number;
+  totalOverspent: number;
+  netSavings: number;
+  savingsRate: number;
+  hasBudgets: boolean;
+  categories: CategorySavingsBreakdown[];
+}
+
+export interface MonthlyHistoricalStats {
+  period: string;
+  totalIncome: number;
+  totalExpenses: number;
+  totalBudgetAllocated: number;
+  totalBudgetSpent: number;
+  totalSurplus: number;
+  totalSavingsDeposited: number;
+  netCashflow: number;
+}
+
+export type NotificationType = 'MONTHLY_SETTLEMENT' | 'BUDGET_ALERT' | 'SAVINGS_MILESTONE' | 'AI_INSIGHT';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  timestamp: number;
+  isRead: boolean;
+  period?: string;
+  savingsAmount?: number;
+  categoryId?: string;
+  metadata?: Record<string, any>;
+}
+

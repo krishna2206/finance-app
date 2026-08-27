@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useSavingsStore } from '../../stores/useSavingsStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
+import { useNotificationStore } from '../../stores/useNotificationStore';
 import { DashboardHeader } from '../dashboard/DashboardHeader';
+import { MonthlySettlementCard } from '../dashboard/MonthlySettlementCard';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { WalletLogo } from '../common/WalletLogo';
@@ -26,6 +28,8 @@ interface DashboardViewProps {
   onNavigateToBudgets?: () => void;
   onOpenAddWallet?: () => void;
   onOpenSavingsAction?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenSavingsWithAmount?: (amount: number, period?: string) => void;
 }
 
 export function DashboardView({
@@ -34,6 +38,8 @@ export function DashboardView({
   onNavigateToBudgets,
   onOpenAddWallet,
   onOpenSavingsAction,
+  onOpenNotifications,
+  onOpenSavingsWithAmount,
 }: DashboardViewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -43,11 +49,20 @@ export function DashboardView({
   const categories = useBudgetStore(state => state.categories);
   const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
 
+  const pendingSettlementReport = useNotificationStore(state => state.pendingSettlementReport);
+  const checkMonthlySettlements = useNotificationStore(state => state.checkMonthlySettlements);
+  const dismissSettlement = useNotificationStore(state => state.dismissSettlement);
+  const unreadNotificationsCount = useNotificationStore(state => state.getUnreadCount());
+
   const loadWallets = useWalletStore(state => state.loadWallets);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
   const loadSettings = useSettingsStore(state => state.loadSettings);
+
+  useEffect(() => {
+    checkMonthlySettlements();
+  }, [checkMonthlySettlements]);
 
   const spendableWallets = useMemo(() => {
     return Object.values(wallets).filter(w => w.isSpendable);
@@ -193,7 +208,24 @@ export function DashboardView({
         userName={settings?.userName || 'Krishna'}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
+        onOpenNotifications={onOpenNotifications}
+        unreadNotificationsCount={unreadNotificationsCount}
       />
+
+      {/* 1.1 Optional Contextual Monthly Settlement Banner */}
+      {pendingSettlementReport && (
+        <MonthlySettlementCard
+          report={pendingSettlementReport}
+          onSaveSurplus={(amount) => {
+            if (onOpenSavingsWithAmount) {
+              onOpenSavingsWithAmount(amount, pendingSettlementReport.period);
+            } else if (onOpenSavingsAction) {
+              onOpenSavingsAction();
+            }
+          }}
+          onDismiss={() => dismissSettlement(pendingSettlementReport.period)}
+        />
+      )}
 
       {/* 2. Hero Section: DISPONIBLE */}
       <div className="pt-0.5 pb-1 space-y-1">

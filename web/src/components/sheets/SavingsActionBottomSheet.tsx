@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useSavingsStore } from '../../stores/useSavingsStore';
@@ -18,6 +18,7 @@ interface SavingsActionBottomSheetProps {
   onClose: () => void;
   savings?: Savings | null;
   defaultAction?: SavingsActionType;
+  defaultAmount?: number;
 }
 
 export function SavingsActionBottomSheet({
@@ -25,11 +26,23 @@ export function SavingsActionBottomSheet({
   onClose,
   savings,
   defaultAction = 'DEPOSIT',
+  defaultAmount,
 }: SavingsActionBottomSheetProps) {
   const [actionType, setActionType] = useState<SavingsActionType>(defaultAction);
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(defaultAmount ? String(defaultAmount) : '');
   const [selectedWalletId, setSelectedWalletId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultAmount && defaultAmount > 0) {
+        setAmount(String(defaultAmount));
+      } else {
+        setAmount('');
+      }
+      setActionType(defaultAction);
+    }
+  }, [isOpen, defaultAmount, defaultAction]);
 
   const wallets = useWalletStore(state => state.wallets);
   const savingsList = useSavingsStore(state => state.savings);

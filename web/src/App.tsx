@@ -9,6 +9,7 @@ import { OnboardingView } from './components/onboarding/OnboardingView';
 import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
 import { BudgetsView } from './components/views/BudgetsView';
+import { NotificationsView } from './components/views/NotificationsView';
 import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
 import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
@@ -59,6 +60,9 @@ export function App() {
   const [isSavingsActionOpen, setIsSavingsActionOpen] = useState(false);
   const [selectedSavingsForAction, setSelectedSavingsForAction] = useState<Savings | null>(null);
   const [savingsDefaultAction, setSavingsDefaultAction] = useState<SavingsActionType>('DEPOSIT');
+  const [savingsDefaultAmount, setSavingsDefaultAmount] = useState<number | undefined>(undefined);
+
+  const [isNotificationsViewOpen, setIsNotificationsViewOpen] = useState(false);
 
   const [isGoalActionOpen, setIsGoalActionOpen] = useState(false);
   const [selectedGoalForAction, setSelectedGoalForAction] = useState<SavingsGoal | null>(null);
@@ -137,40 +141,65 @@ export function App() {
                   }}
                   className="w-full transform-gpu will-change-transform"
                 >
-                  {activeTab === 'dashboard' && (
-                    <DashboardView
-                      onSelectTransaction={setSelectedTransaction}
-                      onNavigateToTransactions={() => handleTabChange('transactions')}
-                      onNavigateToBudgets={() => handleTabChange('budgets')}
-                      onOpenAddWallet={() => setIsAddWalletOpen(true)}
-                      onOpenSavingsAction={() => setIsSavingsActionOpen(true)}
-                    />
-                  )}
-
-                  {activeTab === 'transactions' && (
-                    <TransactionsView onSelectTransaction={setSelectedTransaction} />
-                  )}
-
-                  {activeTab === 'budgets' && (
-                    <BudgetsView
-                      onEditCategory={setEditingCategory}
-                      onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
-                      onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
-                      onOpenCreateGoal={(savingsId) => {
-                        setCreateGoalDefaultSavingsId(savingsId);
-                        setIsCreateGoalOpen(true);
-                      }}
-                      onOpenSavingsAction={(s, act) => {
-                        setSelectedSavingsForAction(s);
-                        setSavingsDefaultAction(act);
+                  {isNotificationsViewOpen ? (
+                    <NotificationsView
+                      onBack={() => setIsNotificationsViewOpen(false)}
+                      onOpenSavingsWithAmount={(amount) => {
+                        setSavingsDefaultAmount(amount);
+                        setSelectedSavingsForAction(null);
+                        setSavingsDefaultAction('DEPOSIT');
                         setIsSavingsActionOpen(true);
                       }}
-                      onOpenGoalAction={(g, act) => {
-                        setSelectedGoalForAction(g);
-                        setGoalDefaultAction(act);
-                        setIsGoalActionOpen(true);
-                      }}
                     />
+                  ) : (
+                    <>
+                      {activeTab === 'dashboard' && (
+                        <DashboardView
+                          onSelectTransaction={setSelectedTransaction}
+                          onNavigateToTransactions={() => handleTabChange('transactions')}
+                          onNavigateToBudgets={() => handleTabChange('budgets')}
+                          onOpenAddWallet={() => setIsAddWalletOpen(true)}
+                          onOpenSavingsAction={() => {
+                            setSavingsDefaultAmount(undefined);
+                            setIsSavingsActionOpen(true);
+                          }}
+                          onOpenNotifications={() => setIsNotificationsViewOpen(true)}
+                          onOpenSavingsWithAmount={(amount) => {
+                            setSavingsDefaultAmount(amount);
+                            setSelectedSavingsForAction(null);
+                            setSavingsDefaultAction('DEPOSIT');
+                            setIsSavingsActionOpen(true);
+                          }}
+                        />
+                      )}
+
+                      {activeTab === 'transactions' && (
+                        <TransactionsView onSelectTransaction={setSelectedTransaction} />
+                      )}
+
+                      {activeTab === 'budgets' && (
+                        <BudgetsView
+                          onEditCategory={setEditingCategory}
+                          onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
+                          onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
+                          onOpenCreateGoal={(savingsId) => {
+                            setCreateGoalDefaultSavingsId(savingsId);
+                            setIsCreateGoalOpen(true);
+                          }}
+                          onOpenSavingsAction={(s, act) => {
+                            setSelectedSavingsForAction(s);
+                            setSavingsDefaultAction(act);
+                            setSavingsDefaultAmount(undefined);
+                            setIsSavingsActionOpen(true);
+                          }}
+                          onOpenGoalAction={(g, act) => {
+                            setSelectedGoalForAction(g);
+                            setGoalDefaultAction(act);
+                            setIsGoalActionOpen(true);
+                          }}
+                        />
+                      )}
+                    </>
                   )}
                 </motion.div>
               </AnimatePresence>
@@ -248,9 +277,11 @@ export function App() {
               onClose={() => {
                 setIsSavingsActionOpen(false);
                 setSelectedSavingsForAction(null);
+                setSavingsDefaultAmount(undefined);
               }}
               savings={selectedSavingsForAction}
               defaultAction={savingsDefaultAction}
+              defaultAmount={savingsDefaultAmount}
             />
           </div>
         </motion.div>

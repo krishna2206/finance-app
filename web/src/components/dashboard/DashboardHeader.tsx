@@ -3,18 +3,23 @@ import {
   HamburgerMenuLinearIcon,
   UserCircleLinearIcon,
   RestartLinearIcon,
+  BellLinearIcon,
 } from '@solar-icons/react';
 
 interface DashboardHeaderProps {
   userName?: string;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
 }
 
 export function DashboardHeader({
   userName = 'Krishna',
   onRefresh,
   isRefreshing = false,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
 }: DashboardHeaderProps) {
   const formattedDate = useMemo(() => {
     const d = new Date();
@@ -52,6 +57,20 @@ export function DashboardHeader({
             className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer"
           >
             <RestartLinearIcon size={18} className={isRefreshing ? 'animate-spin text-emerald-600' : ''} />
+          </button>
+        )}
+
+        {/* Notifications Bell */}
+        {onOpenNotifications && (
+          <button
+            onClick={onOpenNotifications}
+            title="Notifications et Bilans"
+            className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors cursor-pointer relative"
+          >
+            <BellLinearIcon size={19} />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+            )}
           </button>
         )}
 

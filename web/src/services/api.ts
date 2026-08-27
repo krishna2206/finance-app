@@ -7,6 +7,8 @@ import {
   Transaction,
   WalletSource,
   AppSettings,
+  MonthlySavingsReport,
+  MonthlyHistoricalStats,
 } from '../types/models';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
@@ -298,6 +300,20 @@ export const api = {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Failed to clear transactions');
+    return res.json();
+  },
+
+  // Analytics & Stats
+  async getMonthlySavingsStats(period?: string): Promise<MonthlySavingsReport> {
+    const url = period ? `${API_BASE}/stats/monthly-savings?period=${period}` : `${API_BASE}/stats/monthly-savings`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch monthly savings stats');
+    return res.json();
+  },
+
+  async getStatsHistory(monthsCount = 6): Promise<MonthlyHistoricalStats[]> {
+    const res = await fetch(`${API_BASE}/stats/history?months=${monthsCount}`);
+    if (!res.ok) throw new Error('Failed to fetch stats history');
     return res.json();
   },
 };
