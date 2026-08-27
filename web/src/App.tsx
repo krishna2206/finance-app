@@ -10,6 +10,7 @@ import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
 import { BudgetsView } from './components/views/BudgetsView';
 import { NotificationsView } from './components/views/NotificationsView';
+import { SettingsView } from './components/views/SettingsView';
 import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
 import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
@@ -29,23 +30,55 @@ const TAB_ORDER: Record<ActiveTab, number> = {
   budgets: 2,
 };
 
+type NavDirection = number | 'push-right' | 'pop-right' | 'push-left' | 'pop-left';
+
 const slideVariants = {
-  enter: (direction: number) => ({
-    x: direction > 0 ? 60 : direction < 0 ? -60 : 0,
-    opacity: 0,
-  }),
+  enter: (direction: NavDirection) => {
+    if (direction === 'push-left') {
+      return { x: -60, opacity: 0 };
+    }
+    if (direction === 'pop-left') {
+      return { x: 30, opacity: 0 };
+    }
+    if (direction === 'push-right') {
+      return { x: 60, opacity: 0 };
+    }
+    if (direction === 'pop-right') {
+      return { x: -30, opacity: 0 };
+    }
+    const num = typeof direction === 'number' ? direction : 0;
+    return {
+      x: num > 0 ? 40 : num < 0 ? -40 : 0,
+      opacity: 0,
+    };
+  },
   center: {
     x: 0,
     opacity: 1,
   },
-  exit: (direction: number) => ({
-    x: direction > 0 ? -60 : direction < 0 ? 60 : 0,
-    opacity: 0,
-  }),
+  exit: (direction: NavDirection) => {
+    if (direction === 'push-left') {
+      return { x: 30, opacity: 0 };
+    }
+    if (direction === 'pop-left') {
+      return { x: -60, opacity: 0 };
+    }
+    if (direction === 'push-right') {
+      return { x: -30, opacity: 0 };
+    }
+    if (direction === 'pop-right') {
+      return { x: 60, opacity: 0 };
+    }
+    const num = typeof direction === 'number' ? direction : 0;
+    return {
+      x: num > 0 ? -40 : num < 0 ? 40 : 0,
+      opacity: 0,
+    };
+  },
 };
 
 export function App() {
-  const [[activeTab, direction], setTabState] = useState<[ActiveTab, number]>(['dashboard', 0]);
+  const [[activeTab, direction], setTabState] = useState<[ActiveTab, NavDirection]>(['dashboard', 0]);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -63,6 +96,7 @@ export function App() {
   const [savingsDefaultAmount, setSavingsDefaultAmount] = useState<number | undefined>(undefined);
 
   const [isNotificationsViewOpen, setIsNotificationsViewOpen] = useState(false);
+  const [isSettingsViewOpen, setIsSettingsViewOpen] = useState(false);
 
   const [isGoalActionOpen, setIsGoalActionOpen] = useState(false);
   const [selectedGoalForAction, setSelectedGoalForAction] = useState<SavingsGoal | null>(null);
@@ -85,10 +119,34 @@ export function App() {
   }, [loadSettings, loadWallets, loadSavingsAndGoals, loadBudgets, loadTransactions]);
 
   const handleTabChange = (newTab: ActiveTab) => {
+    setIsNotificationsViewOpen(false);
+    setIsSettingsViewOpen(false);
     if (newTab === activeTab) return;
     const newIndex = TAB_ORDER[newTab];
     const oldIndex = TAB_ORDER[activeTab];
     setTabState([newTab, newIndex > oldIndex ? 1 : -1]);
+  };
+
+  const openNotifications = () => {
+    setTabState([activeTab, 'push-right']);
+    setIsSettingsViewOpen(false);
+    setIsNotificationsViewOpen(true);
+  };
+
+  const closeNotifications = () => {
+    setTabState([activeTab, 'pop-right']);
+    setIsNotificationsViewOpen(false);
+  };
+
+  const openSettings = () => {
+    setTabState([activeTab, 'push-left']);
+    setIsNotificationsViewOpen(false);
+    setIsSettingsViewOpen(true);
+  };
+
+  const closeSettings = () => {
+    setTabState([activeTab, 'pop-left']);
+    setIsSettingsViewOpen(false);
   };
 
   // If settings are loading initially
@@ -101,6 +159,7 @@ export function App() {
   }
 
   const showOnboarding = Boolean(settings && !settings.onboardingCompleted);
+  const currentViewKey = isNotificationsViewOpen ? 'notifications' : isSettingsViewOpen ? 'settings' : activeTab;
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -127,29 +186,36 @@ export function App() {
           <div className="w-full max-w-[430px] min-h-screen bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col shadow-sm overflow-x-hidden px-4 pt-4 pb-28">
             {/* Active Tab View with Instant Simultaneous Directional Slide */}
             <main className="flex-1 relative w-full">
-              <AnimatePresence mode="popLayout" custom={direction} initial={false}>
+              <AnimatePresence mode="wait" custom={direction} initial={false}>
                 <motion.div
-                  key={activeTab}
+                  key={currentViewKey}
                   custom={direction}
                   variants={slideVariants}
                   initial="enter"
                   animate="center"
                   exit="exit"
                   transition={{
-                    duration: 0.13,
+                    duration: 0.18,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="w-full transform-gpu will-change-transform"
+                  className="w-full"
                 >
                   {isNotificationsViewOpen ? (
                     <NotificationsView
-                      onBack={() => setIsNotificationsViewOpen(false)}
+                      onBack={closeNotifications}
                       onOpenSavingsWithAmount={(amount) => {
                         setSavingsDefaultAmount(amount);
                         setSelectedSavingsForAction(null);
                         setSavingsDefaultAction('DEPOSIT');
                         setIsSavingsActionOpen(true);
                       }}
+                    />
+                  ) : isSettingsViewOpen ? (
+                    <SettingsView
+                      onBack={closeSettings}
+                      onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
+                      onOpenAddWallet={() => setIsAddWalletOpen(true)}
+                      onEditCategory={setEditingCategory}
                     />
                   ) : (
                     <>
@@ -163,7 +229,8 @@ export function App() {
                             setSavingsDefaultAmount(undefined);
                             setIsSavingsActionOpen(true);
                           }}
-                          onOpenNotifications={() => setIsNotificationsViewOpen(true)}
+                          onOpenNotifications={openNotifications}
+                          onOpenSettings={openSettings}
                           onOpenSavingsWithAmount={(amount) => {
                             setSavingsDefaultAmount(amount);
                             setSelectedSavingsForAction(null);

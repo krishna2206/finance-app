@@ -1,7 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
-import { useSavingsStore } from '../../stores/useSavingsStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
@@ -29,6 +28,7 @@ interface DashboardViewProps {
   onOpenAddWallet?: () => void;
   onOpenSavingsAction?: () => void;
   onOpenNotifications?: () => void;
+  onOpenSettings?: () => void;
   onOpenSavingsWithAmount?: (amount: number, period?: string) => void;
 }
 
@@ -39,10 +39,9 @@ export function DashboardView({
   onOpenAddWallet,
   onOpenSavingsAction,
   onOpenNotifications,
+  onOpenSettings,
   onOpenSavingsWithAmount,
 }: DashboardViewProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
   const settings = useSettingsStore(state => state.settings);
   const wallets = useWalletStore(state => state.wallets);
   const transactions = useTransactionStore(state => state.transactions);
@@ -53,12 +52,6 @@ export function DashboardView({
   const checkMonthlySettlements = useNotificationStore(state => state.checkMonthlySettlements);
   const dismissSettlement = useNotificationStore(state => state.dismissSettlement);
   const unreadNotificationsCount = useNotificationStore(state => state.getUnreadCount());
-
-  const loadWallets = useWalletStore(state => state.loadWallets);
-  const loadBudgets = useBudgetStore(state => state.loadBudgets);
-  const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
-  const loadTransactions = useTransactionStore(state => state.loadTransactions);
-  const loadSettings = useSettingsStore(state => state.loadSettings);
 
   useEffect(() => {
     checkMonthlySettlements();
@@ -172,18 +165,6 @@ export function DashboardView({
     return groups;
   }, [transactions]);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await Promise.all([
-      loadWallets(),
-      loadBudgets(),
-      loadSavingsAndGoals(),
-      loadTransactions(),
-      loadSettings(),
-    ]);
-    setIsRefreshing(false);
-  };
-
   const getWalletTileStyle = (type: string) => {
     switch (type) {
       case 'MVOLA':
@@ -206,8 +187,7 @@ export function DashboardView({
       {/* 1. Header (User greeting & date) */}
       <DashboardHeader
         userName={settings?.userName || 'Krishna'}
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
+        onOpenSettings={onOpenSettings}
         onOpenNotifications={onOpenNotifications}
         unreadNotificationsCount={unreadNotificationsCount}
       />
