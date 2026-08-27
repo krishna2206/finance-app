@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useSavingsStore } from '../../stores/useSavingsStore';
@@ -31,7 +31,10 @@ export function SavingsActionBottomSheet({
   const [actionType, setActionType] = useState<SavingsActionType>(defaultAction);
   const [amount, setAmount] = useState(defaultAmount ? String(defaultAmount) : '');
   const [selectedWalletId, setSelectedWalletId] = useState<string>('');
+  const [isFocused, setIsFocused] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -41,8 +44,10 @@ export function SavingsActionBottomSheet({
         setAmount('');
       }
       setActionType(defaultAction);
+      setIsFocused(true);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen, defaultAmount, defaultAction]);
+  }, [isOpen, defaultAmount, defaultAction, savings]);
 
   const wallets = useWalletStore(state => state.wallets);
   const savingsList = useSavingsStore(state => state.savings);
@@ -137,65 +142,105 @@ export function SavingsActionBottomSheet({
               </button>
             </div>
 
-            {/* Action Segmented Toggle */}
-            <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-100 rounded-2xl mb-4">
+            {/* Mode Segmented Toggle (QuickAdd Style) */}
+            <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-full mb-3">
               <button
                 type="button"
                 onClick={() => setActionType('DEPOSIT')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  isDeposit ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  isDeposit
+                    ? 'bg-zinc-900 text-white shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
                 }`}
               >
-                <ImportLinearIcon size={15} className="text-emerald-600" />
+                <ImportLinearIcon size={14} className={isDeposit ? 'text-white' : 'text-zinc-400'} />
                 <span>Épargner (Verser)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActionType('WITHDRAWAL')}
-                className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  !isDeposit ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                  !isDeposit
+                    ? 'bg-zinc-900 text-white shadow-xs'
+                    : 'text-zinc-500 hover:text-zinc-900'
                 }`}
               >
-                <ExportLinearIcon size={15} className="text-amber-600" />
+                <ExportLinearIcon size={14} className={!isDeposit ? 'text-white' : 'text-zinc-400'} />
                 <span>Débloquer / Retirer</span>
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Amount Input */}
-              <div className="text-center py-3 bg-zinc-50 rounded-2xl border border-zinc-200/80">
-                <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-widest block mb-1">
-                  {isDeposit ? 'Montant à sanctuariser' : 'Montant à débloquer'}
+              {/* Hero Floating Amount Input */}
+              <div
+                onClick={() => inputRef.current?.focus()}
+                className="relative py-2 flex flex-col items-center justify-center cursor-text select-none"
+              >
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
+                  {isDeposit ? 'Montant à verser' : 'Montant à débloquer'}
                 </span>
-                <div className="flex items-baseline justify-center gap-1">
+
+                <div className="relative flex items-center justify-center">
                   <input
+                    ref={inputRef}
                     autoFocus
                     type="text"
                     inputMode="numeric"
-                    value={amount ? formatAmount(amount) : ''}
-                    onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))}
-                    placeholder="0"
-                    className="text-3xl font-bold text-zinc-900 bg-transparent text-center focus:outline-none w-48 tabular-nums tracking-tight"
+                    pattern="[0-9]*"
+                    value={amount}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      if (val.length <= 10) setAmount(val);
+                    }}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-text"
                   />
-                  <span className="text-xl font-semibold text-zinc-500">Ar</span>
+
+                  <div className="flex items-baseline gap-1.5 pointer-events-none">
+                    <span
+                      className={`text-5xl font-black tracking-tight tabular-nums transition-colors duration-150 ${
+                        numericAmount > 0 ? 'text-zinc-900' : 'text-zinc-300'
+                      }`}
+                    >
+                      {numericAmount > 0 ? formatAmount(numericAmount) : '0'}
+                    </span>
+
+                    {/* Breathing Pill Cursor */}
+                    {isFocused && (
+                      <motion.div
+                        animate={{ opacity: [1, 0.15, 1] }}
+                        transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+                        className="w-[3px] h-9 bg-zinc-900 rounded-full shrink-0 -mx-0.5"
+                      />
+                    )}
+
+                    <span
+                      className={`text-2xl font-bold tracking-tight transition-colors duration-150 ${
+                        numericAmount > 0 ? 'text-zinc-900' : 'text-zinc-400'
+                      }`}
+                    >
+                      Ar
+                    </span>
+                  </div>
                 </div>
 
-                {/* Balance preview */}
-                {numericAmount > 0 && (
-                  <div className="mt-2 text-xs text-zinc-500">
-                    Nouveau solde pot : <strong className="text-emerald-600 font-bold tabular-nums">{formatCurrency(newSavingsBalance)}</strong>
+                {/* Balance Feedback */}
+                {numericAmount > 0 && !hasInsufficientSavings && !hasInsufficientSource && (
+                  <div className="mt-2 text-xs text-zinc-500 font-medium">
+                    Nouveau solde pot : <strong className="text-zinc-900 font-bold tabular-nums">{formatCurrency(newSavingsBalance)}</strong>
                   </div>
                 )}
 
                 {hasInsufficientSavings && (
-                  <div className="mt-2 text-xs font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200 inline-block">
+                  <div className="mt-2 text-xs font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">
                     Solde d'épargne insuffisant ({formatCurrency(currentSavingsBalance)})
                   </div>
                 )}
 
                 {hasInsufficientSource && (
-                  <div className="mt-2 text-xs font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200 inline-block">
+                  <div className="mt-2 text-xs font-semibold text-rose-600 bg-rose-50 px-3 py-1 rounded-full border border-rose-200">
                     Solde libre insuffisant ({formatCurrency(currentSourceBalance)})
                   </div>
                 )}
@@ -203,7 +248,7 @@ export function SavingsActionBottomSheet({
 
               {/* Spendable Wallet Selection */}
               <div>
-                <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5 px-1">
                   {isDeposit ? 'Depuis quel portefeuille ?' : 'Vers quel portefeuille virer ?'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -236,13 +281,11 @@ export function SavingsActionBottomSheet({
                 </div>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit Button (QuickAdd Style) */}
               <button
                 type="submit"
                 disabled={!isAmountValid || isSubmitting}
-                className={`w-full text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isDeposit ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-zinc-900 hover:bg-zinc-800'
-                }`}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
               >
                 {isSubmitting
                   ? 'Traitement en cours...'

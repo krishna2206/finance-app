@@ -58,19 +58,6 @@ function getGoalIcon(name: string) {
   return <TargetBoldIcon size={14} />;
 }
 
-function formatGoalDeadline(deadline?: string): string {
-  if (!deadline) return 'sans date';
-  try {
-    const d = new Date(deadline);
-    if (isNaN(d.getTime())) return 'sans date';
-    const month = d.toLocaleDateString('fr-FR', { month: 'long' });
-    const year = d.getFullYear();
-    return `objectif ${month} ${year}`;
-  } catch {
-    return 'sans date';
-  }
-}
-
 function getCategoryRecommendationSubtitle(
   cat: Category,
   stat?: { countThisMonth: number; totalThisMonth: number; historicalCount: number }
@@ -863,7 +850,7 @@ export function BudgetsView({
                               {/* Goal Sub-footer */}
                               <div className="flex items-center justify-between text-[11px] text-zinc-400 font-medium">
                                 <span className="tabular-nums">
-                                  {progress} % · {formatGoalDeadline(g.deadline)}
+                                  {progress} % financé
                                 </span>
                                 <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
                                   <button
@@ -895,34 +882,36 @@ export function BudgetsView({
                       </button>
                     )}
 
-                    {/* 4. Action Buttons */}
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => onOpenSavingsAction(s, 'DEPOSIT')}
-                        className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
-                      >
-                        <span>↓ Verser</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onOpenSavingsAction(s, 'WITHDRAWAL')}
-                        disabled={s.balance <= 0}
-                        className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        <span>Débloquer</span>
-                      </button>
-
-                      {potGoals.length > 0 && (
+                    {/* 4. Action Buttons (Aligned to the right) */}
+                    <div className="flex items-center justify-between pt-0.5">
+                      {potGoals.length > 0 ? (
                         <button
                           type="button"
                           onClick={() => onOpenCreateGoal(s.id)}
-                          className="text-xs font-bold text-zinc-500 hover:text-zinc-900 px-2.5 py-2 rounded-xl hover:bg-zinc-100 transition-colors cursor-pointer ml-auto flex items-center gap-1"
+                          className="text-xs font-bold text-zinc-600 hover:text-zinc-900 py-1.5 px-2.5 rounded-xl hover:bg-zinc-100 transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <span>+ Projet</span>
                         </button>
-                      )}
+                      ) : <div />}
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          type="button"
+                          onClick={() => onOpenSavingsAction(s, 'DEPOSIT')}
+                          className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 shadow-2xs cursor-pointer active:scale-98 transition-all"
+                        >
+                          <span>↓ Verser</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenSavingsAction(s, 'WITHDRAWAL')}
+                          disabled={s.balance <= 0}
+                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1 cursor-pointer active:scale-98 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <span>Débloquer</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
