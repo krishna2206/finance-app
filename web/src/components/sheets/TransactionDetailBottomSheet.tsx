@@ -16,6 +16,7 @@ import {
   TrashBinTrashLinearIcon,
   CalendarLinearIcon,
   Bag2LinearIcon,
+  DocumentAddLinearIcon,
 } from '@solar-icons/react';
 
 interface TransactionDetailBottomSheetProps {
@@ -155,6 +156,20 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                   {formatTransactionDateTime(transaction.date)}
                 </span>
               </InsetGroupedRow>
+
+              {transaction.note && (
+                <InsetGroupedRow>
+                  <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
+                    <div className="w-6 h-6 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center shrink-0 shadow-2xs">
+                      <DocumentAddLinearIcon size={14} />
+                    </div>
+                    <span>Note / Remarque</span>
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-900 text-right max-w-[180px] truncate">
+                    {transaction.note}
+                  </span>
+                </InsetGroupedRow>
+              )}
             </InsetGroupedCard>
 
             {/* Itemized List if available */}

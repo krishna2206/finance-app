@@ -136,7 +136,7 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
               {/* Form Fields Card (Inset Grouped) */}
               <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
                 {/* Name Input */}
-                <div className="p-3">
+                <div className="p-3.5">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
                     Nom du Portefeuille
                   </label>
@@ -145,12 +145,12 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Ex: MVola Perso, Compte BNI, Orange Money..."
-                    className="w-full bg-transparent text-xs font-bold text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>
 
                 {/* Account / Phone Number (Optional) */}
-                <div className="p-3">
+                <div className="p-3.5">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
                     Numéro SIM / RIB <span className="text-zinc-300 font-normal normal-case">(Optionnel)</span>
                   </label>
@@ -159,7 +159,7 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
                     value={accountNumber}
                     onChange={e => setAccountNumber(e.target.value)}
                     placeholder="Ex: 034 11 222 33..."
-                    className="w-full bg-transparent text-xs font-medium text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>
 

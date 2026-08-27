@@ -39,6 +39,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [amount, setAmount] = useState('');
   const [isFocused, setIsFocused] = useState(true);
   const [title, setTitle] = useState('');
+  const [note, setNote] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   // Wallets selection
@@ -190,6 +191,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
           title: finalTitle,
           categoryId: selectedCategory?.id,
           date: dateIso,
+          note: note.trim() || undefined,
           source: 'MANUAL',
         });
       } else if (mode === 'INCOME') {
@@ -206,6 +208,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
           title: finalTitle,
           categoryId: selectedCategory?.id,
           date: dateIso,
+          note: note.trim() || undefined,
           source: 'MANUAL',
         });
       } else {
@@ -229,12 +232,14 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
           title: title.trim() || defaultTitle,
           categoryId: feeCategory?.id || categories[0]?.id,
           date: dateIso,
+          note: note.trim() || undefined,
           source: 'MANUAL',
         });
       }
 
       setAmount('');
       setTitle('');
+      setNote('');
       setSelectedDate(new Date());
       onClose();
     } catch (err) {
@@ -429,20 +434,27 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
 
               {/* Inset Grouped Rows */}
               <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
-                {/* 1. Description Row */}
-                <div className="px-4 py-3 flex items-center gap-2.5">
+                {/* 1. Description / Commerce */}
+                <div className="px-4 py-3">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    {mode === 'EXPENSE'
+                      ? 'Description / Commerce'
+                      : mode === 'INCOME'
+                        ? 'Source du Revenu'
+                        : 'Motif du Transfert'}
+                  </label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder={
                       mode === 'EXPENSE'
-                        ? 'Description (ex: Marché Anosibe, Déjeuner...)'
+                        ? 'Ex: Marché Anosibe, Déjeuner, Essence...'
                         : mode === 'INCOME'
-                          ? 'Description (ex: Salaire, Mission freelance...)'
-                          : 'Note (ex: Retrait Cash Point, Recharge MVola...)'
+                          ? 'Ex: Salaire, Mission freelance, Vente...'
+                          : 'Ex: Retrait Cash Point, Recharge MVola...'
                     }
-                    className="w-full bg-transparent text-xs font-medium text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>
 
@@ -528,6 +540,20 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                     <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                   </div>
                 </button>
+
+                {/* 6. Note / Remarque Optionnelle */}
+                <div className="px-4 py-3">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                    Note / Remarque <span className="text-zinc-300 font-normal normal-case">(Optionnel)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Ex: Reçu n°42, détails..."
+                    className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                  />
+                </div>
               </div>
 
               {/* Submit Button */}

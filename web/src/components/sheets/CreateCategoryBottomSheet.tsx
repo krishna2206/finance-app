@@ -147,7 +147,7 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
 
               {/* Form Fields Card */}
               <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
-                <div className="p-3">
+                <div className="p-3.5">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
                     Nom de la Catégorie
                   </label>
@@ -156,7 +156,7 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Ex: Épicerie, Salle de sport, Abonnement..."
-                    className="w-full bg-transparent text-xs font-bold text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                    className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>
 
