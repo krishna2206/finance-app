@@ -167,3 +167,41 @@ export interface CadenceMetrics {
   remainingDays: number;
   dailyBurnRate: number;
 }
+
+export interface CategorySavingsBreakdown {
+  categoryId: string;
+  name: string;
+  color: string;
+  icon: string;
+  monthlyLimit: number;
+  spent: number;
+  surplus: number;
+  isOverspent: boolean;
+  overspentAmount: number;
+  isEssential: boolean;
+  isFixed: boolean;
+}
+
+export interface MonthlySavingsReport {
+  period: string; // 'YYYY-MM'
+  totalBudget: number;
+  totalSpent: number;
+  totalSurplus: number;
+  totalOverspent: number;
+  netSavings: number;
+  savingsRate: number;
+  hasBudgets: boolean;
+  categories: CategorySavingsBreakdown[];
+}
+
+export interface MonthlyHistoricalStats {
+  period: string;
+  totalIncome: number;
+  totalExpenses: number;
+  totalBudgetAllocated: number;
+  totalBudgetSpent: number;
+  totalSurplus: number;
+  totalSavingsDeposited: number;
+  netCashflow: number;
+}
+
