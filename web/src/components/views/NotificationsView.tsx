@@ -48,14 +48,9 @@ export function NotificationsView({
             <AltArrowLeftLinearIcon size={20} />
           </button>
 
-          <div>
-            <h1 className="text-xl font-black text-zinc-900 tracking-tight">
-              Notifications & Bilans
-            </h1>
-            <p className="text-xs text-zinc-500 font-medium">
-              {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'À jour'}
-            </p>
-          </div>
+          <h1 className="text-xl font-black text-zinc-900 tracking-tight">
+            Notifications
+          </h1>
         </div>
 
         {unreadCount > 0 && (

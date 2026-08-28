@@ -158,14 +158,9 @@ export function SettingsView({
           <AltArrowLeftLinearIcon size={20} />
         </button>
 
-        <div>
-          <h1 className="text-xl font-black text-zinc-900 tracking-tight">
-            Paramètres & Gestion
-          </h1>
-          <p className="text-xs text-zinc-500 font-medium">
-            Profil, catégories, comptes & IA
-          </p>
-        </div>
+        <h1 className="text-xl font-black text-zinc-900 tracking-tight">
+          Paramètres
+        </h1>
       </div>
 
       {/* 2. Section: Mon Profil & Cibles */}

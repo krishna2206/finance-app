@@ -5,6 +5,8 @@ import { useSavingsStore } from './stores/useSavingsStore';
 import { useBudgetStore } from './stores/useBudgetStore';
 import { useTransactionStore } from './stores/useTransactionStore';
 import { useSettingsStore } from './stores/useSettingsStore';
+import { initSmsListener } from './services/smsListener';
+import { ToastContainer } from './components/common/ToastContainer';
 import { OnboardingView } from './components/onboarding/OnboardingView';
 import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
@@ -116,6 +118,11 @@ export function App() {
     loadSavingsAndGoals();
     loadBudgets();
     loadTransactions();
+
+    const cleanupSms = initSmsListener();
+    return () => {
+      cleanupSms();
+    };
   }, [loadSettings, loadWallets, loadSavingsAndGoals, loadBudgets, loadTransactions]);
 
   const handleTabChange = (newTab: ActiveTab) => {
@@ -162,25 +169,27 @@ export function App() {
   const currentViewKey = isNotificationsViewOpen ? 'notifications' : isSettingsViewOpen ? 'settings' : activeTab;
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      {showOnboarding ? (
-        <motion.div
-          key="onboarding-screen"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 0.96, y: -12 }}
-          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed inset-0 w-full h-full"
-        >
-          <OnboardingView />
-        </motion.div>
-      ) : (
+    <>
+      <ToastContainer />
+      <AnimatePresence mode="wait" initial={false}>
+        {showOnboarding ? (
+          <motion.div
+            key="onboarding-screen"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.96, y: -12 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 w-full h-full"
+          >
+            <OnboardingView />
+          </motion.div>
+        ) : (
         <motion.div
           key="dashboard-app"
           initial={{ opacity: 0, scale: 1.02, y: 14 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="min-h-screen bg-zinc-100 flex justify-center text-zinc-900 selection:bg-zinc-900 selection:text-white"
+          className="min-h-screen bg-zinc-100 flex justify-center text-zinc-900 selection:bg-zinc-900 selection:text-white relative"
         >
           {/* Mobile-Only Frame (Locked in Portrait ~430px width) */}
           <div className="w-full max-w-[430px] min-h-screen bg-zinc-50 border-x border-zinc-200/80 relative flex flex-col shadow-sm px-4 pb-28">
@@ -354,6 +363,7 @@ export function App() {
         </motion.div>
       )}
     </AnimatePresence>
+    </>
   );
 }
 

@@ -9,6 +9,7 @@ import { budgetsRouter } from './routes/budgets';
 import { transactionsRouter } from './routes/transactions';
 import { settingsRouter } from './routes/settings';
 import { statsRouter } from './routes/stats';
+import { smsRouter } from './routes/sms';
 
 const app = new Hono();
 
@@ -30,6 +31,7 @@ app.route('/api/categories', categoriesRouter);
 app.route('/api/budgets', budgetsRouter);
 app.route('/api/transactions', transactionsRouter);
 app.route('/api/stats', statsRouter);
+app.route('/api/sms', smsRouter);
 
 const DEFAULT_PORT = 4880;
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULT_PORT;
