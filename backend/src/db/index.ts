@@ -1,10 +1,13 @@
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
+import path from 'path';
 import * as schema from './schema';
 import { seedDatabase } from './seed';
 
 let sqliteDb: Database | null = null;
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
+
+const DB_PATH = process.env.DB_PATH || path.resolve(import.meta.dir, '../../finance.db');
 
 const TABLE_CREATION_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS wallets (
@@ -141,7 +144,7 @@ const TABLE_CREATION_STATEMENTS = [
 
 export function getDatabase() {
   if (!dbInstance) {
-    sqliteDb = new Database('finance.db', { create: true });
+    sqliteDb = new Database(DB_PATH, { create: true });
     sqliteDb.exec('PRAGMA journal_mode = WAL;');
     sqliteDb.exec('PRAGMA foreign_keys = ON;');
 
