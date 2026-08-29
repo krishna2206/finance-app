@@ -80,6 +80,22 @@ export const transactionRepository = {
     return this.getTransactionById(id)!;
   },
 
+  updateTransaction(id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'title' | 'note'>>): Transaction | null {
+    const db = getDatabase();
+    const existing = this.getTransactionById(id);
+    if (!existing) return null;
+
+    const now = Date.now();
+    db.update(transactions).set({
+      categoryId: updates.categoryId !== undefined ? updates.categoryId : (existing.categoryId || null),
+      title: updates.title !== undefined ? updates.title : existing.title,
+      note: updates.note !== undefined ? updates.note : (existing.note || null),
+      updatedAt: now,
+    }).where(eq(transactions.id, id)).run();
+
+    return this.getTransactionById(id);
+  },
+
   deleteTransaction(id: string): boolean {
     const db = getDatabase();
     const existing = this.getTransactionById(id);

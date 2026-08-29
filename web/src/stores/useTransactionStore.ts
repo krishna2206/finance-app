@@ -11,6 +11,7 @@ interface TransactionState {
 
   loadTransactions: () => Promise<void>;
   addTransaction: (txnData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'synced'>) => Promise<Transaction>;
+  updateTransaction: (id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'title' | 'note'>>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
   setFilter: (filter: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
 }
@@ -38,6 +39,14 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       useSavingsStore.getState().loadSavingsAndGoals(),
     ]);
     return created;
+  },
+
+  updateTransaction: async (id, updates) => {
+    const updated = await api.updateTransaction(id, updates);
+    set(state => ({
+      transactions: state.transactions.map(t => (t.id === id ? updated : t)),
+    }));
+    return updated;
   },
 
   deleteTransaction: async (id) => {

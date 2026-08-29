@@ -147,9 +147,9 @@ export function DashboardView({
     return worstCat;
   }, [expenseCategories, spendingMap]);
 
-  // 5. Conditional Alerts: Uncategorized or SMS transactions
+  // 5. Conditional Alerts: Uncategorized transactions
   const uncategorizedTransactionsCount = useMemo(() => {
-    return transactions.filter(t => !t.categoryId || t.source === 'SMS_AUTO').length;
+    return transactions.filter(t => !t.categoryId || t.categoryId === 'cat_uncategorized').length;
   }, [transactions]);
 
   // Group top recent transactions

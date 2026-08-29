@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Transaction } from '../../types/models';
+import { Transaction, Category } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
+import { useToastStore } from '../../stores/useToastStore';
 import { TransactionItemRow } from '../transactions/TransactionItemRow';
 import { LocationBadge } from '../transactions/LocationBadge';
 import { WalletLogo } from '../common/WalletLogo';
@@ -17,6 +18,8 @@ import {
   CalendarLinearIcon,
   Bag2LinearIcon,
   DocumentAddLinearIcon,
+  PenNewSquareLinearIcon,
+  CheckCircleBoldIcon,
 } from '@solar-icons/react';
 
 interface TransactionDetailBottomSheetProps {
@@ -28,9 +31,12 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
   const categories = useBudgetStore(state => state.categories);
   const wallets = useWalletStore(state => state.wallets);
   const deleteTransaction = useTransactionStore(state => state.deleteTransaction);
+  const updateTransaction = useTransactionStore(state => state.updateTransaction);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSelectingCategory, setIsSelectingCategory] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
 
   if (!transaction) return null;
 
@@ -53,6 +59,26 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
     }
   };
 
+  const handleSelectCategory = async (cat: Category) => {
+    setIsUpdatingCategory(true);
+    try {
+      await updateTransaction(transaction.id, { categoryId: cat.id });
+      setIsSelectingCategory(false);
+      useToastStore.getState().showToast({
+        title: 'Catégorie modifiée',
+        description: cat.name,
+        type: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to update category:', err);
+    } finally {
+      setIsUpdatingCategory(false);
+    }
+  };
+
+  // Filter categories matching the flow of the transaction (Expense or Income)
+  const selectableCategories = categories.filter(c => isDebit ? c.type === 'EXPENSE' : c.type === 'INCOME');
+
   return (
     <>
       <AnimatePresence>
@@ -63,7 +89,10 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.18 }}
-            onClick={onClose}
+            onClick={() => {
+              if (isSelectingCategory) setIsSelectingCategory(false);
+              else onClose();
+            }}
             className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
           />
 
@@ -124,18 +153,25 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
 
             {/* Metadata Inset Grouped Card */}
             <InsetGroupedCard className="mb-4">
-              <InsetGroupedRow>
+              {/* Interactive Category Row (Clickable to change category) */}
+              <div
+                onClick={() => setIsSelectingCategory(true)}
+                className="p-3.5 flex items-center justify-between hover:bg-zinc-50 active:bg-zinc-100 transition-colors cursor-pointer select-none"
+              >
                 <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                   <div
-                    style={{ backgroundColor: category?.color || '#10B981' }}
+                    style={{ backgroundColor: category?.color || '#71717A' }}
                     className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
                   >
                     <CategoryIcon name={category?.icon || category?.name} weight="Bold" size={14} />
                   </div>
                   <span>Catégorie</span>
                 </div>
-                <span className="text-xs font-semibold text-zinc-900">{category?.name || 'Inconnue'}</span>
-              </InsetGroupedRow>
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900">
+                  <span>{category?.name || 'Non catégorisé'}</span>
+                  <PenNewSquareLinearIcon size={14} className="text-zinc-400" />
+                </div>
+              </div>
 
               <InsetGroupedRow>
                 <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
@@ -189,6 +225,85 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             )}
           </motion.div>
         </div>
+      </AnimatePresence>
+
+      {/* Category Selection Sub-Sheet */}
+      <AnimatePresence>
+        {isSelectingCategory && (
+          <div className="fixed inset-0 z-60 flex justify-center items-end pointer-events-none">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16 }}
+              onClick={() => setIsSelectingCategory(false)}
+              className="absolute inset-0 bg-black/40 cursor-pointer pointer-events-auto"
+            />
+
+            {/* Category Selector Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 400, mass: 0.7 }}
+              className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] pt-3 px-5 pb-8 shadow-2xl z-10 max-h-[75vh] overflow-y-auto pointer-events-auto text-zinc-900"
+            >
+              <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
+
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-zinc-900 tracking-tight">
+                  Changer de catégorie
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsSelectingCategory(false)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <CloseLinearIcon size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {selectableCategories.map(cat => {
+                  const isSelected = cat.id === transaction.categoryId;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      disabled={isUpdatingCategory}
+                      onClick={() => handleSelectCategory(cat)}
+                      className={`w-full p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          style={{ backgroundColor: isSelected ? '#FFFFFF' : cat.color }}
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                            isSelected ? 'text-zinc-900' : 'text-white'
+                          }`}
+                        >
+                          <CategoryIcon name={cat.icon || cat.name} weight="Bold" size={16} />
+                        </div>
+                        <span className="text-xs font-bold truncate">
+                          {cat.name}
+                        </span>
+                      </div>
+
+                      {isSelected && (
+                        <CheckCircleBoldIcon size={18} className="text-white shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       {/* Confirmation Modal */}

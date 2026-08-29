@@ -31,6 +31,14 @@ transactionsRouter.get('/:id', (c) => {
   return c.json(txn);
 });
 
+transactionsRouter.put('/:id', async (c) => {
+  const id = c.req.param('id');
+  const body = await c.req.json<{ categoryId?: string; title?: string; note?: string }>();
+  const updated = transactionRepository.updateTransaction(id, body);
+  if (!updated) return c.json({ error: 'Transaction not found' }, 404);
+  return c.json(updated);
+});
+
 transactionsRouter.post('/', async (c) => {
   const body = await c.req.json();
   const walletId = body.walletId || body.wallet;

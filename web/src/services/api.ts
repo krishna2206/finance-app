@@ -287,6 +287,16 @@ export const api = {
     return res.json();
   },
 
+  async updateTransaction(id: string, data: Partial<Pick<Transaction, 'categoryId' | 'title' | 'note'>>): Promise<Transaction> {
+    const res = await fetch(`${API_BASE}/transactions/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update transaction');
+    return res.json();
+  },
+
   async deleteTransaction(id: string): Promise<{ success: boolean }> {
     const res = await fetch(`${API_BASE}/transactions/${id}`, {
       method: 'DELETE',
