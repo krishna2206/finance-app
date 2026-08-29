@@ -4,7 +4,6 @@ import { smsParser, ParsedSMSResult } from '../services/smsParser';
 import { autoCategorizer } from '../services/autoCategorizer';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
-import { recipientRepository } from '../db/repositories/recipientRepository';
 import { categoryRepository } from '../db/repositories/categoryRepository';
 import { Transaction } from '../types';
 
@@ -202,19 +201,10 @@ smsRouter.post('/webhook', async (c) => {
     walletRepository.adjustBalanceDelta(sourceWallet.id, delta);
   }
 
-  // 5. Auto-Categorization
+  // 5. Deterministic Auto-Categorization
   const categoryId = autoCategorizer.resolveCategory(parsed);
 
-  // 6. Save/Update Recipient Memory
-  if (parsed.phoneNumber) {
-    recipientRepository.upsertMapping(
-      parsed.phoneNumber,
-      categoryId,
-      parsed.recipient || parsed.sender
-    );
-  }
-
-  // 7. Create Transaction Record
+  // 6. Create Transaction Record
   const noteWithRef = [
     parsed.note,
     parsed.referenceNumber ? `Réf: ${parsed.referenceNumber}` : undefined,

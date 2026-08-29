@@ -94,4 +94,21 @@ describe('SMS Parser Test Suite (Real MVola Messages)', () => {
     expect(result?.newBalance).toBe(1200605);
     expect(result?.referenceNumber).toBe('1000000001');
   });
+
+  it('should correctly parse small amounts like 400 Ar with optional punctuation and gratuit fees', () => {
+    const raw1 = `400 Ar envoye a RAKOTOBE 0340000003 le 27/08/26 a 10:32. Frais: 0 Ar. Raison: pain. Solde: 300 919 Ar. Ref: 1000000006`;
+    const res1 = smsParser.parse(raw1);
+    expect(res1?.amount).toBe(400);
+    expect(res1?.feeAmount).toBe(0);
+
+    const raw2 = `400 Ar envoye a RAKOTOBE 0340000003 le 27/08/26 a 10:32 Frais: gratuit Raison: test. Solde: 300 919 Ar Ref 1000000006`;
+    const res2 = smsParser.parse(raw2);
+    expect(res2?.amount).toBe(400);
+    expect(res2?.feeAmount).toBe(0);
+
+    const raw3 = `400 Ar envoye a RAKOTOBE 0340000003 le 27/08/26 a 10:32. Solde: 300 919 Ar. Ref: 1000000006`;
+    const res3 = smsParser.parse(raw3);
+    expect(res3?.amount).toBe(400);
+    expect(res3?.feeAmount).toBe(0);
+  });
 });
