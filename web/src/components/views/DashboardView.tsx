@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getSpendingAmount } from '@finance/shared';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
@@ -10,6 +11,7 @@ import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { WalletLogo } from '../common/WalletLogo';
 import { Transaction } from '../../types/models';
 import { formatAmount, formatDateGroupLabel } from '../../utils/formatters';
+import { dayKeyOf, isInCurrentMonth } from '../../utils/dates';
 import {
   AltArrowRightLinearIcon,
   AddLinearIcon,
@@ -41,7 +43,7 @@ export function DashboardView({
   const wallets = useWalletStore(state => state.wallets);
   const transactions = useTransactionStore(state => state.transactions);
   const budgets = useBudgetStore(state => state.budgets);
-  const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
+  const monthlySavingsTarget = settings?.monthlySavingsTarget ?? 0;
   const unreadNotificationsCount = useNotificationStore(state => state.getUnreadCount());
 
   const spendableWallets = useMemo(() => {
@@ -60,35 +62,25 @@ export function DashboardView({
   const totalSpendableAvailable = Math.max(0, totalRealBalance - totalVirtualLocked);
 
   // 2. Calculations for CE MOIS (Dépensé & Rythme)
-  const currentYearMonth = new Date().toISOString().slice(0, 7);
   const activeBudgets = useMemo(() => budgets.filter(b => b.monthlyLimit > 0), [budgets]);
   const totalMonthlyBudget = useMemo(() => activeBudgets.reduce((sum, b) => sum + b.monthlyLimit, 0), [activeBudgets]);
 
-  const { totalSpentThisMonth, totalFeesThisMonth, categorySpendingMap } = useMemo(() => {
+  const monthTransactions = useMemo(() => transactions.filter(t => isInCurrentMonth(t.date)), [transactions]);
+
+  const { totalSpentThisMonth, totalFeesThisMonth } = useMemo(() => {
     let spent = 0;
     let fees = 0;
-    const map: Record<string, number> = {};
+    for (const t of monthTransactions) {
+      spent += getSpendingAmount(t);
+      if (t.flow === 'DEBIT') fees += t.feeAmount;
+    }
+    return { totalSpentThisMonth: spent, totalFeesThisMonth: fees };
+  }, [monthTransactions]);
 
-    transactions.forEach(t => {
-      if (t.date.startsWith(currentYearMonth)) {
-        if (t.feeAmount) fees += t.feeAmount;
-
-        if (
-          t.flow === 'DEBIT' &&
-          t.operationType !== 'SAVINGS_DEPOSIT' &&
-          t.operationType !== 'WITHDRAWAL_CASH'
-        ) {
-          const impact = t.totalAmount ?? t.totalImpact ?? t.amount;
-          spent += impact;
-          if (t.categoryId) {
-            map[t.categoryId] = (map[t.categoryId] || 0) + impact;
-          }
-        }
-      }
-    });
-
-    return { totalSpentThisMonth: spent, totalFeesThisMonth: fees, categorySpendingMap: map };
-  }, [transactions, currentYearMonth]);
+  const budgetSpendingMap = useMemo(
+    () => useBudgetStore.getState().getBudgetSpendingMap(transactions),
+    [transactions, budgets],
+  );
 
   const budgetConsumedPct = totalMonthlyBudget > 0
     ? Math.min(100, Math.round((totalSpentThisMonth / totalMonthlyBudget) * 100))
@@ -108,10 +100,10 @@ export function DashboardView({
 
   // 3. Calculations for Épargné ce mois (across all savings pots)
   const monthlySavingsDeposited = useMemo(() => {
-    return transactions
-      .filter(t => t.date.startsWith(currentYearMonth) && t.operationType === 'SAVINGS_DEPOSIT')
+    return monthTransactions
+      .filter(t => t.operationType === 'SAVINGS_DEPOSIT')
       .reduce((sum, t) => sum + t.amount, 0);
-  }, [transactions, currentYearMonth]);
+  }, [monthTransactions]);
 
   const savingsTargetProgress = monthlySavingsTarget > 0
     ? Math.min(100, Math.round((monthlySavingsDeposited / monthlySavingsTarget) * 100))
@@ -122,7 +114,7 @@ export function DashboardView({
     let worstBudget: { name: string; pct: number } | null = null;
     activeBudgets.forEach(b => {
       const limit = b.monthlyLimit;
-      const spent = b.categoryIds.reduce((sum, catId) => sum + (categorySpendingMap[catId] || 0), 0);
+      const spent = budgetSpendingMap[b.id] || 0;
       if (limit > 0) {
         const pct = Math.round((spent / limit) * 100);
         if (pct >= 65) {
@@ -133,14 +125,14 @@ export function DashboardView({
       }
     });
     return worstBudget;
-  }, [activeBudgets, categorySpendingMap]);
+  }, [activeBudgets, budgetSpendingMap]);
 
   // Group top recent transactions
   const groupedRecentTransactions = useMemo(() => {
     const recent = transactions.slice(0, 5);
     const groups: Record<string, typeof transactions> = {};
     recent.forEach(t => {
-      const dateKey = t.date.split('T')[0];
+      const dateKey = dayKeyOf(t.date);
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(t);
     });

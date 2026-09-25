@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useWalletStore } from './stores/useWalletStore';
-import { useSavingsStore } from './stores/useSavingsStore';
-import { useBudgetStore } from './stores/useBudgetStore';
 import { useTransactionStore } from './stores/useTransactionStore';
 import { useSettingsStore } from './stores/useSettingsStore';
-import { initSmsListener } from './services/smsListener';
+import { useAuthStore } from './stores/useAuthStore';
+import { startSmsListener } from './services/smsListener';
+import { syncAllStores } from './stores/sync';
 import { ToastContainer } from './components/common/ToastContainer';
 import { OnboardingView } from './components/onboarding/OnboardingView';
+import { UnlockView } from './components/onboarding/UnlockView';
 import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
 import { BudgetsView } from './components/views/BudgetsView';
@@ -106,29 +106,23 @@ export function App() {
   const [selectedGoalForAction, setSelectedGoalForAction] = useState<SavingsGoal | null>(null);
   const [goalDefaultAction, setGoalDefaultAction] = useState<'DEPOSIT' | 'WITHDRAW'>('DEPOSIT');
 
+  const authStatus = useAuthStore(state => state.status);
+  const verifyStoredToken = useAuthStore(state => state.verifyStoredToken);
   const settings = useSettingsStore(state => state.settings);
   const isSettingsLoading = useSettingsStore(state => state.isLoading);
-  const loadSettings = useSettingsStore(state => state.loadSettings);
-  const loadWallets = useWalletStore(state => state.loadWallets);
-  const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
-  const loadBudgets = useBudgetStore(state => state.loadBudgets);
-  const loadTransactions = useTransactionStore(state => state.loadTransactions);
   const pendingBudgetConflict = useTransactionStore(state => state.pendingBudgetConflict);
   const setPendingBudgetConflict = useTransactionStore(state => state.setPendingBudgetConflict);
-  const updateTransaction = useTransactionStore(state => state.updateTransaction);
 
   useEffect(() => {
-    loadSettings();
-    loadWallets();
-    loadSavingsAndGoals();
-    loadBudgets();
-    loadTransactions();
+    verifyStoredToken();
+  }, [verifyStoredToken]);
 
-    const cleanupSms = initSmsListener();
-    return () => {
-      cleanupSms();
-    };
-  }, [loadSettings, loadWallets, loadSavingsAndGoals, loadBudgets, loadTransactions]);
+  // Les données et le temps réel ne démarrent qu'une fois l'accès vérifié.
+  useEffect(() => {
+    if (authStatus !== 'unlocked') return;
+    syncAllStores();
+    return startSmsListener();
+  }, [authStatus]);
 
   const handleTabChange = (newTab: ActiveTab) => {
     setIsNotificationsViewOpen(false);
@@ -161,8 +155,17 @@ export function App() {
     setIsSettingsViewOpen(false);
   };
 
+  if (authStatus === 'locked') {
+    return (
+      <>
+        <ToastContainer />
+        <UnlockView />
+      </>
+    );
+  }
+
   // If settings are loading initially
-  if (isSettingsLoading && !settings) {
+  if (authStatus === 'checking' || (isSettingsLoading && !settings)) {
     return (
       <div className="min-h-screen bg-zinc-100 flex items-center justify-center text-zinc-400 text-xs font-semibold uppercase tracking-widest">
         Chargement...
@@ -215,15 +218,7 @@ export function App() {
                   className="w-full"
                 >
                   {isNotificationsViewOpen ? (
-                    <NotificationsView
-                      onBack={closeNotifications}
-                      onOpenSavingsWithAmount={(amount) => {
-                        setSavingsDefaultAmount(amount);
-                        setSelectedSavingsForAction(null);
-                        setSavingsDefaultAction('DEPOSIT');
-                        setIsSavingsActionOpen(true);
-                      }}
-                    />
+                    <NotificationsView onBack={closeNotifications} />
                   ) : isSettingsViewOpen ? (
                     <SettingsView
                       onBack={closeSettings}
@@ -368,10 +363,6 @@ export function App() {
               transaction={pendingBudgetConflict?.transaction || null}
               matchingBudgets={pendingBudgetConflict?.matchingBudgets || []}
               onClose={() => setPendingBudgetConflict(null)}
-              onAssignBudget={async (txnId, budgetId) => {
-                await updateTransaction(txnId, { budgetId });
-                setPendingBudgetConflict(null);
-              }}
             />
           </div>
         </motion.div>

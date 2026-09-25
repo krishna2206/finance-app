@@ -69,7 +69,7 @@ export function CreateGoalBottomSheet({
 
     setIsSubmitting(true);
     try {
-      await createGoal({
+      const created = await createGoal({
         savingsId: activeSavings.id,
         name: name.trim(),
         targetAmount: effectiveTarget,
@@ -78,10 +78,9 @@ export function CreateGoalBottomSheet({
         color: selectedColor,
         note: note.trim() || undefined,
       });
+      if (!created) return;
 
       onClose();
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsSubmitting(false);
     }

@@ -83,16 +83,13 @@ export function SavingsActionBottomSheet({
 
     setIsSubmitting(true);
     try {
-      if (isDeposit) {
-        await depositSavings(activeSavings.id, numericAmount, activeWalletId);
-      } else {
-        await withdrawSavings(activeSavings.id, numericAmount, activeWalletId);
-      }
+      const ok = isDeposit
+        ? await depositSavings(activeSavings.id, numericAmount, activeWalletId)
+        : await withdrawSavings(activeSavings.id, numericAmount, activeWalletId);
+      if (!ok) return;
 
       setAmount('');
       onClose();
-    } catch (err) {
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }

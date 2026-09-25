@@ -18,8 +18,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const isDebit = transaction.flow === 'DEBIT';
   const hasItems = transaction.items && transaction.items.length > 0;
 
-  const walletId = transaction.walletId || transaction.wallet || '';
-  const walletName = wallets[walletId]?.name || formatWalletName(walletId) || '';
+  const walletName = wallets[transaction.walletId]?.name || formatWalletName(transaction.walletId);
 
   return (
     <div

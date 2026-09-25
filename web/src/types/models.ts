@@ -106,9 +106,6 @@ export interface Budget {
   isFixed: boolean;
   categoryIds: string[];
   categories?: Category[];
-  spent?: number;
-  remaining?: number;
-  percentage?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -144,30 +141,17 @@ export interface Transaction {
   amount: number;
   feeAmount: number;
   totalAmount: number;
-  totalImpact?: number;            // Alias pour backward-compatibility
-  wallet?: string;                 // Alias pour backward-compatibility (walletId)
-  destinationWallet?: string;      // Alias pour backward-compatibility (destinationWalletId)
   title: string;
   recipient?: string;
   sender?: string;
-  recipientOrSender?: string;      // Alias pour backward-compatibility
   date: string;                    // ISO 8601 UTC
   note?: string;
   source: TransactionSource;
+  externalRef?: string;
   location?: TransactionLocation;
   items?: TransactionItem[];
-  icon?: string;
-  synced: boolean;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface RecipientMapping {
-  id: string;                      // UUID v4
-  phoneNumber: string;
-  recipientName?: string;
-  categoryId: string;
-  lastUsedAt: number;
 }
 
 export interface AppSettings {
@@ -179,22 +163,11 @@ export interface AppSettings {
   monthlySavingsTarget: number;
   currency: string;
   onboardingCompleted: boolean;
-  geminiApiKey?: string;
+  hasGeminiApiKey: boolean;
   smsCaptureEnabled: boolean;
   pushNotificationsEnabled: boolean;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface CadenceMetrics {
-  totalBudget: number;
-  totalSpent: number;
-  percentageMonthElapsed: number;
-  percentageBudgetConsumed: number;
-  isAhead: boolean;
-  deltaPercentage: number;
-  remainingDays: number;
-  dailyBurnRate: number;
 }
 
 export interface BudgetSavingsBreakdown {

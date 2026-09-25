@@ -56,20 +56,19 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
 
     setIsSubmitting(true);
     try {
-      await createCategory({
+      const created = await createCategory({
         name: name.trim(),
         type,
         color: selectedColor,
         icon: selectedIcon,
       });
+      if (!created) return;
 
       setName('');
       setType('EXPENSE');
       setSelectedIcon('CartLarge4BoldIcon');
       setSelectedColor('#F59E0B');
       onClose();
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsSubmitting(false);
     }

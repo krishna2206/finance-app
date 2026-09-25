@@ -7,7 +7,6 @@ import {
 
 interface NotificationsViewProps {
   onBack: () => void;
-  onOpenSavingsWithAmount?: (amount: number, period: string) => void;
 }
 
 export function NotificationsView({

@@ -3,9 +3,7 @@ import { AppNotification } from '../types/models';
 
 interface NotificationState {
   notifications: AppNotification[];
-  isLoading: boolean;
 
-  checkMonthlySettlements: () => Promise<void>;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   getUnreadCount: () => number;
@@ -13,11 +11,6 @@ interface NotificationState {
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
-  isLoading: false,
-
-  checkMonthlySettlements: async () => {
-    // Paused for now - user will decide custom format later
-  },
 
   markAsRead: (id: string) => {
     set(state => ({

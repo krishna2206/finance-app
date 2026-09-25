@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
+import { SYSTEM_CATEGORY_IDS } from '@finance/shared';
+import { showErrorToast } from '../../utils/errors';
 import {
   getTransferFee,
   lookupTier,
@@ -52,7 +54,6 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   // Categories selection
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'INCOME'), [categories]);
-  const feeCategory = useMemo(() => categories.find(c => c.name.toLowerCase().includes('frais')) || categories[0], [categories]);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
@@ -91,13 +92,13 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   // Set default category according to mode
   const activeCategoryId = useMemo(() => {
     if (selectedCategoryId) return selectedCategoryId;
-    if (mode === 'EXPENSE') return expenseCategories[0]?.id || categories[0]?.id || '';
-    if (mode === 'INCOME') return incomeCategories[0]?.id || categories[0]?.id || '';
-    return feeCategory?.id || categories[0]?.id || '';
-  }, [selectedCategoryId, mode, expenseCategories, incomeCategories, feeCategory, categories]);
+    if (mode === 'EXPENSE') return expenseCategories[0]?.id || '';
+    if (mode === 'INCOME') return incomeCategories[0]?.id || '';
+    return '';
+  }, [selectedCategoryId, mode, expenseCategories, incomeCategories]);
 
   const selectedCategory = useMemo(() => {
-    return categories.find(c => c.id === activeCategoryId) || categories[0];
+    return categories.find(c => c.id === activeCategoryId);
   }, [categories, activeCategoryId]);
 
   // Matching budgets for current expense category
@@ -151,26 +152,13 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
       return { rawFee: fee, feeLabel: label };
     }
 
-    if (mode === 'EXPENSE') {
-      const catNameLower = (selectedCategory?.name || '').toLowerCase();
-      // 1. Telecom / Yas Top-up -> 0 Ar
-      if (catNameLower.includes('télécom') || catNameLower.includes('telecom') || catNameLower.includes('crédit') || catNameLower.includes('forfait')) {
-        return { rawFee: 0, feeLabel: '' };
-      }
-      // 2. Facture Jirama -> 500 Ar (if paying via mobile money)
-      if (catNameLower.includes('jirama') && isMobileMoneySource) {
-        return { rawFee: 500, feeLabel: 'Jirama' };
-      }
-      // 3. Frais & P2P -> P2P tier if paying via mobile money
-      if ((catNameLower.includes('frais') || catNameLower.includes('transfert')) && isMobileMoneySource) {
-        return { rawFee: lookupTier(numericAmount, MVOLA_P2P_TIERS), feeLabel: 'envoi' };
-      }
-      // 4. Default direct merchant / grocery / restaurants -> 0 Ar for customer
-      return { rawFee: 0, feeLabel: '' };
+    // Envoi d'argent à un tiers depuis le Mobile Money : grille P2P. Paiements directs : pas de frais.
+    if (mode === 'EXPENSE' && activeCategoryId === SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY && isMobileMoneySource) {
+      return { rawFee: lookupTier(numericAmount, MVOLA_P2P_TIERS), feeLabel: 'envoi' };
     }
 
     return { rawFee: 0, feeLabel: '' };
-  }, [mode, numericAmount, sourceType, destType, selectedCategory?.name, isMobileMoneySource]);
+  }, [mode, numericAmount, sourceType, destType, activeCategoryId, isMobileMoneySource]);
 
   const feeAmount = includeFees ? rawFee : 0;
   const totalImpact = numericAmount + feeAmount;
@@ -200,45 +188,36 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
       const dateIso = selectedDate.toISOString();
 
       if (mode === 'EXPENSE') {
-        const finalTitle = title.trim() || selectedCategory?.name || 'Dépense';
+        if (!selectedCategory) return;
         await addTransaction({
           flow: 'DEBIT',
           operationType: 'EXPENSE_GENERAL',
           walletId: selectedSourceWallet.id,
-          wallet: selectedSourceWallet.id,
           amount: numericAmount,
           feeAmount,
-          totalAmount: totalImpact,
-          totalImpact,
-          title: finalTitle,
-          categoryId: selectedCategory?.id,
+          title: title.trim() || selectedCategory.name,
+          categoryId: selectedCategory.id,
           budgetId: selectedBudgetId,
           date: dateIso,
           note: note.trim() || undefined,
-          source: 'MANUAL',
         });
       } else if (mode === 'INCOME') {
-        const finalTitle = title.trim() || selectedCategory?.name || 'Entrée d\'argent';
+        if (!selectedCategory) return;
         await addTransaction({
           flow: 'CREDIT',
           operationType: 'INCOME_TRANSFER',
           walletId: selectedDestWallet.id,
-          wallet: selectedDestWallet.id,
           amount: numericAmount,
-          feeAmount: 0,
-          totalAmount: numericAmount,
-          totalImpact: numericAmount,
-          title: finalTitle,
-          categoryId: selectedCategory?.id,
+          title: title.trim() || selectedCategory.name,
+          categoryId: selectedCategory.id,
           date: dateIso,
           note: note.trim() || undefined,
-          source: 'MANUAL',
         });
       } else {
-        // Mode TRANSFER
-        const isWithdrawal = selectedDestWallet.type === 'CASH' || selectedDestWallet.name.toLowerCase().includes('espèce');
+        // Mouvement entre ses propres comptes : seuls les frais comptent comme dépense.
+        const isWithdrawal = selectedDestWallet.type === 'CASH';
         const defaultTitle = isWithdrawal
-          ? `Retrait vers Espèces`
+          ? `Retrait vers ${selectedDestWallet.name}`
           : `Transfert ${selectedSourceWallet.name} ➔ ${selectedDestWallet.name}`;
 
         await addTransaction({
@@ -246,17 +225,12 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
           operationType: isWithdrawal ? 'WITHDRAWAL_CASH' : 'TRANSFER_P2P',
           walletId: selectedSourceWallet.id,
           destinationWalletId: selectedDestWallet.id,
-          wallet: selectedSourceWallet.id,
-          destinationWallet: selectedDestWallet.id,
           amount: numericAmount,
           feeAmount,
-          totalAmount: totalImpact,
-          totalImpact,
           title: title.trim() || defaultTitle,
-          categoryId: feeCategory?.id || categories[0]?.id,
+          categoryId: isWithdrawal ? SYSTEM_CATEGORY_IDS.CASH_WITHDRAWAL : SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY,
           date: dateIso,
           note: note.trim() || undefined,
-          source: 'MANUAL',
         });
       }
 
@@ -266,7 +240,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
       setSelectedDate(new Date());
       onClose();
     } catch (err) {
-      console.error(err);
+      showErrorToast(err, 'Enregistrement impossible');
     } finally {
       setIsSubmitting(false);
     }

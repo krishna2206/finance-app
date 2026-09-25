@@ -53,20 +53,19 @@ export function CreateSavingsBottomSheet({ isOpen, onClose }: CreateSavingsBotto
 
     setIsSubmitting(true);
     try {
-      await createSavings({
+      const created = await createSavings({
         walletId: selectedWalletId,
         name: name.trim(),
         mode: effectiveMode,
         balance: numericBalance,
         color: selectedColor,
       });
+      if (!created) return;
 
       setName('Gel Épargne');
       setInitialBalance('');
       setMode('VIRTUAL_LOCK');
       onClose();
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsSubmitting(false);
     }

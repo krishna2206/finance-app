@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
+import { isSystemCategory } from '@finance/shared';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
-import { useTransactionStore } from '../../stores/useTransactionStore';
 import { Category, Wallet } from '../../types/models';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { WalletLogo } from '../common/WalletLogo';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { formatCurrency } from '../../utils/formatters';
 import { api } from '../../services/api';
+import { showErrorToast } from '../../utils/errors';
 import {
   AltArrowLeftLinearIcon,
   TrashBinTrashLinearIcon,
@@ -37,8 +38,6 @@ export function SettingsView({
   const wallets = useWalletStore(state => state.wallets);
   const deleteWallet = useWalletStore(state => state.deleteWallet);
 
-  const transactions = useTransactionStore(state => state.transactions);
-
   // Form states for profile
   const [userName, setUserName] = useState('');
   const [userProfession, setUserProfession] = useState('');
@@ -56,8 +55,7 @@ export function SettingsView({
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isDeletingWallet, setIsDeletingWallet] = useState(false);
 
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -66,7 +64,6 @@ export function SettingsView({
       setUserLocation(settings.userLocation || '');
       setIncomeTarget(String(settings.monthlyIncomeTarget || ''));
       setSavingsTarget(String(settings.monthlySavingsTarget || ''));
-      setGeminiKey(settings.geminiApiKey || '');
     }
   }, [settings]);
 
@@ -74,18 +71,20 @@ export function SettingsView({
     e.preventDefault();
     setIsSavingProfile(true);
     try {
-      await updateSettings({
-        userName: userName.trim() || 'Krishna',
-        userProfession: userProfession.trim() || undefined,
-        userLocation: userLocation.trim() || undefined,
+      const updated = await updateSettings({
+        userName: userName.trim() || 'Utilisateur',
+        userProfession: userProfession.trim(),
+        userLocation: userLocation.trim(),
         monthlyIncomeTarget: parseInt(incomeTarget.replace(/\s/g, ''), 10) || 0,
         monthlySavingsTarget: parseInt(savingsTarget.replace(/\s/g, ''), 10) || 0,
-        geminiApiKey: geminiKey.trim() || undefined,
+        // La clé enregistrée n'est jamais renvoyée : on ne l'envoie que si une nouvelle est saisie.
+        ...(geminiKey.trim() ? { geminiApiKey: geminiKey.trim() } : {}),
       });
-      setProfileSavedFeedback(true);
-      setTimeout(() => setProfileSavedFeedback(false), 2500);
-    } catch (err) {
-      console.error(err);
+      if (updated) {
+        setGeminiKey('');
+        setProfileSavedFeedback(true);
+        setTimeout(() => setProfileSavedFeedback(false), 2500);
+      }
     } finally {
       setIsSavingProfile(false);
     }
@@ -97,8 +96,6 @@ export function SettingsView({
     try {
       await deleteCategory(categoryToDelete.id);
       setCategoryToDelete(null);
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsDeletingCategory(false);
     }
@@ -110,31 +107,29 @@ export function SettingsView({
     try {
       await deleteWallet(walletToDelete.id);
       setWalletToDelete(null);
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsDeletingWallet(false);
     }
   };
 
-  const handleExportData = () => {
-    const backupData = {
-      exportedAt: new Date().toISOString(),
-      settings,
-      wallets: Object.values(wallets),
-      categories,
-      transactions,
-    };
-
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `finance_backup_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const data = await api.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finance_export_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showErrorToast(e, 'Export impossible');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const walletList = Object.values(wallets);
@@ -305,16 +300,18 @@ export function SettingsView({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setCategoryToDelete(cat)}
-                  title="Supprimer la catégorie"
-                  className="w-7 h-7 rounded-lg hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <TrashBinTrashLinearIcon size={14} />
-                </button>
-              </div>
+              {!isSystemCategory(cat.id) && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryToDelete(cat)}
+                    title="Supprimer la catégorie"
+                    className="w-7 h-7 rounded-lg hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    <TrashBinTrashLinearIcon size={14} />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -401,13 +398,13 @@ export function SettingsView({
                 type="password"
                 value={geminiKey}
                 onChange={e => setGeminiKey(e.target.value)}
-                placeholder="AIzaSy..."
+                placeholder={settings?.hasGeminiApiKey ? 'Clé enregistrée (saisir pour remplacer)' : 'AIzaSy...'}
                 className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs font-mono text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors"
               />
               <KeyMinimalisticBoldIcon size={16} className="absolute left-3 text-zinc-400 pointer-events-none" />
             </div>
             <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
-              Stockée localement et de manière souveraine. Permet l'analyse prédictive et la lecture automatique des reçus.
+              Stockée sur votre serveur et jamais renvoyée à l'application. Permet l'analyse prédictive et la lecture automatique des reçus.
             </p>
           </div>
 
@@ -429,44 +426,25 @@ export function SettingsView({
           </h2>
         </div>
 
-        <div className="bg-white border border-zinc-200/90 rounded-3xl p-4 shadow-xs space-y-3.5 divide-y divide-zinc-100">
+        <div className="bg-white border border-zinc-200/90 rounded-3xl p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
               <span className="text-xs font-bold text-zinc-900 block">
                 Exporter mes données
               </span>
               <span className="text-[11px] text-zinc-400 block mt-0.5">
-                Télécharger une sauvegarde complète en JSON
+                Toutes vos données en JSON. La base est aussi sauvegardée chaque jour sur le serveur.
               </span>
             </div>
 
             <button
               type="button"
               onClick={handleExportData}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold transition-all cursor-pointer"
+              disabled={isExporting}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
             >
               <DownloadMinimalisticBoldIcon size={15} />
               <span>Exporter</span>
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-3">
-            <div>
-              <span className="text-xs font-bold text-rose-600 block">
-                Vider les transactions
-              </span>
-              <span className="text-[11px] text-zinc-400 block mt-0.5">
-                Supprime toutes les dépenses et entrées enregistrées
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsResetModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold transition-all cursor-pointer border border-rose-200/60"
-            >
-              <TrashBinTrashLinearIcon size={14} />
-              <span>Vider</span>
             </button>
           </div>
         </div>
@@ -476,7 +454,7 @@ export function SettingsView({
       <ConfirmationModal
         isOpen={Boolean(categoryToDelete)}
         title={`Supprimer la catégorie "${categoryToDelete?.name}" ?`}
-        message="Cette action est irréversible. Les transactions passées conserveront leur historique."
+        message="Possible uniquement si aucune opération n'utilise cette catégorie."
         confirmLabel="Supprimer"
         cancelLabel="Annuler"
         isDestructive={true}
@@ -489,7 +467,7 @@ export function SettingsView({
       <ConfirmationModal
         isOpen={Boolean(walletToDelete)}
         title={`Supprimer le compte "${walletToDelete?.name}" ?`}
-        message="Cette action supprimera ce portefeuille et ses cagnottes associées."
+        message="Possible uniquement pour un compte sans historique d'opérations ni pot d'épargne."
         confirmLabel="Supprimer"
         cancelLabel="Annuler"
         isDestructive={true}
@@ -499,30 +477,6 @@ export function SettingsView({
         onCancel={() => setWalletToDelete(null)}
       />
 
-      <ConfirmationModal
-        isOpen={isResetModalOpen}
-        title="Vider tout l'historique des transactions ?"
-        message="Cette action supprimera toutes les opérations enregistrées. Vos portefeuilles et catégories seront conservés."
-        confirmLabel="Tout vider"
-        cancelLabel="Annuler"
-        isDestructive={true}
-        isLoading={isResetting}
-        icon="trash"
-        onConfirm={async () => {
-          setIsResetting(true);
-          try {
-            await api.clearAllTransactions();
-            await useTransactionStore.getState().loadTransactions();
-            await useWalletStore.getState().loadWallets();
-            setIsResetModalOpen(false);
-          } catch (e) {
-            console.error(e);
-          } finally {
-            setIsResetting(false);
-          }
-        }}
-        onCancel={() => setIsResetModalOpen(false)}
-      />
     </div>
   );
 }

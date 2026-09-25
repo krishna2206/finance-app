@@ -91,7 +91,7 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
     setIsSubmitting(true);
     try {
       if (isEditMode && budget) {
-        await updateBudget(budget.id, {
+        const updated = await updateBudget(budget.id, {
           name: name.trim(),
           monthlyLimit: numericAmount,
           color,
@@ -100,13 +100,14 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
           isFixed,
           categoryIds: selectedCategoryIds,
         });
+        if (!updated) return;
         useToastStore.getState().showToast({
           title: 'Budget mis à jour',
           description: name.trim(),
           type: 'success',
         });
       } else {
-        await createBudget({
+        const created = await createBudget({
           name: name.trim(),
           monthlyLimit: numericAmount,
           color,
@@ -115,6 +116,7 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
           isFixed,
           categoryIds: selectedCategoryIds,
         });
+        if (!created) return;
         useToastStore.getState().showToast({
           title: 'Budget créé',
           description: name.trim(),
@@ -122,8 +124,6 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
         });
       }
       onClose();
-    } catch (err) {
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -133,16 +133,15 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
     if (!budget) return;
     setIsDeleting(true);
     try {
-      await deleteBudget(budget.id);
+      const deleted = await deleteBudget(budget.id);
       setIsDeleteModalOpen(false);
+      if (!deleted) return;
       useToastStore.getState().showToast({
         title: 'Budget supprimé',
         description: budget.name,
         type: 'info',
       });
       onClose();
-    } catch (err) {
-      console.error(err);
     } finally {
       setIsDeleting(false);
     }

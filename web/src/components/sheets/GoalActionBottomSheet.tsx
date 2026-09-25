@@ -63,17 +63,16 @@ export function GoalActionBottomSheet({
 
     setIsSubmitting(true);
     try {
-      await contributeGoal(
+      const ok = await contributeGoal(
         goal.id,
         numericAmount,
         action,
         activeWalletId
       );
+      if (!ok) return;
 
       setAmount('');
       onClose();
-    } catch (err) {
-      console.error(err);
     } finally {
       setIsSubmitting(false);
     }

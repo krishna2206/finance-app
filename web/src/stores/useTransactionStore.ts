@@ -1,25 +1,31 @@
 import { create } from 'zustand';
 import { Transaction, Budget } from '../types/models';
-import { api } from '../services/api';
+import { api, NewTransactionInput, TransactionPatch } from '../services/api';
 import { useWalletStore } from './useWalletStore';
-import { useSavingsStore } from './useSavingsStore';
-import { useBudgetStore } from './useBudgetStore';
+import { showErrorToast } from '../utils/errors';
+
+export interface BudgetConflict {
+  transaction: Transaction;
+  matchingBudgets: Budget[];
+}
 
 interface TransactionState {
   transactions: Transaction[];
   filter: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
   isLoading: boolean;
-  pendingBudgetConflict: { transaction: Transaction; matchingBudgets: Budget[] } | null;
+  pendingBudgetConflict: BudgetConflict | null;
 
   loadTransactions: () => Promise<void>;
-  addTransaction: (txnData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'synced'>) => Promise<Transaction>;
-  updateTransaction: (id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'budgetId' | 'title' | 'note'>>) => Promise<Transaction>;
+  /** Les actions d'écriture lèvent une erreur en cas d'échec : l'appelant l'affiche. */
+  addTransaction: (input: NewTransactionInput) => Promise<Transaction>;
+  updateTransaction: (id: string, patch: TransactionPatch) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
+  upsertLocal: (transaction: Transaction) => void;
   setFilter: (filter: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
-  setPendingBudgetConflict: (conflict: { transaction: Transaction; matchingBudgets: Budget[] } | null) => void;
+  setPendingBudgetConflict: (conflict: BudgetConflict | null) => void;
 }
 
-export const useTransactionStore = create<TransactionState>((set) => ({
+export const useTransactionStore = create<TransactionState>((set, get) => ({
   transactions: [],
   filter: 'ALL',
   isLoading: true,
@@ -30,48 +36,44 @@ export const useTransactionStore = create<TransactionState>((set) => ({
       const list = await api.getTransactions();
       set({ transactions: list, isLoading: false });
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Chargement de l’historique impossible');
       set({ isLoading: false });
     }
   },
 
-  addTransaction: async (txnData) => {
-    const created = await api.createTransaction(txnData);
-    set(state => ({ transactions: [created, ...state.transactions] }));
-    await Promise.all([
-      useWalletStore.getState().loadWallets(),
-      useSavingsStore.getState().loadSavingsAndGoals(),
-      useBudgetStore.getState().loadBudgets(),
-    ]);
+  addTransaction: async (input) => {
+    const created = await api.createTransaction(input);
+    get().upsertLocal(created);
+    await useWalletStore.getState().loadWallets();
     return created;
   },
 
-  updateTransaction: async (id, updates) => {
-    const updated = await api.updateTransaction(id, updates);
-    set(state => ({
-      transactions: state.transactions.map(t => (t.id === id ? updated : t)),
-    }));
-    await useBudgetStore.getState().loadBudgets();
+  updateTransaction: async (id, patch) => {
+    const updated = await api.updateTransaction(id, patch);
+    get().upsertLocal(updated);
     return updated;
   },
 
   deleteTransaction: async (id) => {
     await api.deleteTransaction(id);
-    set(state => ({
-      transactions: state.transactions.filter(t => t.id !== id),
-    }));
-    await Promise.all([
-      useWalletStore.getState().loadWallets(),
-      useSavingsStore.getState().loadSavingsAndGoals(),
-      useBudgetStore.getState().loadBudgets(),
-    ]);
+    set(state => ({ transactions: state.transactions.filter(t => t.id !== id) }));
+    // Supprimer une opération d'épargne modifie aussi les pots : on recharge tout le grand livre.
+    const { refreshLedger } = await import('./sync');
+    await refreshLedger();
   },
 
-  setFilter: (filter) => {
-    set({ filter });
+  upsertLocal: (transaction) => {
+    set(state => {
+      const exists = state.transactions.some(t => t.id === transaction.id);
+      const next = exists
+        ? state.transactions.map(t => (t.id === transaction.id ? transaction : t))
+        : [transaction, ...state.transactions];
+      next.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+      return { transactions: next };
+    });
   },
 
-  setPendingBudgetConflict: (conflict) => {
-    set({ pendingBudgetConflict: conflict });
-  },
+  setFilter: (filter) => set({ filter }),
+
+  setPendingBudgetConflict: (conflict) => set({ pendingBudgetConflict: conflict }),
 }));

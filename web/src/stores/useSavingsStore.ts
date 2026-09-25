@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { Savings, SavingsGoal } from '../types/models';
 import { api } from '../services/api';
 import { useWalletStore } from './useWalletStore';
+import { refreshLedger } from './sync';
+import { showErrorToast } from '../utils/errors';
 
 interface SavingsState {
   savings: Savings[];
@@ -10,7 +12,6 @@ interface SavingsState {
 
   loadSavingsAndGoals: () => Promise<void>;
   createSavings: (data: {
-    id?: string;
     walletId: string;
     name: string;
     mode?: string;
@@ -18,13 +19,12 @@ interface SavingsState {
     color?: string;
     icon?: string;
   }) => Promise<Savings | null>;
-  updateSavings: (id: string, data: Partial<Savings>) => Promise<void>;
+  updateSavings: (id: string, data: Partial<Pick<Savings, 'name' | 'color' | 'icon'>>) => Promise<void>;
   deleteSavings: (id: string) => Promise<boolean>;
   depositSavings: (id: string, amount: number, sourceWalletId?: string, note?: string) => Promise<boolean>;
   withdrawSavings: (id: string, amount: number, destinationWalletId?: string, note?: string) => Promise<boolean>;
 
   createGoal: (data: {
-    id?: string;
     savingsId: string;
     name: string;
     targetAmount: number;
@@ -62,7 +62,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       ]);
       set({ savings: savingsList, savingsGoals: goalsList, isLoading: false });
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Chargement de l’épargne impossible');
       set({ isLoading: false });
     }
   },
@@ -74,7 +74,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       await useWalletStore.getState().loadWallets();
       return created;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return null;
     }
   },
@@ -86,7 +86,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         savings: state.savings.map(s => (s.id === id ? updated : s)),
       }));
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
     }
   },
 
@@ -103,7 +103,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       }
       return false;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },
@@ -111,13 +111,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   depositSavings: async (id, amount, sourceWalletId, note) => {
     try {
       await api.depositSavings(id, amount, sourceWalletId, note);
-      await Promise.all([
-        get().loadSavingsAndGoals(),
-        useWalletStore.getState().loadWallets(),
-      ]);
+      await refreshLedger();
       return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },
@@ -125,13 +122,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   withdrawSavings: async (id, amount, destinationWalletId, note) => {
     try {
       await api.withdrawSavings(id, amount, destinationWalletId, note);
-      await Promise.all([
-        get().loadSavingsAndGoals(),
-        useWalletStore.getState().loadWallets(),
-      ]);
+      await refreshLedger();
       return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },
@@ -143,7 +137,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       await get().loadSavingsAndGoals();
       return created;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return null;
     }
   },
@@ -155,7 +149,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         savingsGoals: state.savingsGoals.map(g => (g.id === id ? updated : g)),
       }));
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
     }
   },
 
@@ -171,7 +165,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
       }
       return false;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },
@@ -179,13 +173,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
   contributeGoal: async (id, amount, action, sourceWalletId, note) => {
     try {
       await api.contributeToSavingsGoal(id, amount, action, sourceWalletId, note);
-      await Promise.all([
-        get().loadSavingsAndGoals(),
-        useWalletStore.getState().loadWallets(),
-      ]);
+      await refreshLedger();
       return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },

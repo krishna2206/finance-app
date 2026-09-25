@@ -13,30 +13,11 @@ export function lookupTier(amount: number, tiers: FeeTier[]): number {
 }
 
 /**
- * Résout le type réel d'un portefeuille (avec détection de secours sur le nom si CUSTOM)
+ * Type d'un portefeuille pour le calcul des frais. Le type saisi fait foi :
+ * aucune déduction à partir du nom (source de faux positifs).
  */
-export function resolveWalletType(wallet?: { type?: string; name?: string } | null): string {
-  if (!wallet) return 'CUSTOM';
-  if (wallet.type && wallet.type !== 'CUSTOM') return wallet.type;
-  const nameLower = (wallet.name || '').toLowerCase();
-  if (nameLower.includes('mvola')) return 'MVOLA';
-  if (nameLower.includes('orange')) return 'ORANGE_MONEY';
-  if (nameLower.includes('airtel')) return 'AIRTEL_MONEY';
-  if (
-    nameLower.includes('bancaire') ||
-    nameLower.includes('banque') ||
-    nameLower.includes('bni') ||
-    nameLower.includes('boa') ||
-    nameLower.includes('bmoi') ||
-    nameLower.includes('bfv') ||
-    nameLower.includes('sg')
-  ) {
-    return 'BANK';
-  }
-  if (nameLower.includes('espèce') || nameLower.includes('espece') || nameLower.includes('cash')) {
-    return 'CASH';
-  }
-  return wallet.type || 'CUSTOM';
+export function resolveWalletType(wallet?: { type?: string } | null): string {
+  return wallet?.type || 'CUSTOM';
 }
 
 // 1. Grille Retrait Cash Point & DAB BNI (Officiel Février 2025)

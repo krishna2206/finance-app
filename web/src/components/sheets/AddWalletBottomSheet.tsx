@@ -44,22 +44,20 @@ export function AddWalletBottomSheet({ isOpen, onClose }: AddWalletBottomSheetPr
 
     setIsSubmitting(true);
     try {
-      await createWallet({
-        id: crypto.randomUUID(),
+      const created = await createWallet({
         name: name.trim(),
         type: selectedType,
         accountNumber: accountNumber.trim() || undefined,
         balance: numericAmount,
         isSpendable: true,
       });
+      if (!created) return;
 
       setName('MVola');
       setAccountNumber('');
       setBalance('');
       setSelectedType('MVOLA');
       onClose();
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsSubmitting(false);
     }

@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useWalletStore } from '../../stores/useWalletStore';
-import { useTransactionStore } from '../../stores/useTransactionStore';
-import { api } from '../../services/api';
+import { showErrorToast } from '../../utils/errors';
 import { WalletLogo } from '../common/WalletLogo';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
 import {
@@ -130,10 +129,7 @@ export function OnboardingView() {
     try {
       const finalName = userName.trim() || 'Utilisateur';
 
-      // 1. Reset / clear old sample transactions so the user starts with 0 transactions
-      await api.clearAllTransactions();
-
-      // 2. Prepare wallets to init
+      // 1. Prepare wallets to init
       const walletsToInit = walletsDraft
         .filter(w => w.isEnabled)
         .map(w => ({
@@ -144,13 +140,10 @@ export function OnboardingView() {
           isSpendable: w.isSpendable,
         }));
 
-      // 3. Batch init wallets in SQLite
+      // 2. Batch init wallets (refusé par le serveur si un historique existe déjà)
       await batchInitWallets(walletsToInit);
 
-      // 4. Reload transactions in store
-      await useTransactionStore.getState().loadTransactions();
-
-      // 5. Complete onboarding in settings (default targets: 1M income, 150k savings)
+      // 3. Complete onboarding in settings (default targets: 1M income, 150k savings)
       await completeOnboarding({
         userName: finalName,
         userProfession: userProfession.trim() || undefined,
@@ -159,7 +152,8 @@ export function OnboardingView() {
         monthlySavingsTarget: 150000,
       });
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Configuration impossible');
+      setStep(2);
     } finally {
       setIsSubmitting(false);
     }

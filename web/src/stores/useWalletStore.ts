@@ -1,16 +1,16 @@
 import { create } from 'zustand';
-import { Wallet, WalletSource } from '../types/models';
-import { api } from '../services/api';
+import { Wallet } from '../types/models';
+import { api, WalletInput } from '../services/api';
+import { showErrorToast } from '../utils/errors';
 
 interface WalletState {
   wallets: Record<string, Wallet>;
   isLoading: boolean;
 
   loadWallets: () => Promise<void>;
-  updateWalletBalance: (id: WalletSource, newBalance: number) => Promise<void>;
-  createWallet: (wallet: { id?: string; name: string; type?: string; accountNumber?: string; balance?: number; isSpendable?: boolean }) => Promise<Wallet | null>;
+  createWallet: (wallet: WalletInput) => Promise<Wallet | null>;
   deleteWallet: (id: string) => Promise<boolean>;
-  batchInitWallets: (wallets: Array<{ id?: string; name: string; type?: string; accountNumber?: string; balance: number; isSpendable: boolean }>) => Promise<void>;
+  batchInitWallets: (wallets: WalletInput[]) => Promise<void>;
   getTotalRealBalance: () => number;
   getTotalSpendableBalance: () => number;
   getTotalVirtualLocked: () => number;
@@ -31,22 +31,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       });
       set({ wallets: map, isLoading: false });
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Chargement des comptes impossible');
       set({ isLoading: false });
-    }
-  },
-
-  updateWalletBalance: async (id, newBalance) => {
-    try {
-      const updated = await api.adjustWallet(id, newBalance);
-      set(state => ({
-        wallets: {
-          ...state.wallets,
-          [id]: updated,
-        },
-      }));
-    } catch (e) {
-      console.error(e);
     }
   },
 
@@ -61,40 +47,33 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }));
       return created;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return null;
     }
   },
 
   deleteWallet: async (id) => {
     try {
-      const res = await api.deleteWallet(id);
-      if (res.success) {
-        set(state => {
-          const copy = { ...state.wallets };
-          delete copy[id];
-          return { wallets: copy };
-        });
-        return true;
-      }
-      return false;
+      await api.deleteWallet(id);
+      set(state => {
+        const copy = { ...state.wallets };
+        delete copy[id];
+        return { wallets: copy };
+      });
+      return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Suppression impossible');
       return false;
     }
   },
 
   batchInitWallets: async (walletsList) => {
-    try {
-      const list = await api.batchInitWallets(walletsList);
-      const map: Record<string, Wallet> = {};
-      list.forEach(w => {
-        map[w.id] = w;
-      });
-      set({ wallets: map });
-    } catch (e) {
-      console.error(e);
-    }
+    const list = await api.batchInitWallets(walletsList);
+    const map: Record<string, Wallet> = {};
+    list.forEach(w => {
+      map[w.id] = w;
+    });
+    set({ wallets: map });
   },
 
   getTotalRealBalance: () => {
@@ -123,6 +102,6 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   getWithdrawableWallets: () => {
-    return Object.values(get().wallets).filter(w => w.isSpendable && w.id !== 'w-cash-physical-003' && w.type !== 'CASH');
+    return Object.values(get().wallets).filter(w => w.isSpendable && w.type !== 'CASH');
   },
 }));

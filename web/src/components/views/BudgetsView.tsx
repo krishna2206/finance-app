@@ -141,8 +141,6 @@ export function BudgetsView({
     try {
       await deleteGoal(goalToDelete.id);
       setGoalToDelete(null);
-    } catch (e) {
-      console.error(e);
     } finally {
       setIsDeletingGoal(false);
     }

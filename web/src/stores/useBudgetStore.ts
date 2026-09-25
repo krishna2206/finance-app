@@ -1,235 +1,130 @@
 import { create } from 'zustand';
-import { Category, Budget, Transaction, CadenceMetrics } from '../types/models';
-import { api } from '../services/api';
-import { calculateCadenceMetrics } from '../services/burnRateCalculator';
-import { useWalletStore } from './useWalletStore';
-import { useSavingsStore } from './useSavingsStore';
+import { getSpendingAmount } from '@finance/shared';
+import { Category, Budget, Transaction } from '../types/models';
+import { api, BudgetInput } from '../services/api';
+import { useTransactionStore } from './useTransactionStore';
+import { isInCurrentMonth } from '../utils/dates';
+import { showErrorToast } from '../utils/errors';
 
 interface BudgetState {
   budgets: Budget[];
   categories: Category[];
-  monthlySavingsTarget: number;
-  monthlyIncomeTarget: number;
   isLoading: boolean;
 
   loadBudgets: () => Promise<void>;
-  createBudget: (data: {
-    name: string;
-    monthlyLimit: number;
-    color?: string;
-    icon?: string;
-    isEssential?: boolean;
-    isFixed?: boolean;
-    categoryIds?: string[];
-  }) => Promise<Budget>;
-  updateBudget: (id: string, data: {
-    name?: string;
-    monthlyLimit?: number;
-    color?: string;
-    icon?: string;
-    isEssential?: boolean;
-    isFixed?: boolean;
-    categoryIds?: string[];
-  }) => Promise<Budget | null>;
+  createBudget: (data: BudgetInput & { name: string; monthlyLimit: number }) => Promise<Budget | null>;
+  updateBudget: (id: string, data: BudgetInput) => Promise<Budget | null>;
   deleteBudget: (id: string) => Promise<boolean>;
 
-  // Category management
-  createCategory: (cat: Omit<Category, 'id' | 'createdAt'>) => Promise<Category>;
+  createCategory: (cat: Omit<Category, 'id' | 'createdAt'>) => Promise<Category | null>;
   updateCategory: (id: string, cat: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<boolean>;
 
-  setMonthlySavingsTarget: (target: number) => void;
-  setMonthlyIncomeTarget: (target: number) => void;
-
-  getCategorySpendingMap: (transactions: Transaction[]) => Record<string, number>;
+  /** Dépensé du mois en cours par enveloppe, d'après l'enveloppe affectée à chaque opération. */
   getBudgetSpendingMap: (transactions: Transaction[]) => Record<string, number>;
-  getMatchingBudgetsForCategory: (categoryId: string) => Budget[];
-  getMetrics: (transactions: Transaction[]) => CadenceMetrics;
+  getMatchingBudgetsForCategory: (categoryId: string | undefined) => Budget[];
+}
+
+/**
+ * Modifier les enveloppes réaffecte côté serveur les opérations du mois :
+ * l'historique local doit donc être rechargé.
+ */
+async function reloadAfterBudgetChange(get: () => BudgetState) {
+  await Promise.all([get().loadBudgets(), useTransactionStore.getState().loadTransactions()]);
 }
 
 export const useBudgetStore = create<BudgetState>((set, get) => ({
   budgets: [],
   categories: [],
-  monthlySavingsTarget: 150000,
-  monthlyIncomeTarget: 1000000,
   isLoading: true,
 
   loadBudgets: async () => {
     try {
-      const [categoriesList, budgetsList] = await Promise.all([
-        api.getCategories(),
-        api.getBudgets(),
-      ]);
+      const [categoriesList, budgetsList] = await Promise.all([api.getCategories(), api.getBudgets()]);
       set({ categories: categoriesList, budgets: budgetsList, isLoading: false });
     } catch (e) {
-      console.error('Failed to load budgets & categories:', e);
+      showErrorToast(e, 'Chargement des budgets impossible');
       set({ isLoading: false });
     }
   },
 
   createBudget: async (data) => {
-    const created = await api.createBudget(data);
-    await get().loadBudgets();
-    return created;
+    try {
+      const created = await api.createBudget(data);
+      await reloadAfterBudgetChange(get);
+      return created;
+    } catch (e) {
+      showErrorToast(e);
+      return null;
+    }
   },
 
   updateBudget: async (id, data) => {
     try {
       const updated = await api.updateBudget(id, data);
-      await get().loadBudgets();
+      await reloadAfterBudgetChange(get);
       return updated;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return null;
     }
   },
 
   deleteBudget: async (id) => {
     try {
-      const res = await api.deleteBudget(id);
-      if (res.success) {
-        set(state => ({
-          budgets: state.budgets.filter(b => b.id !== id),
-        }));
-        return true;
-      }
-      return false;
+      await api.deleteBudget(id);
+      await reloadAfterBudgetChange(get);
+      return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
       return false;
     }
   },
 
   createCategory: async (cat) => {
-    const created = await api.createCategory(cat);
-    set(state => ({ categories: [...state.categories, created] }));
-    return created;
+    try {
+      const created = await api.createCategory(cat);
+      set(state => ({ categories: [...state.categories, created] }));
+      return created;
+    } catch (e) {
+      showErrorToast(e);
+      return null;
+    }
   },
 
   updateCategory: async (id, cat) => {
     try {
       const updated = await api.updateCategory(id, cat);
-      set(state => ({
-        categories: state.categories.map(c => (c.id === id ? updated : c)),
-      }));
+      set(state => ({ categories: state.categories.map(c => (c.id === id ? updated : c)) }));
     } catch (e) {
-      console.error(e);
+      showErrorToast(e);
     }
   },
 
   deleteCategory: async (id) => {
     try {
-      const res = await api.deleteCategory(id);
-      if (res.success) {
-        set(state => ({
-          categories: state.categories.filter(c => c.id !== id),
-        }));
-        await get().loadBudgets();
-        return true;
-      }
-      return false;
+      await api.deleteCategory(id);
+      await get().loadBudgets();
+      return true;
     } catch (e) {
-      console.error(e);
+      showErrorToast(e, 'Suppression impossible');
       return false;
     }
   },
 
-  setMonthlySavingsTarget: (target) => {
-    set({ monthlySavingsTarget: target });
-  },
-
-  setMonthlyIncomeTarget: (target) => {
-    set({ monthlyIncomeTarget: target });
-  },
-
-  getCategorySpendingMap: (transactions: Transaction[]) => {
-    const currentYearMonth = new Date().toISOString().slice(0, 7);
+  getBudgetSpendingMap: (transactions) => {
     const map: Record<string, number> = {};
+    for (const b of get().budgets) map[b.id] = 0;
 
-    transactions.forEach(t => {
-      if (
-        t.flow === 'DEBIT' &&
-        t.date.startsWith(currentYearMonth) &&
-        t.operationType !== 'SAVINGS_DEPOSIT' &&
-        t.operationType !== 'WITHDRAWAL_CASH'
-      ) {
-        const catId = t.categoryId;
-        const total = t.totalAmount ?? t.totalImpact ?? t.amount;
-        if (catId) {
-          map[catId] = (map[catId] || 0) + total;
-        }
-      }
-    });
-
+    for (const t of transactions) {
+      if (!t.budgetId || map[t.budgetId] === undefined || !isInCurrentMonth(t.date)) continue;
+      map[t.budgetId] += getSpendingAmount(t);
+    }
     return map;
   },
 
-  getBudgetSpendingMap: (transactions: Transaction[]) => {
-    const currentYearMonth = new Date().toISOString().slice(0, 7);
-    const budgetMap: Record<string, number> = {};
-    const budgets = get().budgets;
-
-    budgets.forEach(b => {
-      budgetMap[b.id] = 0;
-    });
-
-    transactions.forEach(t => {
-      if (
-        t.flow === 'DEBIT' &&
-        t.date.startsWith(currentYearMonth) &&
-        t.operationType !== 'SAVINGS_DEPOSIT' &&
-        t.operationType !== 'WITHDRAWAL_CASH'
-      ) {
-        const total = t.totalAmount ?? t.totalImpact ?? t.amount;
-
-        if (t.budgetId && budgetMap[t.budgetId] !== undefined) {
-          budgetMap[t.budgetId] += total;
-        } else if (!t.budgetId && t.categoryId) {
-          // Fallback: if category belongs to only 1 budget
-          const matching = budgets.filter(b => b.categoryIds.includes(t.categoryId!));
-          if (matching.length === 1) {
-            budgetMap[matching[0].id] += total;
-          }
-        }
-      }
-    });
-
-    return budgetMap;
-  },
-
-  getMatchingBudgetsForCategory: (categoryId: string) => {
+  getMatchingBudgetsForCategory: (categoryId) => {
+    if (!categoryId) return [];
     return get().budgets.filter(b => b.categoryIds.includes(categoryId));
-  },
-
-  getMetrics: (transactions: Transaction[]) => {
-    const { budgets, monthlySavingsTarget } = get();
-    const spendableBalance = useWalletStore.getState().getTotalSpendableBalance();
-
-    const activeBudgets = budgets.filter(b => b.monthlyLimit > 0);
-    const totalBudget = activeBudgets.reduce((sum, b) => sum + b.monthlyLimit, 0);
-
-    const budgetSpendingMap = get().getBudgetSpendingMap(transactions);
-    let totalSpent = 0;
-    let fixedChargesRemaining = 0;
-
-    activeBudgets.forEach(b => {
-      const limit = b.monthlyLimit;
-      const spent = budgetSpendingMap[b.id] || 0;
-      totalSpent += spent;
-      if (b.isEssential && spent < limit) {
-        fixedChargesRemaining += (limit - spent);
-      }
-    });
-
-    const totalSavingsBalance = useSavingsStore.getState().getTotalSavingsBalance();
-    const remainingSavings = Math.max(0, monthlySavingsTarget - totalSavingsBalance);
-
-    return calculateCadenceMetrics(
-      totalBudget,
-      totalSpent,
-      spendableBalance,
-      remainingSavings,
-      fixedChargesRemaining
-    );
   },
 }));

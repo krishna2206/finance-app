@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { getIncomeAmount, isBudgetable, isInternalTransfer, isSavingsMovement } from '@finance/shared';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { Transaction } from '../../types/models';
 import { formatDateGroupLabel } from '../../utils/formatters';
+import { dayKeyOf } from '../../utils/dates';
 import {
   BillListLinearIcon,
   BillListBoldIcon,
@@ -26,9 +28,9 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
 
   // Filter
   const filteredTransactions = useMemo(() => {
-    if (filter === 'INCOME') return transactions.filter(t => t.flow === 'CREDIT' && t.operationType !== 'SAVINGS_WITHDRAWAL');
-    if (filter === 'EXPENSE') return transactions.filter(t => t.flow === 'DEBIT' && t.operationType !== 'WITHDRAWAL_CASH' && t.operationType !== 'SAVINGS_DEPOSIT');
-    if (filter === 'TRANSFER') return transactions.filter(t => t.operationType === 'WITHDRAWAL_CASH' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'SAVINGS_WITHDRAWAL' || t.operationType === 'TRANSFER_P2P');
+    if (filter === 'INCOME') return transactions.filter(t => getIncomeAmount(t) > 0);
+    if (filter === 'EXPENSE') return transactions.filter(t => isBudgetable(t) && !isInternalTransfer(t));
+    if (filter === 'TRANSFER') return transactions.filter(t => isInternalTransfer(t) || isSavingsMovement(t));
     return transactions;
   }, [transactions, filter]);
 
@@ -36,7 +38,7 @@ export function TransactionsView({ onSelectTransaction }: TransactionsViewProps)
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, typeof transactions> = {};
     filteredTransactions.forEach(t => {
-      const dateKey = t.date.split('T')[0];
+      const dateKey = dayKeyOf(t.date);
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(t);
     });

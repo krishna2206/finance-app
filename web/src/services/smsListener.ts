@@ -1,207 +1,132 @@
 import { useToastStore } from '../stores/useToastStore';
 import { useTransactionStore } from '../stores/useTransactionStore';
-import { useWalletStore } from '../stores/useWalletStore';
-import { useSavingsStore } from '../stores/useSavingsStore';
-import { useBudgetStore } from '../stores/useBudgetStore';
-import { useNotificationStore } from '../stores/useNotificationStore';
+import { syncAllStores } from '../stores/sync';
 import { formatAmount } from '../utils/formatters';
+import { API_BASE, accessToken } from './api';
+import { Budget, Transaction } from '../types/models';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+interface SmsEventPayload {
+  transaction?: Transaction;
+  parsed?: { flow: 'DEBIT' | 'CREDIT'; amount: number; title: string; note?: string; sourceWalletType?: string };
+  hasBudgetConflict?: boolean;
+  matchingBudgets?: Budget[];
+}
+
+const HEARTBEAT_TIMEOUT_MS = 35_000;
+const RECONNECT_DELAY_MS = 2_000;
 
 let activeEventSource: EventSource | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let heartbeatWatchdog: ReturnType<typeof setTimeout> | null = null;
-let isInitialized = false;
-
-/**
- * Trigger immediate refresh across all stores
- */
-export function syncAllStores() {
-  return Promise.allSettled([
-    useTransactionStore.getState().loadTransactions(),
-    useWalletStore.getState().loadWallets(),
-    useSavingsStore.getState().loadSavingsAndGoals(),
-    useBudgetStore.getState().loadBudgets(),
-    useNotificationStore.getState().checkMonthlySettlements(),
-  ]);
-}
+let isRunning = false;
 
 function resetWatchdog() {
-  if (heartbeatWatchdog) {
-    clearTimeout(heartbeatWatchdog);
-  }
-  // If no ping/event in 35s, recycle socket
-  heartbeatWatchdog = setTimeout(() => {
-    console.warn('[SSE] Heartbeat watchdog timeout (35s). Recyling SSE connection...');
-    recycleConnection();
-  }, 35000);
+  if (heartbeatWatchdog) clearTimeout(heartbeatWatchdog);
+  heartbeatWatchdog = setTimeout(recycleConnection, HEARTBEAT_TIMEOUT_MS);
+}
+
+function closeConnection() {
+  activeEventSource?.close();
+  activeEventSource = null;
 }
 
 function recycleConnection() {
-  if (activeEventSource) {
-    try {
-      activeEventSource.close();
-    } catch {
-      // ignore
-    }
-    activeEventSource = null;
-  }
+  closeConnection();
   connect();
 }
 
-function connect() {
-  if (activeEventSource && activeEventSource.readyState === EventSource.OPEN) {
+function scheduleReconnect() {
+  if (reconnectTimer || !isRunning) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, RECONNECT_DELAY_MS);
+}
+
+function handleSmsEvent(rawData: string) {
+  resetWatchdog();
+  let payload: SmsEventPayload;
+  try {
+    payload = JSON.parse(rawData);
+  } catch {
     return;
   }
 
-  try {
-    const sseUrl = `${API_BASE}/sms/events`;
-    console.log('[SSE] Opening connection to:', sseUrl);
+  const { transaction, parsed } = payload;
+  if (transaction) useTransactionStore.getState().upsertLocal(transaction);
+  syncAllStores();
 
-    const es = new EventSource(sseUrl);
-    activeEventSource = es;
-
-    es.onopen = () => {
-      console.log('[SSE] Stream connected successfully.');
-      resetWatchdog();
-    };
-
-    es.addEventListener('connected', (e) => {
-      console.log('[SSE] Server connection acknowledged:', e.data);
-      resetWatchdog();
+  if (transaction && payload.hasBudgetConflict && (payload.matchingBudgets?.length ?? 0) > 1) {
+    useTransactionStore.getState().setPendingBudgetConflict({
+      transaction,
+      matchingBudgets: payload.matchingBudgets!,
     });
+  }
 
-    es.addEventListener('ping', () => {
-      resetWatchdog();
+  if (parsed) {
+    const sign = parsed.flow === 'DEBIT' ? '-' : '+';
+    useToastStore.getState().showToast({
+      title: `SMS ${parsed.sourceWalletType === 'MVOLA' ? 'MVola' : parsed.sourceWalletType || 'MVola'} intercepté`,
+      description: `${sign}${formatAmount(parsed.amount)} Ar · ${parsed.title}${parsed.note ? ` (${parsed.note})` : ''}`,
+      type: 'sms',
+      duration: 5000,
     });
-
-    const handleTransactionEvent = (rawData: string) => {
-      resetWatchdog();
-      try {
-        const payload = JSON.parse(rawData);
-        const { parsed, transaction } = payload;
-        console.log('[SSE] NEW_SMS_TRANSACTION event received:', payload);
-
-        // 1. Instant optimistic state update
-        if (transaction) {
-          const currentTxns = useTransactionStore.getState().transactions;
-          if (!currentTxns.some(t => t.id === transaction.id)) {
-            useTransactionStore.setState({
-              transactions: [transaction, ...currentTxns],
-            });
-          }
-        }
-
-        // 2. Refresh all stores in real-time
-        syncAllStores();
-
-        // 2.1 Trigger Budget Conflict Resolution Sheet if category belongs to 2+ budgets
-        if (payload.hasBudgetConflict && payload.matchingBudgets && payload.matchingBudgets.length > 1 && transaction) {
-          useTransactionStore.getState().setPendingBudgetConflict({
-            transaction,
-            matchingBudgets: payload.matchingBudgets,
-          });
-        }
-
-        // 3. Trigger animated custom toast notification
-        if (parsed) {
-          const isDebit = parsed.flow === 'DEBIT';
-          const sign = isDebit ? '-' : '+';
-          const formattedAmount = `${sign}${formatAmount(parsed.amount)} Ar`;
-          const titleText = `SMS ${parsed.sourceWalletType || 'MVola'} intercepté`;
-          const descriptionText = `${formattedAmount} · ${parsed.title}${parsed.note ? ' (' + parsed.note + ')' : ''}`;
-
-          try {
-            useToastStore.getState().showToast({
-              title: titleText,
-              description: descriptionText,
-              type: 'sms',
-              duration: 5000,
-            });
-          } catch (err) {
-            console.error('[SSE] Toast display failed:', err);
-          }
-        }
-      } catch (err) {
-        console.error('[SSE] Error handling SMS payload:', err);
-      }
-    };
-
-    es.addEventListener('NEW_SMS_TRANSACTION', (e) => {
-      handleTransactionEvent(e.data);
-    });
-
-    es.onmessage = (e) => {
-      if (e.data && e.data.includes('transaction')) {
-        handleTransactionEvent(e.data);
-      }
-    };
-
-    es.onerror = (err) => {
-      console.warn('[SSE] Connection error/interrupted:', err);
-      try {
-        es.close();
-      } catch {
-        // ignore
-      }
-      activeEventSource = null;
-
-      if (!reconnectTimer) {
-        reconnectTimer = setTimeout(() => {
-          reconnectTimer = null;
-          connect();
-        }, 2000);
-      }
-    };
-  } catch (err) {
-    console.error('[SSE] Failed to instantiate EventSource:', err);
   }
 }
 
-export function initSmsListener() {
-  if (isInitialized) {
-    return () => {};
-  }
-  isInitialized = true;
+function connect() {
+  if (!isRunning) return;
+  if (activeEventSource && activeEventSource.readyState !== EventSource.CLOSED) return;
 
+  const token = accessToken.get();
+  if (!token) return;
+
+  const es = new EventSource(`${API_BASE}/sms/events?token=${encodeURIComponent(token)}`);
+  activeEventSource = es;
+
+  es.onopen = resetWatchdog;
+  es.addEventListener('connected', resetWatchdog);
+  es.addEventListener('ping', resetWatchdog);
+  es.addEventListener('NEW_SMS_TRANSACTION', (e) => handleSmsEvent((e as MessageEvent).data));
+
+  es.onerror = () => {
+    closeConnection();
+    scheduleReconnect();
+  };
+}
+
+function onForeground() {
+  if (!activeEventSource || activeEventSource.readyState !== EventSource.OPEN) recycleConnection();
+  syncAllStores();
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') onForeground();
+}
+
+/**
+ * Démarre l'écoute temps réel des SMS interceptés, avec reconnexion automatique
+ * et resynchronisation quand l'app revient au premier plan. Retourne la fonction d'arrêt.
+ */
+export function startSmsListener(): () => void {
+  if (isRunning) return stopSmsListener;
+  isRunning = true;
   connect();
 
-  // Lifecycle listeners: Reconnect & catch-up whenever user returns to tab
-  if (typeof window !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[SSE] Tab became visible. Verifying SSE connection & syncing stores...');
-        if (!activeEventSource || activeEventSource.readyState !== EventSource.OPEN) {
-          recycleConnection();
-        }
-        syncAllStores();
-      }
-    });
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('focus', onForeground);
+  window.addEventListener('online', onForeground);
+  return stopSmsListener;
+}
 
-    window.addEventListener('focus', () => {
-      console.log('[SSE] Window focused. Syncing stores...');
-      if (!activeEventSource || activeEventSource.readyState !== EventSource.OPEN) {
-        recycleConnection();
-      }
-      syncAllStores();
-    });
-
-    window.addEventListener('online', () => {
-      console.log('[SSE] Network back online. Reconnecting SSE...');
-      recycleConnection();
-      syncAllStores();
-    });
-  }
-
-  return () => {
-    // Teardown
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-    if (heartbeatWatchdog) {
-      clearTimeout(heartbeatWatchdog);
-      heartbeatWatchdog = null;
-    }
-  };
+export function stopSmsListener() {
+  isRunning = false;
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('focus', onForeground);
+  window.removeEventListener('online', onForeground);
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (heartbeatWatchdog) clearTimeout(heartbeatWatchdog);
+  reconnectTimer = null;
+  heartbeatWatchdog = null;
+  closeConnection();
 }
