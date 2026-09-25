@@ -1,0 +1,159 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: 1.3.14
+
+jobs:
+  quality:
+    name: Types, tests unitaires, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Installer les dépendances (lockfile figé)
+        run: bun install --frozen-lockfile
+
+      - name: Vérification des types (shared, backend, web, e2e)
+        run: bun run typecheck
+
+      - name: Migrations à jour avec le schéma
+        run: |
+          cd backend
+          bunx drizzle-kit generate --name ci-check
+          if [ -n "$(git status --porcelain drizzle)" ]; then
+            echo "::error::schema.ts a changé sans migration. Lancez 'bun run db:generate' et commitez le résultat."
+            git status --porcelain drizzle
+            exit 1
+          fi
+
+      - name: Tests unitaires et d'invariants comptables
+        run: bun run test
+
+      - name: Build de production du web
+        run: bun run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 3
+
+  e2e:
+    name: Tests end-to-end (Playwright, mobile)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - run: bun install --frozen-lockfile
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+
+      - name: Version de Playwright
+        id: playwright
+        run: echo "version=$(cd e2e && bunx playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache des navigateurs Playwright
+        id: browsers-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Installer Chromium
+        if: steps.browsers-cache.outputs.cache-hit != 'true'
+        run: cd e2e && bunx playwright install --with-deps chromium
+
+      - name: Dépendances système de Chromium
+        if: steps.browsers-cache.outputs.cache-hit == 'true'
+        run: cd e2e && bunx playwright install-deps chromium
+
+      - name: Tests end-to-end
+        run: bun run test:e2e
+
+      - name: Rapport Playwright
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 14
+
+  docker:
+    name: Image Docker (build + smoke test)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build de l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: finance-app:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Démarrage et vérifications
+        run: |
+          docker volume create finance-ci-data
+          docker run -d --name finance -p 4880:4880 \
+            -e APP_ACCESS_TOKEN=ci-token \
+            -v finance-ci-data:/data finance-app:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4880/health && break
+            sleep 1
+          done
+
+          set -e
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4880/api/wallets)" = "401"
+          curl -fsS -H "Authorization: Bearer ci-token" http://127.0.0.1:4880/api/categories | grep -q cat_food_groceries
+          curl -fsS http://127.0.0.1:4880/ | grep -q '<div id="root">'
+
+          # La base survit à un redémarrage du conteneur (volume persistant).
+          curl -fsS -X PUT -H "Authorization: Bearer ci-token" -H "Content-Type: application/json" \
+            -d '{"userName":"Persistant"}' http://127.0.0.1:4880/api/settings > /dev/null
+          docker restart finance
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4880/health > /dev/null && break
+            sleep 1
+          done
+          curl -fsS -H "Authorization: Bearer ci-token" http://127.0.0.1:4880/api/settings | grep -q Persistant
+          docker exec finance ls /data/backups | grep -q finance-
+
+      - name: Journaux du conteneur
+        if: failure()
+        run: docker logs finance
