@@ -44,8 +44,26 @@ export function createApp() {
   // En production, le backend sert aussi l'application web compilée (même origine, pas de CORS).
   if (existsSync(path.join(WEB_DIST, 'index.html'))) {
     const root = path.relative(process.cwd(), WEB_DIST) || '.';
+
+    app.use('/*', async (c, next) => {
+      await next();
+      const pathname = new URL(c.req.url).pathname;
+      if (c.res.status !== 200) return;
+      // Fichiers versionnés par un hash : cache long. Le reste (index, service worker, manifeste) : revalidé.
+      c.header('Cache-Control', pathname.startsWith('/assets/')
+        ? 'public, max-age=31536000, immutable'
+        : 'no-cache');
+    });
     app.use('/*', serveStatic({ root }));
-    app.get('*', serveStatic({ path: path.join(root, 'index.html') }));
+
+    // Seules les adresses de navigation (sans extension) reçoivent l'application ;
+    // un fichier absent répond 404.
+    app.get('*', async (c, next) => {
+      if (path.extname(new URL(c.req.url).pathname)) {
+        return c.json({ error: 'Fichier introuvable' }, 404);
+      }
+      return serveStatic({ path: path.join(root, 'index.html') })(c, next);
+    });
   }
 
   return app;
