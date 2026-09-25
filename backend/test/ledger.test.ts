@@ -167,7 +167,7 @@ describe('Interception SMS', () => {
   it('un envoi vers son propre numéro Airtel est un transfert interne', async () => {
     const { date, time } = smsNow();
     const { body } = await api('POST', '/sms/webhook', {
-      message: `Vous avez transfere 5 000 Ar a Krishna(0330000001) le ${date} a ${time}:00. Frais:250 Ar. Raison: moi. Votre solde est de 94 750 Ar. Ref: 999002`,
+      message: `Vous avez transfere 5 000 Ar a Jean(0330000001) le ${date} a ${time}:00. Frais:250 Ar. Raison: moi. Votre solde est de 94 750 Ar. Ref: 999002`,
     });
     expect(body.transaction.destinationWalletId).toBe('AIRTEL');
     expect(await balances()).toMatchObject({ MVOLA: 94_750, AIRTEL: 5_000 });

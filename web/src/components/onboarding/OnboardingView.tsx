@@ -223,7 +223,7 @@ export function OnboardingView() {
                       type="text"
                       value={userName}
                       onChange={e => setUserName(e.target.value)}
-                      placeholder="Ex: Krishna, Rabe..."
+                      placeholder="Ex: Rabe, Soa..."
                       className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-900 shadow-xs"
                     />
                   </div>
@@ -466,7 +466,7 @@ export function OnboardingView() {
                     Configuration terminée
                   </span>
                   <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-                    Tout est prêt, {userName.trim() || 'Krishna'} !
+                    Tout est prêt, {userName.trim() || 'Utilisateur'} !
                   </h1>
                   <p className="text-xs text-zinc-500 leading-relaxed">
                     Votre espace financier et vos portefeuilles sont configurés et prêts à l'emploi.

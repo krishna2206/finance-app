@@ -160,7 +160,7 @@ export function DashboardView({
     <div className="space-y-4 pb-20 select-none">
       {/* 1. Header (User greeting & date) */}
       <DashboardHeader
-        userName={settings?.userName || 'Krishna'}
+        userName={settings?.userName || 'Utilisateur'}
         onOpenSettings={onOpenSettings}
         onOpenNotifications={onOpenNotifications}
         unreadNotificationsCount={unreadNotificationsCount}

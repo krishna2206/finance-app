@@ -12,7 +12,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
-  userName = 'Krishna',
+  userName = 'Utilisateur',
   onOpenSettings,
   onOpenNotifications,
   unreadNotificationsCount = 0,

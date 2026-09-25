@@ -159,14 +159,12 @@ jobs:
         run: docker logs finance
 
   deploy:
-    name: Déploiement Dokploy (fitiavana)
+    name: Déploiement (Dokploy)
     needs: [quality, e2e, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: production
-      url: https://myfinance.hebergeko.online
+    environment: production
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -174,10 +172,21 @@ jobs:
       DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
       DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
-      PUBLIC_URL: https://myfinance.hebergeko.online
+      PUBLIC_URL: ${{ secrets.DEPLOY_PUBLIC_URL }}
       COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
     steps:
+      - name: Vérifier la configuration du déploiement
+        id: config
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$DOKPLOY_API_KEY" ] || [ -z "$DOKPLOY_APPLICATION_ID" ] || [ -z "$PUBLIC_URL" ]; then
+            echo "::notice::Secrets de déploiement absents : déploiement ignoré."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Déclencher le déploiement et attendre son résultat
+        if: steps.config.outputs.enabled == 'true'
         run: |
           set -euo pipefail
           api() {
@@ -199,7 +208,7 @@ jobs:
               echo "Statut du déploiement : $status"
               case "$status" in
                 done) exit 0 ;;
-                error) echo "::error::Le déploiement Dokploy a échoué (voir les journaux dans Dokploy)"; exit 1 ;;
+                error) echo "::error::Le déploiement a échoué (voir les journaux de Dokploy)"; exit 1 ;;
               esac
             fi
             sleep 10
@@ -208,12 +217,14 @@ jobs:
           exit 1
 
       - name: Vérifier la version en ligne
+        if: steps.config.outputs.enabled == 'true'
         run: |
           set -euo pipefail
           for i in $(seq 1 30); do
             curl -fsS "$PUBLIC_URL/health" > /dev/null && break
             sleep 5
           done
-          curl -fsS "$PUBLIC_URL/health"
+          curl -fsS "$PUBLIC_URL/health" > /dev/null
           test "$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC_URL/api/wallets")" = "401"
           curl -fsS "$PUBLIC_URL/" | grep -q '<div id="root">'
+          echo "Version en ligne opérationnelle."

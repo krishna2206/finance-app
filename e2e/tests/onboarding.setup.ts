@@ -16,7 +16,7 @@ test('déverrouillage puis premier lancement : profil et soldes de départ', asy
 
   // Étape 1 : profil
   await expect(page.getByRole('heading', { name: 'Faisons connaissance' })).toBeVisible();
-  await page.getByPlaceholder('Ex: Krishna, Rabe...').fill('E2E');
+  await page.getByPlaceholder('Ex: Rabe, Soa...').fill('E2E');
   await page.getByRole('button', { name: 'Continuer' }).click();
 
   // Étape 2 : comptes et soldes réels
