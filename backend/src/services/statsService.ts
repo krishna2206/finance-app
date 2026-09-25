@@ -1,52 +1,37 @@
+import { getIncomeAmount, getSpendingAmount } from '@finance/shared';
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
+import { currentPeriod, shiftPeriod } from '../lib/time';
 import { MonthlySavingsReport, MonthlyHistoricalStats, BudgetSavingsBreakdown } from '../types';
 
 export const statsService = {
   /**
-   * Calculates the budget performance and surplus report for a given month (YYYY-MM).
-   * Aggregates spending across all categories grouped inside each budget envelope.
+   * Bilan des enveloppes pour une période 'YYYY-MM'.
+   * Le dépensé d'une enveloppe est la somme des opérations qui lui sont affectées (budgetId).
    */
-  getMonthlySavingsReport(period?: string): MonthlySavingsReport {
-    const targetPeriod = period || new Date().toISOString().slice(0, 7);
-    const allBudgets = budgetRepository.getAllBudgets();
-    const activeBudgets = allBudgets.filter(b => b.monthlyLimit > 0);
+  getMonthlySavingsReport(period: string = currentPeriod()): MonthlySavingsReport {
+    const activeBudgets = budgetRepository.getAllBudgets().filter(b => b.monthlyLimit > 0);
+    const monthTransactions = transactionRepository.getTransactionsForPeriod(period);
 
-    const monthTransactions = transactionRepository.getTransactionsForMonth(targetPeriod);
-
-    // Strict Activity Guard: if no transactions occurred in the month, no surplus is generated
-    if (monthTransactions.length === 0 || activeBudgets.length === 0) {
-      return {
-        period: targetPeriod,
-        totalBudget: activeBudgets.reduce((sum, b) => sum + b.monthlyLimit, 0),
-        totalSpent: 0,
-        totalSurplus: 0,
-        totalOverspent: 0,
-        netSavings: 0,
-        savingsRate: 0,
-        hasBudgets: false,
-        budgets: [],
-      };
+    const spentByBudget = new Map<string, number>();
+    for (const t of monthTransactions) {
+      if (!t.budgetId) continue;
+      spentByBudget.set(t.budgetId, (spentByBudget.get(t.budgetId) || 0) + getSpendingAmount(t));
     }
+
+    // Sans aucune opération sur la période, aucun surplus n'est considéré comme « économisé ».
+    const hasActivity = monthTransactions.length > 0;
 
     let totalBudget = 0;
     let totalSpent = 0;
     let totalSurplus = 0;
     let totalOverspent = 0;
 
-    const budgetsBreakdown: BudgetSavingsBreakdown[] = activeBudgets.map(b => {
+    const budgets: BudgetSavingsBreakdown[] = activeBudgets.map(b => {
       const limit = b.monthlyLimit;
-      // Exact calculation: sum transactions assigned to this budget (with fallback on category)
-      const spent = monthTransactions
-        .filter(t => {
-          if (t.flow !== 'DEBIT' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'WITHDRAWAL_CASH') return false;
-          if (t.budgetId) return t.budgetId === b.id;
-          return t.categoryId ? b.categoryIds.includes(t.categoryId) : false;
-        })
-        .reduce((sum, t) => sum + (t.totalAmount ?? t.amount), 0);
-
+      const spent = spentByBudget.get(b.id) || 0;
       const isOverspent = spent > limit;
-      const surplus = isOverspent ? 0 : Math.max(0, limit - spent);
+      const surplus = hasActivity && !isOverspent ? limit - spent : 0;
       const overspentAmount = isOverspent ? spent - limit : 0;
 
       totalBudget += limit;
@@ -71,70 +56,51 @@ export const statsService = {
       };
     });
 
-    const netSavings = totalBudget - totalSpent;
-    const savingsRate = totalBudget > 0
-      ? Math.max(0, Math.round(((totalBudget - totalSpent) / totalBudget) * 100))
-      : 0;
-
     return {
-      period: targetPeriod,
+      period,
       totalBudget,
       totalSpent,
       totalSurplus,
       totalOverspent,
-      netSavings,
-      savingsRate,
+      netSavings: hasActivity ? totalBudget - totalSpent : 0,
+      savingsRate: hasActivity && totalBudget > 0
+        ? Math.max(0, Math.round(((totalBudget - totalSpent) / totalBudget) * 100))
+        : 0,
       hasBudgets: activeBudgets.length > 0,
-      budgets: budgetsBreakdown,
+      budgets,
     };
   },
 
-  /**
-   * Returns macro-level historical financial summaries across the last N months.
-   */
+  /** Synthèse des N derniers mois (heure locale). */
   getHistoricalStats(monthsCount = 6): MonthlyHistoricalStats[] {
+    const now = currentPeriod();
     const results: MonthlyHistoricalStats[] = [];
-    const now = new Date();
 
     for (let i = monthsCount - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const period = d.toISOString().slice(0, 7);
-
-      const txns = transactionRepository.getTransactionsForMonth(period);
-      const savingsReport = this.getMonthlySavingsReport(period);
+      const period = shiftPeriod(now, -i);
+      const txns = transactionRepository.getTransactionsForPeriod(period);
+      const report = this.getMonthlySavingsReport(period);
 
       let totalIncome = 0;
       let totalExpenses = 0;
       let totalSavingsDeposited = 0;
-
-      txns.forEach(t => {
-        if (t.flow === 'CREDIT' && t.operationType !== 'SAVINGS_WITHDRAWAL') {
-          totalIncome += t.totalAmount ?? t.amount;
-        } else if (
-          t.flow === 'DEBIT' &&
-          t.operationType !== 'SAVINGS_DEPOSIT' &&
-          t.operationType !== 'WITHDRAWAL_CASH'
-        ) {
-          totalExpenses += t.totalAmount ?? t.amount;
-        }
-
-        if (t.operationType === 'SAVINGS_DEPOSIT') {
-          totalSavingsDeposited += t.amount;
-        }
-      });
+      for (const t of txns) {
+        totalIncome += getIncomeAmount(t);
+        totalExpenses += getSpendingAmount(t);
+        if (t.operationType === 'SAVINGS_DEPOSIT') totalSavingsDeposited += t.amount;
+      }
 
       results.push({
         period,
         totalIncome,
         totalExpenses,
-        totalBudgetAllocated: savingsReport.totalBudget,
-        totalBudgetSpent: savingsReport.totalSpent,
-        totalSurplus: savingsReport.totalSurplus,
+        totalBudgetAllocated: report.totalBudget,
+        totalBudgetSpent: report.totalSpent,
+        totalSurplus: report.totalSurplus,
         totalSavingsDeposited,
         netCashflow: totalIncome - totalExpenses,
       });
     }
-
     return results;
   },
 };

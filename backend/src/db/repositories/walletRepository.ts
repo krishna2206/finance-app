@@ -1,7 +1,9 @@
 import { getDatabase } from '../index';
-import { wallets, savings } from '../schema';
+import { wallets } from '../schema';
 import { Wallet, WalletType } from '../../types';
 import { eq } from 'drizzle-orm';
+import { conflict } from '../../lib/errors';
+import { normalizePhoneNumber } from '../../lib/validation';
 
 export const walletRepository = {
   getAllWallets(): Wallet[] {
@@ -54,16 +56,6 @@ export const walletRepository = {
       isSpendable,
       createdAt: now,
       updatedAt: now,
-    }).onConflictDoUpdate({
-      target: wallets.id,
-      set: {
-        name: data.name,
-        type,
-        accountNumber: data.accountNumber || null,
-        balance,
-        isSpendable,
-        updatedAt: now,
-      }
     }).run();
 
     return {
@@ -84,10 +76,15 @@ export const walletRepository = {
     db.update(wallets).set({ balance: newBalance, updatedAt: now }).where(eq(wallets.id, id)).run();
   },
 
+  findByAccountNumber(phoneNumber: string): Wallet | null {
+    const target = normalizePhoneNumber(phoneNumber);
+    if (!target) return null;
+    return this.getAllWallets().find(w => normalizePhoneNumber(w.accountNumber) === target) || null;
+  },
+
   adjustBalanceDelta(id: string, delta: number): number {
-    const db = getDatabase();
     const existing = this.getWalletById(id);
-    if (!existing) return 0;
+    if (!existing) throw conflict(`Compte introuvable (${id})`);
     const newBalance = existing.balance + delta;
     this.updateBalance(id, newBalance);
     return newBalance;
@@ -101,11 +98,11 @@ export const walletRepository = {
     return true;
   },
 
-  batchInitWallets(walletsList: Array<{ id?: string; name: string; type?: WalletType; accountNumber?: string; balance: number; isSpendable: boolean }>): Wallet[] {
+  /** Remplace tous les comptes (onboarding). L'appelant doit vérifier qu'aucune donnée n'y est rattachée. */
+  replaceAllWallets(walletsList: Array<{ id?: string; name: string; type?: WalletType; accountNumber?: string; balance: number; isSpendable: boolean }>): Wallet[] {
     const db = getDatabase();
     const now = Date.now();
 
-    // Clear previous wallets
     db.delete(wallets).run();
 
     for (const w of walletsList) {

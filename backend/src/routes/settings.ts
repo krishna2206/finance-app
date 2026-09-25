@@ -1,24 +1,43 @@
 import { Hono } from 'hono';
-import { settingsRepository } from '../db/repositories/settingsRepository';
+import { settingsRepository, SettingsUpdate } from '../db/repositories/settingsRepository';
+import {
+  asObject,
+  optionalBoolean,
+  optionalNonNegativeAmount,
+  optionalString,
+} from '../lib/validation';
+import { badRequest } from '../lib/errors';
 
 export const settingsRouter = new Hono();
 
 settingsRouter.get('/', (c) => {
-  const settings = settingsRepository.getSettings();
-  return c.json(settings);
+  return c.json(settingsRepository.getSettings());
 });
 
 settingsRouter.put('/', async (c) => {
-  const body = await c.req.json();
-  const updated = settingsRepository.updateSettings({
-    userName: body.userName,
-    userProfession: body.userProfession,
-    userLocation: body.userLocation,
-    monthlyIncomeTarget: body.monthlyIncomeTarget !== undefined ? Number(body.monthlyIncomeTarget) : undefined,
-    monthlySavingsTarget: body.monthlySavingsTarget !== undefined ? Number(body.monthlySavingsTarget) : undefined,
-    currency: body.currency,
-    onboardingCompleted: body.onboardingCompleted !== undefined ? Boolean(body.onboardingCompleted) : undefined,
-  });
+  const body = asObject(await c.req.json());
+  const update: SettingsUpdate = {};
 
-  return c.json(updated);
+  if (body.userName !== undefined) {
+    const name = optionalString(body.userName, 'userName');
+    if (!name) throw badRequest('userName ne peut pas être vide');
+    update.userName = name;
+  }
+  if (body.userProfession !== undefined) update.userProfession = optionalString(body.userProfession, 'userProfession') ?? '';
+  if (body.userLocation !== undefined) update.userLocation = optionalString(body.userLocation, 'userLocation') ?? '';
+  if (body.monthlyIncomeTarget !== undefined) {
+    update.monthlyIncomeTarget = optionalNonNegativeAmount(body.monthlyIncomeTarget, 'monthlyIncomeTarget', 0);
+  }
+  if (body.monthlySavingsTarget !== undefined) {
+    update.monthlySavingsTarget = optionalNonNegativeAmount(body.monthlySavingsTarget, 'monthlySavingsTarget', 0);
+  }
+  if (body.onboardingCompleted !== undefined) {
+    update.onboardingCompleted = optionalBoolean(body.onboardingCompleted, 'onboardingCompleted');
+  }
+  // La clé n'est jamais renvoyée au client : une chaîne vide l'efface, l'absence du champ la conserve.
+  if (body.geminiApiKey !== undefined) {
+    update.geminiApiKey = optionalString(body.geminiApiKey, 'geminiApiKey') ?? null;
+  }
+
+  return c.json(settingsRepository.updateSettings(update));
 });

@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
 import { statsService } from '../services/statsService';
+import { badRequest } from '../lib/errors';
+import { isValidPeriod } from '../lib/time';
 
 export const statsRouter = new Hono();
 
@@ -9,6 +11,7 @@ export const statsRouter = new Hono();
  */
 statsRouter.get('/monthly-savings', (c) => {
   const period = c.req.query('period');
+  if (period && !isValidPeriod(period)) throw badRequest('period doit être au format YYYY-MM');
   const report = statsService.getMonthlySavingsReport(period);
   return c.json(report);
 });

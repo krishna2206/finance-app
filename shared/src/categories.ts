@@ -1,4 +1,10 @@
-import { Category } from '../types';
+export interface SystemCategoryDefinition {
+  id: string;
+  name: string;
+  type: 'EXPENSE' | 'INCOME';
+  color: string;
+  icon: string;
+}
 
 export const SYSTEM_CATEGORY_IDS = {
   // INCOME (4)
@@ -22,7 +28,7 @@ export const SYSTEM_CATEGORY_IDS = {
   UNCATEGORIZED: 'cat_uncategorized',
 } as const;
 
-export const DEFAULT_SYSTEM_CATEGORIES: Array<Omit<Category, 'createdAt'>> = [
+export const DEFAULT_SYSTEM_CATEGORIES: SystemCategoryDefinition[] = [
   // 1. REVENUS (INCOME)
   {
     id: SYSTEM_CATEGORY_IDS.TRANSFERS_RECEIVED,
@@ -139,3 +145,9 @@ export const DEFAULT_SYSTEM_CATEGORIES: Array<Omit<Category, 'createdAt'>> = [
     icon: 'MenuDotsBoldIcon',
   },
 ];
+
+const SYSTEM_CATEGORY_ID_SET = new Set<string>(Object.values(SYSTEM_CATEGORY_IDS));
+
+export function isSystemCategory(categoryId: string): boolean {
+  return SYSTEM_CATEGORY_ID_SET.has(categoryId);
+}

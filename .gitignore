@@ -34,3 +34,7 @@ npm-debug.*
 *.db-journal
 *.db-shm
 *.db-wal
+
+# Données locales du serveur (sauvegardes, jeton d'accès)
+backups/
+.access-token

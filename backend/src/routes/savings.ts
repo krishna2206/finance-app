@@ -2,184 +2,117 @@ import { Hono } from 'hono';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
-import { transactionRepository } from '../db/repositories/transactionRepository';
-import { SavingsMode } from '../types';
+import { savingsService } from '../services/savingsService';
+import { withTransaction } from '../db/index';
+import { badRequest, conflict, notFound } from '../lib/errors';
+import {
+  asObject,
+  optionalEnum,
+  optionalNonNegativeAmount,
+  optionalString,
+  requirePositiveAmount,
+  requireString,
+} from '../lib/validation';
+import { Savings, SavingsMode } from '../types';
 
 export const savingsRouter = new Hono();
 
-savingsRouter.get('/', (c) => {
-  const list = savingsRepository.getAllSavings();
-  const enhanced = list.map(s => {
-    const goals = savingsGoalRepository.getGoalsBySavingsId(s.id);
-    const totalGoalsAllocated = goals.reduce((sum, g) => sum + g.currentAmount, 0);
-    const unallocatedBalance = Math.max(0, s.balance - totalGoalsAllocated);
-    const wallet = walletRepository.getWalletById(s.walletId);
+const SAVINGS_MODES = ['NATIVE', 'VIRTUAL_LOCK'] as const satisfies readonly SavingsMode[];
 
-    return {
-      ...s,
-      walletName: wallet?.name || 'Inconnu',
-      walletType: wallet?.type || 'CUSTOM',
-      totalGoalsAllocated,
-      unallocatedBalance,
-      goalsCount: goals.length,
-    };
-  });
-
-  return c.json(enhanced);
-});
-
-savingsRouter.get('/:id', (c) => {
-  const id = c.req.param('id');
-  const s = savingsRepository.getSavingsById(id);
-  if (!s) return c.json({ error: 'Savings receptacle not found' }, 404);
-
+function enhance(s: Savings) {
   const goals = savingsGoalRepository.getGoalsBySavingsId(s.id);
   const totalGoalsAllocated = goals.reduce((sum, g) => sum + g.currentAmount, 0);
-  const unallocatedBalance = Math.max(0, s.balance - totalGoalsAllocated);
   const wallet = walletRepository.getWalletById(s.walletId);
-
-  return c.json({
+  return {
     ...s,
     walletName: wallet?.name || 'Inconnu',
     walletType: wallet?.type || 'CUSTOM',
     totalGoalsAllocated,
-    unallocatedBalance,
-    goals,
-  });
+    unallocatedBalance: Math.max(0, s.balance - totalGoalsAllocated),
+    goalsCount: goals.length,
+  };
+}
+
+savingsRouter.get('/', (c) => {
+  return c.json(savingsRepository.getAllSavings().map(enhance));
+});
+
+savingsRouter.get('/:id', (c) => {
+  const s = savingsRepository.getSavingsById(c.req.param('id'));
+  if (!s) throw notFound('Pot d’épargne introuvable');
+  return c.json({ ...enhance(s), goals: savingsGoalRepository.getGoalsBySavingsId(s.id) });
 });
 
 savingsRouter.post('/', async (c) => {
-  const body = await c.req.json();
-  if (!body.walletId || !body.name) {
-    return c.json({ error: 'walletId and name are required' }, 400);
-  }
+  const body = asObject(await c.req.json());
+  const walletId = requireString(body.walletId, 'walletId');
+  const name = requireString(body.name, 'name');
+  const balance = optionalNonNegativeAmount(body.balance, 'balance', 0);
 
-  const wallet = walletRepository.getWalletById(body.walletId);
-  if (!wallet) {
-    return c.json({ error: 'Referenced wallet does not exist' }, 400);
-  }
+  const created = withTransaction(() => {
+    const wallet = walletRepository.getWalletById(walletId);
+    if (!wallet) throw badRequest('Compte introuvable');
 
-  const isCashWallet = wallet.type === 'CASH' || wallet.name.toLowerCase().includes('espèce');
-  const mode: SavingsMode = isCashWallet ? 'VIRTUAL_LOCK' : ((body.mode || 'VIRTUAL_LOCK') as SavingsMode);
+    // Les espèces ne peuvent être que « bloquées » virtuellement.
+    const mode: SavingsMode = wallet.type === 'CASH'
+      ? 'VIRTUAL_LOCK'
+      : optionalEnum(body.mode, SAVINGS_MODES, 'mode') || 'VIRTUAL_LOCK';
 
-  const created = savingsRepository.createSavings({
-    id: body.id,
-    walletId: body.walletId,
-    name: body.name,
-    mode,
-    balance: body.balance !== undefined ? Number(body.balance) : 0,
-    color: body.color,
-    icon: body.icon,
+    if (mode === 'VIRTUAL_LOCK') savingsService.assertCanLockOnWallet(wallet.id, balance);
+
+    return savingsRepository.createSavings({
+      walletId: wallet.id,
+      name,
+      mode,
+      balance,
+      color: optionalString(body.color, 'color'),
+      icon: optionalString(body.icon, 'icon'),
+    });
   });
 
-  return c.json(created, 201);
+  return c.json(enhance(created), 201);
 });
 
 savingsRouter.put('/:id', async (c) => {
-  const id = c.req.param('id');
-  const body = await c.req.json();
-  const updated = savingsRepository.updateSavings(id, body);
-  if (!updated) return c.json({ error: 'Savings receptacle not found' }, 404);
-  return c.json(updated);
+  const body = asObject(await c.req.json());
+  const updated = savingsRepository.updateSavings(c.req.param('id'), {
+    name: body.name !== undefined ? requireString(body.name, 'name') : undefined,
+    color: optionalString(body.color, 'color'),
+    icon: optionalString(body.icon, 'icon'),
+  });
+  if (!updated) throw notFound('Pot d’épargne introuvable');
+  return c.json(enhance(updated));
 });
 
 savingsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  const success = savingsRepository.deleteSavings(id);
-  if (!success) return c.json({ error: 'Savings receptacle not found' }, 404);
+  withTransaction(() => {
+    const s = savingsRepository.getSavingsById(id);
+    if (!s) throw notFound('Pot d’épargne introuvable');
+    if (s.balance > 0) throw conflict('Débloquez d’abord l’argent de ce pot avant de le supprimer');
+    savingsRepository.deleteSavings(id);
+  });
   return c.json({ success: true, deletedId: id });
 });
 
-// Versement vers l'épargne
 savingsRouter.post('/:id/deposit', async (c) => {
-  const id = c.req.param('id');
-  const body = await c.req.json<{ amount: number; sourceWalletId?: string; note?: string }>();
-  const amount = Number(body.amount);
-
-  if (!amount || amount <= 0) {
-    return c.json({ error: 'Valid positive amount required' }, 400);
-  }
-
-  const s = savingsRepository.getSavingsById(id);
-  if (!s) return c.json({ error: 'Savings receptacle not found' }, 404);
-
-  const sourceWalletId = body.sourceWalletId || s.walletId;
-  const sourceWallet = walletRepository.getWalletById(sourceWalletId);
-  if (!sourceWallet) return c.json({ error: 'Source wallet not found' }, 400);
-
-  // If source wallet is distinct from savings parent wallet, transfer between wallets
-  if (sourceWalletId !== s.walletId) {
-    walletRepository.adjustBalanceDelta(sourceWalletId, -amount);
-    walletRepository.adjustBalanceDelta(s.walletId, amount);
-  }
-
-  // Increase savings balance
-  const newBalance = savingsRepository.adjustSavingsBalanceDelta(id, amount);
-
-  // Record Transaction
-  transactionRepository.createTransaction({
-    flow: 'DEBIT',
-    operationType: 'SAVINGS_DEPOSIT',
-    walletId: sourceWalletId,
-    destinationWalletId: s.walletId !== sourceWalletId ? s.walletId : undefined,
-    savingsId: s.id,
-    amount,
-    feeAmount: 0,
-    totalAmount: amount,
-    title: `Versement Épargne - ${s.name}`,
-    note: body.note,
-    date: new Date().toISOString(),
-    source: 'MANUAL',
+  const body = asObject(await c.req.json());
+  savingsService.deposit(c.req.param('id'), {
+    amount: requirePositiveAmount(body.amount, 'amount'),
+    walletId: optionalString(body.sourceWalletId, 'sourceWalletId'),
+    note: optionalString(body.note, 'note'),
   });
-
-  return c.json({ success: true, newBalance, savingsId: s.id });
+  const s = savingsRepository.getSavingsById(c.req.param('id'))!;
+  return c.json({ success: true, newBalance: s.balance, savingsId: s.id });
 });
 
-// Déblocage depuis l'épargne
 savingsRouter.post('/:id/withdraw', async (c) => {
-  const id = c.req.param('id');
-  const body = await c.req.json<{ amount: number; destinationWalletId?: string; note?: string }>();
-  const amount = Number(body.amount);
-
-  if (!amount || amount <= 0) {
-    return c.json({ error: 'Valid positive amount required' }, 400);
-  }
-
-  const s = savingsRepository.getSavingsById(id);
-  if (!s) return c.json({ error: 'Savings receptacle not found' }, 404);
-
-  if (s.balance < amount) {
-    return c.json({ error: 'Solde d’épargne insuffisant' }, 400);
-  }
-
-  const destWalletId = body.destinationWalletId || s.walletId;
-  const destWallet = walletRepository.getWalletById(destWalletId);
-  if (!destWallet) return c.json({ error: 'Destination wallet not found' }, 400);
-
-  // Decrease savings balance
-  const newBalance = savingsRepository.adjustSavingsBalanceDelta(id, -amount);
-
-  // If destination wallet is distinct from savings parent wallet
-  if (destWalletId !== s.walletId) {
-    walletRepository.adjustBalanceDelta(s.walletId, -amount);
-    walletRepository.adjustBalanceDelta(destWalletId, amount);
-  }
-
-  // Record Transaction
-  transactionRepository.createTransaction({
-    flow: 'CREDIT',
-    operationType: 'SAVINGS_WITHDRAWAL',
-    walletId: s.walletId,
-    destinationWalletId: destWalletId !== s.walletId ? destWalletId : undefined,
-    savingsId: s.id,
-    amount,
-    feeAmount: 0,
-    totalAmount: amount,
-    title: `Déblocage Épargne - ${s.name}`,
-    note: body.note,
-    date: new Date().toISOString(),
-    source: 'MANUAL',
+  const body = asObject(await c.req.json());
+  savingsService.withdraw(c.req.param('id'), {
+    amount: requirePositiveAmount(body.amount, 'amount'),
+    walletId: optionalString(body.destinationWalletId, 'destinationWalletId'),
+    note: optionalString(body.note, 'note'),
   });
-
-  return c.json({ success: true, newBalance, savingsId: s.id });
+  const s = savingsRepository.getSavingsById(c.req.param('id'))!;
+  return c.json({ success: true, newBalance: s.balance, savingsId: s.id });
 });

@@ -1,4 +1,4 @@
-import { SYSTEM_CATEGORY_IDS } from '../constants/categories';
+import { SYSTEM_CATEGORY_IDS } from '@finance/shared';
 import { ParsedSMSResult } from './smsParser';
 
 export const autoCategorizer = {

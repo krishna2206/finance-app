@@ -18,6 +18,9 @@ describe('SMS Parser Test Suite (Real MVola Messages)', () => {
     expect(result?.newBalance).toBe(300919);
     expect(result?.referenceNumber).toBe('1000000006');
     expect(result?.sourceWalletType).toBe('MVOLA');
+    // 10:32 heure de Madagascar (UTC+3) = 07:32 UTC
+    expect(result?.date).toBe('2026-08-27T07:32:00.000Z');
+    expect(result?.hasExplicitDate).toBe(true);
   });
 
   it('should correctly parse Achat Crédit YAS (Sample 2)', () => {
@@ -33,6 +36,7 @@ describe('SMS Parser Test Suite (Real MVola Messages)', () => {
     expect(result?.phoneNumber).toBe('0340000003');
     expect(result?.newBalance).toBe(310169);
     expect(result?.referenceNumber).toBe('1000000005');
+    expect(result?.hasExplicitDate).toBe(false);
   });
 
   it('should correctly parse Transfert Interopérabilité Airtel (Sample 3)', () => {
@@ -81,12 +85,14 @@ describe('SMS Parser Test Suite (Real MVola Messages)', () => {
     expect(result?.referenceNumber).toBe('1000000002');
   });
 
-  it('should correctly parse Réception d argent / Salaire (Sample 6)', () => {
+  it('should parse incoming money as a plain transfer, never guessing a salary from the sender name', () => {
     const raw = `1 000 000 Ar recu de SOCIETE XYZ 0340000002 le 01/07/26 a 14:24. Raison: F. Solde: 1 200 605 Ar. Ref 1000000001`;
     const result = smsParser.parse(raw);
 
     expect(result).not.toBeNull();
     expect(result?.flow).toBe('CREDIT');
+    expect(result?.operationType).toBe('INCOME_TRANSFER');
+    expect(result?.title).toBe('Reçu de SOCIETE XYZ');
     expect(result?.amount).toBe(1000000);
     expect(result?.feeAmount).toBe(0);
     expect(result?.phoneNumber).toBe('0340000002');
@@ -110,5 +116,17 @@ describe('SMS Parser Test Suite (Real MVola Messages)', () => {
     const res3 = smsParser.parse(raw3);
     expect(res3?.amount).toBe(400);
     expect(res3?.feeAmount).toBe(0);
+  });
+
+  it('should not classify Malagasy names containing "sa" as salary', () => {
+    const raw = `20 000 Ar recu de HASINA RASAMIMANANA 0341234567 le 02/09/26 a 21:05. Raison: loyer. Solde: 120 000 Ar. Ref 1234567890`;
+    const result = smsParser.parse(raw);
+    expect(result?.operationType).toBe('INCOME_TRANSFER');
+  });
+
+  it('should keep a late-evening SMS on the right local day and month', () => {
+    const raw = `7 000 Ar envoye a RAKOTOBE 0340000003 le 31/08/26 a 23:30. Frais: 150 Ar. Solde: 300 919 Ar. Ref: 1000000007`;
+    const result = smsParser.parse(raw);
+    expect(result?.date).toBe('2026-08-31T20:30:00.000Z');
   });
 });

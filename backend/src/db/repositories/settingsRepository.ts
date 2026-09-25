@@ -1,6 +1,10 @@
 import { getDatabase } from '../index';
 import { settings } from '../schema';
 import { AppSettings } from '../../types';
+
+export type SettingsUpdate = Partial<Omit<AppSettings, 'id' | 'createdAt' | 'updatedAt' | 'hasGeminiApiKey'>> & {
+  geminiApiKey?: string | null;
+};
 import { eq } from 'drizzle-orm';
 
 export const settingsRepository = {
@@ -15,10 +19,11 @@ export const settingsRepository = {
         userName: 'Utilisateur',
         userProfession: '',
         userLocation: '',
-        monthlyIncomeTarget: 1000000,
-        monthlySavingsTarget: 150000,
+        monthlyIncomeTarget: 0,
+        monthlySavingsTarget: 0,
         currency: 'MGA',
         onboardingCompleted: false,
+        hasGeminiApiKey: false,
         smsCaptureEnabled: true,
         pushNotificationsEnabled: true,
         createdAt: now,
@@ -35,7 +40,7 @@ export const settingsRepository = {
       monthlySavingsTarget: row.monthlySavingsTarget || 0,
       currency: row.currency || 'MGA',
       onboardingCompleted: Boolean(row.onboardingCompleted),
-      geminiApiKey: row.geminiApiKey || undefined,
+      hasGeminiApiKey: Boolean(row.geminiApiKey),
       smsCaptureEnabled: Boolean(row.smsCaptureEnabled),
       pushNotificationsEnabled: Boolean(row.pushNotificationsEnabled),
       createdAt: row.createdAt || 0,
@@ -43,7 +48,7 @@ export const settingsRepository = {
     };
   },
 
-  updateSettings(data: Partial<AppSettings>): AppSettings {
+  updateSettings(data: SettingsUpdate): AppSettings {
     const db = getDatabase();
     const current = this.getSettings();
     const now = Date.now();

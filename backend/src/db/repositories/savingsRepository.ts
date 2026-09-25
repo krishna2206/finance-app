@@ -2,6 +2,7 @@ import { getDatabase } from '../index';
 import { savings } from '../schema';
 import { Savings, SavingsMode } from '../../types';
 import { eq, and } from 'drizzle-orm';
+import { conflict } from '../../lib/errors';
 
 export const savingsRepository = {
   getAllSavings(): Savings[] {
@@ -98,7 +99,7 @@ export const savingsRepository = {
     };
   },
 
-  updateSavings(id: string, data: Partial<Omit<Savings, 'id' | 'createdAt'>>): Savings | null {
+  updateSavings(id: string, data: Partial<Pick<Savings, 'name' | 'color' | 'icon'>>): Savings | null {
     const db = getDatabase();
     const now = Date.now();
     const existing = this.getSavingsById(id);
@@ -120,8 +121,11 @@ export const savingsRepository = {
 
   adjustSavingsBalanceDelta(id: string, delta: number): number {
     const existing = this.getSavingsById(id);
-    if (!existing) return 0;
-    const newBalance = Math.max(0, existing.balance + delta);
+    if (!existing) throw conflict('Pot d’épargne introuvable');
+    const newBalance = existing.balance + delta;
+    if (newBalance < 0) {
+      throw conflict(`Solde insuffisant sur l'épargne « ${existing.name} »`);
+    }
     this.updateSavingsBalance(id, newBalance);
     return newBalance;
   },

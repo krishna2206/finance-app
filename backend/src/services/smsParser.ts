@@ -1,4 +1,5 @@
 import { OperationType, TransactionFlow, WalletType } from '../types';
+import { localDateTimeToIso } from '../lib/time';
 
 export interface ParsedSMSResult {
   flow: TransactionFlow;
@@ -13,7 +14,8 @@ export interface ParsedSMSResult {
   note?: string;
   newBalance?: number;
   referenceNumber?: string;
-  date: string; // ISO 8601
+  date: string; // ISO 8601 UTC
+  hasExplicitDate: boolean; // false si le SMS ne contient pas d'horodatage (la date est celle de réception)
   sourceWalletType: WalletType;
   rawText: string;
   matchedPattern: string;
@@ -30,28 +32,15 @@ function cleanNumber(val?: string): number {
 }
 
 /**
- * Converts SMS date formats ("27/08/26" or "23/08/2026", "10:32" or "14:53:17") to an ISO 8601 string.
+ * Convertit la date/heure d'un SMS ("27/08/26" ou "23/08/2026", "10:32" ou "14:53:17"),
+ * exprimée en heure locale de Madagascar, en ISO 8601 UTC.
  */
 export function parseSmsDateTime(dateStr: string, timeStr: string): string {
-  try {
-    const [dayStr, monthStr, yearStr] = dateStr.split('/');
-    let year = parseInt(yearStr, 10);
-    if (year < 100) {
-      year += 2000;
-    }
-    const month = parseInt(monthStr, 10) - 1;
-    const day = parseInt(dayStr, 10);
-
-    const timeParts = timeStr.split(':');
-    const hours = parseInt(timeParts[0], 10) || 0;
-    const minutes = parseInt(timeParts[1], 10) || 0;
-    const seconds = parseInt(timeParts[2], 10) || 0;
-
-    const date = new Date(Date.UTC(year, month, day, hours, minutes, seconds));
-    return date.toISOString();
-  } catch {
-    return new Date().toISOString();
-  }
+  const [dayStr, monthStr, yearStr] = dateStr.split('/');
+  let year = parseInt(yearStr, 10);
+  if (year < 100) year += 2000;
+  const [hours = 0, minutes = 0, seconds = 0] = timeStr.split(':').map(v => parseInt(v, 10) || 0);
+  return localDateTimeToIso(year, parseInt(monthStr, 10) - 1, parseInt(dayStr, 10), hours, minutes, seconds);
 }
 
 export const smsParser = {
@@ -92,6 +81,7 @@ export const smsParser = {
         newBalance,
         referenceNumber,
         date,
+        hasExplicitDate: true,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_P2P_OUT',
@@ -123,6 +113,7 @@ export const smsParser = {
         newBalance,
         referenceNumber,
         date: new Date().toISOString(),
+        hasExplicitDate: false,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_AIRTIME',
@@ -158,6 +149,7 @@ export const smsParser = {
         newBalance,
         referenceNumber,
         date,
+        hasExplicitDate: true,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_INTEROP_OUT',
@@ -191,6 +183,7 @@ export const smsParser = {
         newBalance,
         referenceNumber,
         date,
+        hasExplicitDate: true,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_CASHOUT',
@@ -220,6 +213,7 @@ export const smsParser = {
         newBalance,
         referenceNumber,
         date,
+        hasExplicitDate: true,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_MERCHANT',
@@ -240,24 +234,20 @@ export const smsParser = {
       const newBalance = cleanNumber(receiveMatch[7]);
       const referenceNumber = receiveMatch[8].trim();
 
-      const isSalaryCandidate = senderName.toLowerCase().includes('societe') ||
-        senderName.toLowerCase().includes('sarl') ||
-        senderName.toLowerCase().includes('sa') ||
-        (note && note.toLowerCase().includes('salaire'));
-
       return {
         flow: 'CREDIT',
-        operationType: isSalaryCandidate ? 'SALARY' : 'INCOME_TRANSFER',
+        operationType: 'INCOME_TRANSFER',
         amount,
         feeAmount: 0,
         totalAmount: amount,
-        title: isSalaryCandidate ? `Salaire ${senderName}` : `Reçu de ${senderName}`,
+        title: `Reçu de ${senderName}`,
         sender: `${senderName} (${phoneNumber})`,
         phoneNumber,
         note,
         newBalance,
         referenceNumber,
         date,
+        hasExplicitDate: true,
         sourceWalletType: 'MVOLA',
         rawText: rawMessage,
         matchedPattern: 'MVOLA_RECEIVE_IN',

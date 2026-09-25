@@ -1,43 +1,25 @@
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
+import { createApp } from './app';
 import { getDatabase } from './db/index';
-import { walletsRouter } from './routes/wallets';
-import { savingsRouter } from './routes/savings';
-import { savingsGoalsRouter } from './routes/savingsGoals';
-import { categoriesRouter } from './routes/categories';
-import { budgetsRouter } from './routes/budgets';
-import { transactionsRouter } from './routes/transactions';
-import { settingsRouter } from './routes/settings';
-import { statsRouter } from './routes/stats';
-import { smsRouter } from './routes/sms';
+import { getAccessToken, getAccessTokenLocation } from './lib/auth';
+import { backupService } from './services/backupService';
 
-const app = new Hono();
-
-// Middleware
-app.use('*', cors());
-
-// Initialize SQLite database with Drizzle ORM
 getDatabase();
 
-// Health check
-app.get('/health', (c) => c.json({ status: 'ok', time: Date.now() }));
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 4880;
+const hostname = process.env.HOST || '0.0.0.0';
 
-// Mount sub-routers
-app.route('/api/settings', settingsRouter);
-app.route('/api/wallets', walletsRouter);
-app.route('/api/savings', savingsRouter);
-app.route('/api/savings-goals', savingsGoalsRouter);
-app.route('/api/categories', categoriesRouter);
-app.route('/api/budgets', budgetsRouter);
-app.route('/api/transactions', transactionsRouter);
-app.route('/api/stats', statsRouter);
-app.route('/api/sms', smsRouter);
+getAccessToken();
+backupService.startSchedule();
 
-const DEFAULT_PORT = 4880;
-const port = process.env.PORT ? parseInt(process.env.PORT, 10) : DEFAULT_PORT;
-console.log(`Backend API running on http://localhost:${port}`);
+console.log(`Backend API : http://localhost:${port}`);
+console.log(`Jeton d'accès : ${getAccessTokenLocation()}`);
+console.log(`Sauvegardes : ${backupService.getBackupDir()}`);
 
 export default {
   port,
-  fetch: app.fetch,
+  hostname,
+  fetch: createApp().fetch,
+  development: process.env.NODE_ENV !== 'production',
+  // Les flux SSE restent ouverts : on désactive le délai d'inactivité de Bun.
+  idleTimeout: 0,
 };

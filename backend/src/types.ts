@@ -132,18 +132,10 @@ export interface Transaction {
   note?: string;
   source: TransactionSource;
   location?: TransactionLocation;
+  externalRef?: string;
   items?: TransactionItem[];
-  synced: boolean;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface RecipientMapping {
-  id: string;                      // UUID v4
-  phoneNumber: string;
-  recipientName?: string;
-  categoryId: string;
-  lastUsedAt: number;
 }
 
 export interface AppSettings {
@@ -155,22 +147,11 @@ export interface AppSettings {
   monthlySavingsTarget: number;
   currency: string;
   onboardingCompleted: boolean;
-  geminiApiKey?: string;
+  hasGeminiApiKey: boolean;
   smsCaptureEnabled: boolean;
   pushNotificationsEnabled: boolean;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface CadenceMetrics {
-  totalBudget: number;
-  totalSpent: number;
-  percentageMonthElapsed: number;
-  percentageBudgetConsumed: number;
-  isAhead: boolean;
-  deltaPercentage: number;
-  remainingDays: number;
-  dailyBurnRate: number;
 }
 
 export interface BudgetSavingsBreakdown {

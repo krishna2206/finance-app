@@ -3,15 +3,18 @@
   "private": true,
   "type": "module",
   "workspaces": [
+    "shared",
     "backend",
     "web"
   ],
   "scripts": {
     "dev": "bun --filter \"*\" dev",
-    "dev:backend": "cd backend && bun dev",
-    "dev:web": "cd web && bun dev",
-    "typecheck": "bun --filter \"*\" typecheck",
+    "dev:backend": "cd backend && bun run dev",
+    "dev:web": "cd web && bun run dev",
     "build": "cd web && bun run build",
-    "test": "cd backend && bun test"
+    "start": "bun run build && cd backend && bun run start",
+    "backup": "cd backend && bun run backup",
+    "test": "cd backend && bun test",
+    "typecheck": "bun --filter \"*\" typecheck"
   }
 }

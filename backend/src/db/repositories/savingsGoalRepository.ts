@@ -2,6 +2,7 @@ import { getDatabase } from '../index';
 import { savingsGoals } from '../schema';
 import { SavingsGoal, SavingsGoalPriority, SavingsGoalStatus } from '../../types';
 import { eq } from 'drizzle-orm';
+import { conflict } from '../../lib/errors';
 
 export const savingsGoalRepository = {
   getAllGoals(): SavingsGoal[] {
@@ -140,10 +141,19 @@ export const savingsGoalRepository = {
   adjustGoalAmountDelta(id: string, delta: number): number {
     const existing = this.getGoalById(id);
     if (!existing) return 0;
-    const newAmount = Math.max(0, existing.currentAmount + delta);
-    const newStatus: SavingsGoalStatus = newAmount >= existing.targetAmount ? 'COMPLETED' : 'IN_PROGRESS';
+    const newAmount = existing.currentAmount + delta;
+    if (newAmount < 0) {
+      throw conflict(`Montant insuffisant sur l'objectif « ${existing.name} »`);
+    }
+    const newStatus: SavingsGoalStatus = existing.status === 'ARCHIVED'
+      ? 'ARCHIVED'
+      : newAmount >= existing.targetAmount ? 'COMPLETED' : 'IN_PROGRESS';
     this.updateGoal(id, { currentAmount: newAmount, status: newStatus });
     return newAmount;
+  },
+
+  getTotalAllocatedForSavings(savingsId: string): number {
+    return this.getGoalsBySavingsId(savingsId).reduce((sum, g) => sum + g.currentAmount, 0);
   },
 
   deleteGoal(id: string): boolean {

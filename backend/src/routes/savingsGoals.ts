@@ -2,184 +2,130 @@ import { Hono } from 'hono';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
-import { transactionRepository } from '../db/repositories/transactionRepository';
-import { SavingsGoalPriority, SavingsGoalStatus } from '../types';
+import { savingsService } from '../services/savingsService';
+import { withTransaction } from '../db/index';
+import { badRequest, conflict, notFound } from '../lib/errors';
+import { formatAriary } from '../lib/format';
+import {
+  asObject,
+  optionalEnum,
+  optionalIsoDate,
+  optionalNonNegativeAmount,
+  optionalString,
+  requireEnum,
+  requirePositiveAmount,
+  requireString,
+} from '../lib/validation';
+import { SavingsGoal, SavingsGoalPriority, SavingsGoalStatus } from '../types';
 
 export const savingsGoalsRouter = new Hono();
 
-savingsGoalsRouter.get('/', (c) => {
-  const list = savingsGoalRepository.getAllGoals();
-  const enhanced = list.map(g => {
-    const s = savingsRepository.getSavingsById(g.savingsId);
-    const w = s ? walletRepository.getWalletById(s.walletId) : null;
+const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const satisfies readonly SavingsGoalPriority[];
+const STATUSES = ['IN_PROGRESS', 'COMPLETED', 'ARCHIVED'] as const satisfies readonly SavingsGoalStatus[];
 
-    const progressPercentage = g.targetAmount > 0
-      ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100))
-      : 0;
-
-    return {
-      ...g,
-      savingsName: s?.name || 'Inconnu',
-      savingsMode: s?.mode || 'VIRTUAL_LOCK',
-      walletId: s?.walletId,
-      walletName: w?.name || 'Inconnu',
-      walletType: w?.type || 'CUSTOM',
-      progressPercentage,
-      remainingAmount: Math.max(0, g.targetAmount - g.currentAmount),
-    };
-  });
-
-  return c.json(enhanced);
-});
-
-savingsGoalsRouter.get('/:id', (c) => {
-  const id = c.req.param('id');
-  const g = savingsGoalRepository.getGoalById(id);
-  if (!g) return c.json({ error: 'Goal not found' }, 404);
-
+function enhance(g: SavingsGoal) {
   const s = savingsRepository.getSavingsById(g.savingsId);
   const w = s ? walletRepository.getWalletById(s.walletId) : null;
-
-  const progressPercentage = g.targetAmount > 0
-    ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100))
-    : 0;
-
-  return c.json({
+  return {
     ...g,
     savingsName: s?.name || 'Inconnu',
     savingsMode: s?.mode || 'VIRTUAL_LOCK',
     walletId: s?.walletId,
     walletName: w?.name || 'Inconnu',
     walletType: w?.type || 'CUSTOM',
-    progressPercentage,
+    progressPercentage: g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0,
     remainingAmount: Math.max(0, g.targetAmount - g.currentAmount),
-  });
+  };
+}
+
+function requireGoal(id: string): SavingsGoal {
+  const g = savingsGoalRepository.getGoalById(id);
+  if (!g) throw notFound('Objectif introuvable');
+  return g;
+}
+
+savingsGoalsRouter.get('/', (c) => {
+  return c.json(savingsGoalRepository.getAllGoals().map(enhance));
+});
+
+savingsGoalsRouter.get('/:id', (c) => {
+  return c.json(enhance(requireGoal(c.req.param('id'))));
 });
 
 savingsGoalsRouter.post('/', async (c) => {
-  const body = await c.req.json();
-  if (!body.savingsId || !body.name || !body.targetAmount) {
-    return c.json({ error: 'savingsId, name and targetAmount are required' }, 400);
-  }
+  const body = asObject(await c.req.json());
+  const savingsId = requireString(body.savingsId, 'savingsId');
+  const currentAmount = optionalNonNegativeAmount(body.currentAmount, 'currentAmount', 0);
 
-  const s = savingsRepository.getSavingsById(body.savingsId);
-  if (!s) return c.json({ error: 'Referenced savings receptacle does not exist' }, 400);
+  const created = withTransaction(() => {
+    const pot = savingsRepository.getSavingsById(savingsId);
+    if (!pot) throw badRequest('Pot d’épargne introuvable');
 
-  const created = savingsGoalRepository.createGoal({
-    id: body.id,
-    savingsId: body.savingsId,
-    name: body.name,
-    targetAmount: Number(body.targetAmount),
-    currentAmount: body.currentAmount !== undefined ? Number(body.currentAmount) : 0,
-    deadline: body.deadline,
-    priority: (body.priority || 'MEDIUM') as SavingsGoalPriority,
-    status: (body.status || 'IN_PROGRESS') as SavingsGoalStatus,
-    color: body.color,
-    icon: body.icon,
-    note: body.note,
+    // Un montant initial ne peut réserver que de l'argent libre du pot.
+    const unallocated = savingsService.getUnallocatedBalance(pot);
+    if (currentAmount > unallocated) {
+      throw conflict(`Montant libre insuffisant dans « ${pot.name} » (${formatAriary(unallocated)})`);
+    }
+
+    return savingsGoalRepository.createGoal({
+      savingsId: pot.id,
+      name: requireString(body.name, 'name'),
+      targetAmount: requirePositiveAmount(body.targetAmount, 'targetAmount'),
+      currentAmount,
+      deadline: optionalIsoDate(body.deadline, 'deadline'),
+      priority: optionalEnum(body.priority, PRIORITIES, 'priority') || 'MEDIUM',
+      status: optionalEnum(body.status, STATUSES, 'status') || 'IN_PROGRESS',
+      color: optionalString(body.color, 'color'),
+      icon: optionalString(body.icon, 'icon'),
+      note: optionalString(body.note, 'note'),
+    });
   });
 
-  return c.json(created, 201);
+  return c.json(enhance(created), 201);
 });
 
 savingsGoalsRouter.put('/:id', async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json();
-  const updated = savingsGoalRepository.updateGoal(id, body);
-  if (!updated) return c.json({ error: 'Goal not found' }, 404);
-  return c.json(updated);
+  const body = asObject(await c.req.json());
+  requireGoal(id);
+
+  // Le montant accumulé et le pot ne se modifient que via des versements / déblocages.
+  const updated = savingsGoalRepository.updateGoal(id, {
+    name: body.name !== undefined ? requireString(body.name, 'name') : undefined,
+    targetAmount: body.targetAmount !== undefined ? requirePositiveAmount(body.targetAmount, 'targetAmount') : undefined,
+    deadline: optionalIsoDate(body.deadline, 'deadline'),
+    priority: optionalEnum(body.priority, PRIORITIES, 'priority'),
+    status: optionalEnum(body.status, STATUSES, 'status'),
+    color: optionalString(body.color, 'color'),
+    icon: optionalString(body.icon, 'icon'),
+    note: optionalString(body.note, 'note'),
+  });
+  return c.json(enhance(updated!));
 });
 
 savingsGoalsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  const success = savingsGoalRepository.deleteGoal(id);
-  if (!success) return c.json({ error: 'Goal not found' }, 404);
+  requireGoal(id);
+  savingsGoalRepository.deleteGoal(id);
   return c.json({ success: true, deletedId: id });
 });
 
-// Alimentation ou retrait ciblé sur l'objectif
+/** Versement ou déblocage ciblé sur un objectif. */
 savingsGoalsRouter.post('/:id/contribute', async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json<{
-    amount: number;
-    action: 'DEPOSIT' | 'WITHDRAW';
-    sourceWalletId?: string;
-    note?: string;
-  }>();
+  const body = asObject(await c.req.json());
+  const amount = requirePositiveAmount(body.amount, 'amount');
+  const action = requireEnum(body.action, ['DEPOSIT', 'WITHDRAW'] as const, 'action');
+  const walletId = optionalString(body.sourceWalletId, 'sourceWalletId');
+  const note = optionalString(body.note, 'note');
 
-  const amount = Number(body.amount);
-  if (!amount || amount <= 0) {
-    return c.json({ error: 'Valid positive amount required' }, 400);
-  }
-
-  const g = savingsGoalRepository.getGoalById(id);
-  if (!g) return c.json({ error: 'Goal not found' }, 404);
-
-  const s = savingsRepository.getSavingsById(g.savingsId);
-  if (!s) return c.json({ error: 'Parent savings receptacle not found' }, 404);
-
-  const isDeposit = body.action === 'DEPOSIT';
-
-  if (!isDeposit && g.currentAmount < amount) {
-    return c.json({ error: 'Montant alloué à l’objectif insuffisant' }, 400);
-  }
-
-  const delta = isDeposit ? amount : -amount;
-
-  // If deposit and source wallet provided: increase parent savings balance and handle wallet transfer if necessary
-  if (isDeposit) {
-    const sourceWalletId = body.sourceWalletId || s.walletId;
-    if (sourceWalletId !== s.walletId) {
-      walletRepository.adjustBalanceDelta(sourceWalletId, -amount);
-      walletRepository.adjustBalanceDelta(s.walletId, amount);
-    }
-    savingsRepository.adjustSavingsBalanceDelta(s.id, amount);
-
-    // Record Transaction
-    transactionRepository.createTransaction({
-      flow: 'DEBIT',
-      operationType: 'SAVINGS_DEPOSIT',
-      walletId: sourceWalletId,
-      destinationWalletId: s.walletId !== sourceWalletId ? s.walletId : undefined,
-      savingsId: s.id,
-      goalId: g.id,
-      amount,
-      feeAmount: 0,
-      totalAmount: amount,
-      title: `Objectif: ${g.name}`,
-      note: body.note,
-      date: new Date().toISOString(),
-      source: 'MANUAL',
-    });
+  const goal = requireGoal(id);
+  if (action === 'DEPOSIT') {
+    savingsService.deposit(goal.savingsId, { amount, walletId, note, goal });
   } else {
-    // Withdrawal / realization
-    const destWalletId = body.sourceWalletId || s.walletId;
-    if (destWalletId !== s.walletId) {
-      walletRepository.adjustBalanceDelta(s.walletId, -amount);
-      walletRepository.adjustBalanceDelta(destWalletId, amount);
-    }
-    savingsRepository.adjustSavingsBalanceDelta(s.id, -amount);
-
-    // Record Transaction
-    transactionRepository.createTransaction({
-      flow: 'CREDIT',
-      operationType: 'SAVINGS_WITHDRAWAL',
-      walletId: s.walletId,
-      destinationWalletId: destWalletId !== s.walletId ? destWalletId : undefined,
-      savingsId: s.id,
-      goalId: g.id,
-      amount,
-      feeAmount: 0,
-      totalAmount: amount,
-      title: `Déblocage Objectif: ${g.name}`,
-      note: body.note,
-      date: new Date().toISOString(),
-      source: 'MANUAL',
-    });
+    savingsService.withdraw(goal.savingsId, { amount, walletId, note, goal });
   }
 
-  const newCurrentAmount = savingsGoalRepository.adjustGoalAmountDelta(id, delta);
-  const updatedGoal = savingsGoalRepository.getGoalById(id);
-
-  return c.json({ success: true, newCurrentAmount, goal: updatedGoal });
+  const updatedGoal = requireGoal(id);
+  return c.json({ success: true, newCurrentAmount: updatedGoal.currentAmount, goal: enhance(updatedGoal) });
 });

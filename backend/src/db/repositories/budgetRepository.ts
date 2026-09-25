@@ -1,12 +1,12 @@
 import { getDatabase } from '../index';
 import { budgets, budgetCategories, categories } from '../schema';
-import { Budget, Category } from '../../types';
-import { eq, inArray } from 'drizzle-orm';
+import { Budget, Category, CategoryType } from '../../types';
+import { asc, eq } from 'drizzle-orm';
 
 export const budgetRepository = {
   getAllBudgets(): Budget[] {
     const db = getDatabase();
-    const allBudgets = db.select().from(budgets).all();
+    const allBudgets = db.select().from(budgets).orderBy(asc(budgets.createdAt)).all();
     const allLinks = db.select({
       budgetId: budgetCategories.budgetId,
       categoryId: budgetCategories.categoryId,
@@ -26,7 +26,7 @@ export const budgetRepository = {
       const categoryList: Category[] = links.map(l => ({
         id: l.categoryId,
         name: l.categoryName,
-        type: l.categoryType as any,
+        type: l.categoryType as CategoryType,
         color: l.categoryColor,
         icon: l.categoryIcon,
         createdAt: l.categoryCreatedAt,
@@ -70,7 +70,7 @@ export const budgetRepository = {
     const categoryList: Category[] = links.map(l => ({
       id: l.categoryId,
       name: l.categoryName,
-      type: l.categoryType as any,
+      type: l.categoryType as CategoryType,
       color: l.categoryColor,
       icon: l.categoryIcon,
       createdAt: l.categoryCreatedAt,

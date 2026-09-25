@@ -4,7 +4,4 @@ export default defineConfig({
   schema: './src/db/schema.ts',
   out: './drizzle',
   dialect: 'sqlite',
-  dbCredentials: {
-    url: 'finance.db',
-  },
 });

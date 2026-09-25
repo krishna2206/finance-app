@@ -4,12 +4,16 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "start": "bun src/index.ts",
+    "start": "NODE_ENV=production bun src/index.ts",
+    "backup": "bun src/scripts/backup.ts",
+    "db:generate": "drizzle-kit generate",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.13.3"
+    "hono": "^4.13.3",
+    "@finance/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",

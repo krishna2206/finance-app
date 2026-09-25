@@ -1,35 +1,151 @@
 import { getDatabase } from '../index';
 import { transactions, transactionItems } from '../schema';
 import { Transaction, TransactionFlow, OperationType, TransactionSource, TransactionItem, TransactionLocation } from '../../types';
-import { eq, desc, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, lt, max, or } from 'drizzle-orm';
+import { periodBounds } from '../../lib/time';
+
+type TransactionRow = typeof transactions.$inferSelect;
+type ItemRow = typeof transactionItems.$inferSelect;
+
+export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>;
+
+export interface TransactionUpdate {
+  categoryId?: string;
+  budgetId?: string | null;
+  title?: string;
+  note?: string | null;
+}
+
+function mapItem(it: ItemRow): TransactionItem {
+  return {
+    id: it.id,
+    transactionId: it.transactionId,
+    categoryId: it.categoryId || undefined,
+    name: it.name,
+    quantity: it.quantity,
+    unitPrice: it.unitPrice ?? undefined,
+    totalPrice: it.totalPrice,
+    unit: it.unit || undefined,
+    createdAt: it.createdAt,
+  };
+}
+
+function mapRow(row: TransactionRow, items: TransactionItem[]): Transaction {
+  let location: TransactionLocation | undefined;
+  if (row.placeName || row.latitude !== null || row.longitude !== null) {
+    location = {
+      placeName: row.placeName || undefined,
+      latitude: row.latitude ?? undefined,
+      longitude: row.longitude ?? undefined,
+    };
+  }
+
+  return {
+    id: row.id,
+    flow: row.flow as TransactionFlow,
+    operationType: row.operationType as OperationType,
+    walletId: row.walletId,
+    destinationWalletId: row.destinationWalletId || undefined,
+    savingsId: row.savingsId || undefined,
+    goalId: row.goalId || undefined,
+    categoryId: row.categoryId || undefined,
+    budgetId: row.budgetId || undefined,
+    amount: row.amount,
+    feeAmount: row.feeAmount,
+    totalAmount: row.totalAmount,
+    title: row.title,
+    recipient: row.recipient || undefined,
+    sender: row.sender || undefined,
+    date: row.date,
+    note: row.note || undefined,
+    source: row.source as TransactionSource,
+    externalRef: row.externalRef || undefined,
+    location,
+    items: items.length > 0 ? items : undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/** Charge les articles de toutes les lignes en une seule requête. */
+function hydrate(rows: TransactionRow[]): Transaction[] {
+  if (rows.length === 0) return [];
+  const db = getDatabase();
+  const itemsByTxn = new Map<string, TransactionItem[]>();
+  const ids = rows.map(r => r.id);
+
+  // SQLite limite le nombre de paramètres liés : on découpe par lots.
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    for (const it of db.select().from(transactionItems).where(inArray(transactionItems.transactionId, chunk)).all()) {
+      const list = itemsByTxn.get(it.transactionId) || [];
+      list.push(mapItem(it));
+      itemsByTxn.set(it.transactionId, list);
+    }
+  }
+
+  return rows.map(r => mapRow(r, itemsByTxn.get(r.id) || []));
+}
 
 export const transactionRepository = {
-  getAllTransactions(limit = 100): Transaction[] {
+  getAllTransactions(limit?: number): Transaction[] {
     const db = getDatabase();
-    const rows = db.select().from(transactions).orderBy(desc(transactions.date)).limit(limit).all();
-
-    return rows.map(r => this.mapRowToTransaction(r, db));
+    const query = db.select().from(transactions).orderBy(desc(transactions.date), desc(transactions.createdAt));
+    return hydrate(limit ? query.limit(limit).all() : query.all());
   },
 
-  getTransactionsForMonth(yearMonth: string): Transaction[] {
+  /** Transactions d'une période 'YYYY-MM' (découpée en heure locale). */
+  getTransactionsForPeriod(period: string): Transaction[] {
     const db = getDatabase();
+    const { start, end } = periodBounds(period);
     const rows = db.select().from(transactions)
-      .where(sql`strftime('%Y-%m', ${transactions.date}) = ${yearMonth}`)
-      .orderBy(desc(transactions.date))
+      .where(and(gte(transactions.date, start), lt(transactions.date, end)))
+      .orderBy(desc(transactions.date), desc(transactions.createdAt))
       .all();
-
-    return rows.map(r => this.mapRowToTransaction(r, db));
+    return hydrate(rows);
   },
 
   getTransactionById(id: string): Transaction | null {
     const db = getDatabase();
     const row = db.select().from(transactions).where(eq(transactions.id, id)).get();
-    if (!row) return null;
-
-    return this.mapRowToTransaction(row, db);
+    return row ? hydrate([row])[0] : null;
   },
 
-  createTransaction(txn: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Transaction {
+  getByExternalRef(externalRef: string): Transaction | null {
+    const db = getDatabase();
+    const row = db.select().from(transactions).where(eq(transactions.externalRef, externalRef)).get();
+    return row ? hydrate([row])[0] : null;
+  },
+
+  /** Date du SMS opérateur le plus récent déjà enregistré pour ce compte. */
+  getLatestSmsDate(walletId: string): string | null {
+    const db = getDatabase();
+    const row = db.select({ latest: max(transactions.date) }).from(transactions)
+      .where(and(eq(transactions.walletId, walletId), eq(transactions.source, 'SMS_AUTO')))
+      .get();
+    return row?.latest ?? null;
+  },
+
+  countByWallet(walletId: string): number {
+    const db = getDatabase();
+    const row = db.select({ n: count() }).from(transactions)
+      .where(or(eq(transactions.walletId, walletId), eq(transactions.destinationWalletId, walletId)))
+      .get();
+    return row?.n ?? 0;
+  },
+
+  countByCategory(categoryId: string): number {
+    const db = getDatabase();
+    const row = db.select({ n: count() }).from(transactions).where(eq(transactions.categoryId, categoryId)).get();
+    return row?.n ?? 0;
+  },
+
+  countAll(): number {
+    const db = getDatabase();
+    return db.select({ n: count() }).from(transactions).get()?.n ?? 0;
+  },
+
+  createTransaction(txn: NewTransaction): Transaction {
     const db = getDatabase();
     const id = crypto.randomUUID();
     const now = Date.now();
@@ -52,119 +168,52 @@ export const transactionRepository = {
       sender: txn.sender || null,
       date: txn.date,
       note: txn.note || null,
-      source: txn.source || 'MANUAL',
+      source: txn.source,
+      externalRef: txn.externalRef || null,
       placeName: txn.location?.placeName || null,
-      latitude: txn.location?.latitude || null,
-      longitude: txn.location?.longitude || null,
-      synced: 1,
+      latitude: txn.location?.latitude ?? null,
+      longitude: txn.location?.longitude ?? null,
       createdAt: now,
       updatedAt: now,
     }).run();
 
-    // Insert items if provided
-    if (txn.items && txn.items.length > 0) {
-      for (const item of txn.items) {
-        db.insert(transactionItems).values({
-          id: item.id || crypto.randomUUID(),
-          transactionId: id,
-          categoryId: item.categoryId || null,
-          name: item.name,
-          quantity: item.quantity || 1,
-          unitPrice: item.unitPrice || null,
-          totalPrice: item.totalPrice,
-          unit: item.unit || null,
-          createdAt: now,
-        }).run();
-      }
+    for (const item of txn.items || []) {
+      db.insert(transactionItems).values({
+        id: crypto.randomUUID(),
+        transactionId: id,
+        categoryId: item.categoryId || null,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice ?? null,
+        totalPrice: item.totalPrice,
+        unit: item.unit || null,
+        createdAt: now,
+      }).run();
     }
 
     return this.getTransactionById(id)!;
   },
 
-  updateTransaction(id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'budgetId' | 'title' | 'note'>>): Transaction | null {
+  updateTransaction(id: string, updates: TransactionUpdate): Transaction | null {
     const db = getDatabase();
     const existing = this.getTransactionById(id);
     if (!existing) return null;
 
-    const now = Date.now();
-    db.update(transactions).set({
-      categoryId: updates.categoryId !== undefined ? updates.categoryId : (existing.categoryId || null),
-      budgetId: updates.budgetId !== undefined ? updates.budgetId : (existing.budgetId || null),
-      title: updates.title !== undefined ? updates.title : existing.title,
-      note: updates.note !== undefined ? updates.note : (existing.note || null),
-      updatedAt: now,
-    }).where(eq(transactions.id, id)).run();
+    const patch: Partial<typeof transactions.$inferInsert> = { updatedAt: Date.now() };
+    if (updates.categoryId !== undefined) patch.categoryId = updates.categoryId;
+    if (updates.budgetId !== undefined) patch.budgetId = updates.budgetId;
+    if (updates.title !== undefined) patch.title = updates.title;
+    if (updates.note !== undefined) patch.note = updates.note;
 
+    db.update(transactions).set(patch).where(eq(transactions.id, id)).run();
     return this.getTransactionById(id);
   },
 
   deleteTransaction(id: string): boolean {
     const db = getDatabase();
-    const existing = this.getTransactionById(id);
+    const existing = db.select({ id: transactions.id }).from(transactions).where(eq(transactions.id, id)).get();
     if (!existing) return false;
-
-    // Cascade deletion of items happens via foreign keys or explicit delete
-    db.delete(transactionItems).where(eq(transactionItems.transactionId, id)).run();
     db.delete(transactions).where(eq(transactions.id, id)).run();
     return true;
   },
-
-  clearAllTransactions(): void {
-    const db = getDatabase();
-    db.delete(transactionItems).run();
-    db.delete(transactions).run();
-  },
-
-  mapRowToTransaction(row: typeof transactions.$inferSelect, db: ReturnType<typeof getDatabase>): Transaction {
-    const itemsRows = db.select().from(transactionItems).where(eq(transactionItems.transactionId, row.id)).all();
-
-    let location: TransactionLocation | undefined = undefined;
-    if (row.placeName || row.latitude || row.longitude) {
-      location = {
-        placeName: row.placeName || undefined,
-        latitude: row.latitude || undefined,
-        longitude: row.longitude || undefined,
-      };
-    }
-
-    const items: TransactionItem[] | undefined = itemsRows.length > 0
-      ? itemsRows.map(it => ({
-          id: it.id,
-          transactionId: it.transactionId,
-          categoryId: it.categoryId || undefined,
-          name: it.name,
-          quantity: it.quantity,
-          unitPrice: it.unitPrice || undefined,
-          totalPrice: it.totalPrice,
-          unit: it.unit || undefined,
-          createdAt: it.createdAt,
-        }))
-      : undefined;
-
-    return {
-      id: row.id,
-      flow: row.flow as TransactionFlow,
-      operationType: row.operationType as OperationType,
-      walletId: row.walletId,
-      destinationWalletId: row.destinationWalletId || undefined,
-      savingsId: row.savingsId || undefined,
-      goalId: row.goalId || undefined,
-      categoryId: row.categoryId || undefined,
-      budgetId: row.budgetId || undefined,
-      amount: row.amount,
-      feeAmount: row.feeAmount,
-      totalAmount: row.totalAmount,
-      title: row.title,
-      recipient: row.recipient || undefined,
-      sender: row.sender || undefined,
-      date: row.date,
-      note: row.note || undefined,
-      source: row.source as TransactionSource,
-      location,
-      items,
-      synced: Boolean(row.synced),
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  }
 };
