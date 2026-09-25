@@ -43,6 +43,7 @@ export const transactionRepository = {
       savingsId: txn.savingsId || null,
       goalId: txn.goalId || null,
       categoryId: txn.categoryId || null,
+      budgetId: txn.budgetId || null,
       amount: txn.amount,
       feeAmount: txn.feeAmount,
       totalAmount: txn.totalAmount,
@@ -80,7 +81,7 @@ export const transactionRepository = {
     return this.getTransactionById(id)!;
   },
 
-  updateTransaction(id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'title' | 'note'>>): Transaction | null {
+  updateTransaction(id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'budgetId' | 'title' | 'note'>>): Transaction | null {
     const db = getDatabase();
     const existing = this.getTransactionById(id);
     if (!existing) return null;
@@ -88,6 +89,7 @@ export const transactionRepository = {
     const now = Date.now();
     db.update(transactions).set({
       categoryId: updates.categoryId !== undefined ? updates.categoryId : (existing.categoryId || null),
+      budgetId: updates.budgetId !== undefined ? updates.budgetId : (existing.budgetId || null),
       title: updates.title !== undefined ? updates.title : existing.title,
       note: updates.note !== undefined ? updates.note : (existing.note || null),
       updatedAt: now,
@@ -148,6 +150,7 @@ export const transactionRepository = {
       savingsId: row.savingsId || undefined,
       goalId: row.goalId || undefined,
       categoryId: row.categoryId || undefined,
+      budgetId: row.budgetId || undefined,
       amount: row.amount,
       feeAmount: row.feeAmount,
       totalAmount: row.totalAmount,

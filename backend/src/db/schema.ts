@@ -53,15 +53,25 @@ export const categories = sqliteTable('categories', {
   createdAt: integer('created_at').notNull(),
 });
 
-// 5. BUDGETS (Plafonds mensuels et enveloppes de dépenses)
+// 5. BUDGETS (Plafonds mensuels et enveloppes de dépenses libres multi-catégories)
 export const budgets = sqliteTable('budgets', {
   id: text('id').primaryKey(),
-  categoryId: text('category_id').notNull().unique().references(() => categories.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
   monthlyLimit: real('monthly_limit').notNull().default(0),
+  color: text('color').notNull().default('#10B981'),
+  icon: text('icon').notNull().default('PieChartBoldIcon'),
   isEssential: integer('is_essential').notNull().default(0), // 1 = Besoin vital (Nourriture, Loyer, Santé)
   isFixed: integer('is_fixed').notNull().default(0),         // 1 = Montant fixe mensuel (Loyer vs Facture variable)
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
+});
+
+// 5.1 BUDGET_CATEGORIES (Liaison Multi-Catégories aux Enveloppes de Budgets)
+export const budgetCategories = sqliteTable('budget_categories', {
+  id: text('id').primaryKey(),
+  budgetId: text('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
+  categoryId: text('category_id').notNull().references(() => categories.id, { onDelete: 'cascade' }),
+  createdAt: integer('created_at').notNull(),
 });
 
 // 6. TRANSACTIONS (Grand Livre Comptable Immuable)
@@ -74,6 +84,7 @@ export const transactions = sqliteTable('transactions', {
   savingsId: text('savings_id').references(() => savings.id),
   goalId: text('goal_id').references(() => savingsGoals.id),
   categoryId: text('category_id').references(() => categories.id),
+  budgetId: text('budget_id').references(() => budgets.id, { onDelete: 'set null' }),
   amount: real('amount').notNull(),
   feeAmount: real('fee_amount').notNull().default(0),
   totalAmount: real('total_amount').notNull(),
@@ -153,19 +164,25 @@ export const savingsGoalsRelations = relations(savingsGoals, ({ one, many }) => 
   transactions: many(transactions),
 }));
 
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
-  budget: one(budgets, {
-    fields: [categories.id],
-    references: [budgets.categoryId],
-  }),
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  budgetCategories: many(budgetCategories),
   transactions: many(transactions),
   transactionItems: many(transactionItems),
   recipients: many(recipients),
 }));
 
-export const budgetsRelations = relations(budgets, ({ one }) => ({
+export const budgetsRelations = relations(budgets, ({ many }) => ({
+  budgetCategories: many(budgetCategories),
+  transactions: many(transactions),
+}));
+
+export const budgetCategoriesRelations = relations(budgetCategories, ({ one }) => ({
+  budget: one(budgets, {
+    fields: [budgetCategories.budgetId],
+    references: [budgets.id],
+  }),
   category: one(categories, {
-    fields: [budgets.categoryId],
+    fields: [budgetCategories.categoryId],
     references: [categories.id],
   }),
 }));
@@ -190,6 +207,10 @@ export const transactionsRelations = relations(transactions, ({ one, many }) => 
   category: one(categories, {
     fields: [transactions.categoryId],
     references: [categories.id],
+  }),
+  budget: one(budgets, {
+    fields: [transactions.budgetId],
+    references: [budgets.id],
   }),
   items: many(transactionItems),
 }));

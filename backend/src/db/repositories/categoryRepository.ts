@@ -1,5 +1,5 @@
 import { getDatabase } from '../index';
-import { categories, budgets } from '../schema';
+import { categories } from '../schema';
 import { Category, CategoryType } from '../../types';
 import { eq } from 'drizzle-orm';
 
@@ -46,19 +46,6 @@ export const categoryRepository = {
       icon: category.icon,
       createdAt: now,
     }).run();
-
-    // If EXPENSE, create a default budget entry
-    if (category.type === 'EXPENSE') {
-      db.insert(budgets).values({
-        id: `b-${id}`,
-        categoryId: id,
-        monthlyLimit: 0,
-        isEssential: 0,
-        isFixed: 0,
-        createdAt: now,
-        updatedAt: now,
-      }).run();
-    }
 
     return {
       id,

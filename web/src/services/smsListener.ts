@@ -95,6 +95,14 @@ function connect() {
         // 2. Refresh all stores in real-time
         syncAllStores();
 
+        // 2.1 Trigger Budget Conflict Resolution Sheet if category belongs to 2+ budgets
+        if (payload.hasBudgetConflict && payload.matchingBudgets && payload.matchingBudgets.length > 1 && transaction) {
+          useTransactionStore.getState().setPendingBudgetConflict({
+            transaction,
+            matchingBudgets: payload.matchingBudgets,
+          });
+        }
+
         // 3. Trigger animated custom toast notification
         if (parsed) {
           const isDebit = parsed.flow === 'DEBIT';

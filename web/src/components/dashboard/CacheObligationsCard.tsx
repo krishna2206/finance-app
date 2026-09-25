@@ -6,22 +6,22 @@ import { formatAmount } from '../../utils/formatters';
 import { CalendarLinearIcon } from '@solar-icons/react';
 
 export function CacheObligationsCard() {
-  const categories = useBudgetStore(state => state.categories);
+  const budgets = useBudgetStore(state => state.budgets);
   const transactions = useTransactionStore(state => state.transactions);
 
   const { totalObligationsRemaining, fixedBudget, feesSpent } = useMemo(() => {
     const currentYearMonth = new Date().toISOString().slice(0, 7);
-    const spendingMap = useBudgetStore.getState().getCategorySpendingMap(transactions);
+    const budgetSpendingMap = useBudgetStore.getState().getBudgetSpendingMap(transactions);
 
     let fixedRemaining = 0;
     let fixedTotal = 0;
 
-    categories
-      .filter(c => c.isEssential && c.type === 'EXPENSE')
-      .forEach(c => {
-        const limit = c.monthlyLimit || 0;
+    budgets
+      .filter(b => b.isEssential && b.monthlyLimit > 0)
+      .forEach(b => {
+        const limit = b.monthlyLimit;
         fixedTotal += limit;
-        const spent = spendingMap[c.id] || 0;
+        const spent = budgetSpendingMap[b.id] || 0;
         if (spent < limit) {
           fixedRemaining += (limit - spent);
         }
@@ -36,7 +36,7 @@ export function CacheObligationsCard() {
       fixedBudget: fixedTotal,
       feesSpent: fees,
     };
-  }, [categories, transactions]);
+  }, [budgets, transactions]);
 
   return (
     <InsetGroupedCard className="p-4 flex flex-col justify-between h-[165px]">

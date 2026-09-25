@@ -1,25 +1,29 @@
 import { create } from 'zustand';
-import { Transaction } from '../types/models';
+import { Transaction, Budget } from '../types/models';
 import { api } from '../services/api';
 import { useWalletStore } from './useWalletStore';
 import { useSavingsStore } from './useSavingsStore';
+import { useBudgetStore } from './useBudgetStore';
 
 interface TransactionState {
   transactions: Transaction[];
   filter: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER';
   isLoading: boolean;
+  pendingBudgetConflict: { transaction: Transaction; matchingBudgets: Budget[] } | null;
 
   loadTransactions: () => Promise<void>;
   addTransaction: (txnData: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'synced'>) => Promise<Transaction>;
-  updateTransaction: (id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'title' | 'note'>>) => Promise<Transaction>;
+  updateTransaction: (id: string, updates: Partial<Pick<Transaction, 'categoryId' | 'budgetId' | 'title' | 'note'>>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
   setFilter: (filter: 'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER') => void;
+  setPendingBudgetConflict: (conflict: { transaction: Transaction; matchingBudgets: Budget[] } | null) => void;
 }
 
 export const useTransactionStore = create<TransactionState>((set) => ({
   transactions: [],
   filter: 'ALL',
   isLoading: true,
+  pendingBudgetConflict: null,
 
   loadTransactions: async () => {
     try {
@@ -37,6 +41,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     await Promise.all([
       useWalletStore.getState().loadWallets(),
       useSavingsStore.getState().loadSavingsAndGoals(),
+      useBudgetStore.getState().loadBudgets(),
     ]);
     return created;
   },
@@ -46,6 +51,7 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     set(state => ({
       transactions: state.transactions.map(t => (t.id === id ? updated : t)),
     }));
+    await useBudgetStore.getState().loadBudgets();
     return updated;
   },
 
@@ -57,10 +63,15 @@ export const useTransactionStore = create<TransactionState>((set) => ({
     await Promise.all([
       useWalletStore.getState().loadWallets(),
       useSavingsStore.getState().loadSavingsAndGoals(),
+      useBudgetStore.getState().loadBudgets(),
     ]);
   },
 
   setFilter: (filter) => {
     set({ filter });
+  },
+
+  setPendingBudgetConflict: (conflict) => {
+    set({ pendingBudgetConflict: conflict });
   },
 }));

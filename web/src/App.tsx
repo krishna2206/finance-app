@@ -24,7 +24,8 @@ import { CreateSavingsBottomSheet } from './components/sheets/CreateSavingsBotto
 import { CreateGoalBottomSheet } from './components/sheets/CreateGoalBottomSheet';
 import { GoalActionBottomSheet } from './components/sheets/GoalActionBottomSheet';
 import { SavingsActionBottomSheet, SavingsActionType } from './components/sheets/SavingsActionBottomSheet';
-import { Transaction, Category, Savings, SavingsGoal } from './types/models';
+import { AssignBudgetBottomSheet } from './components/sheets/AssignBudgetBottomSheet';
+import { Transaction, Budget, Savings, SavingsGoal } from './types/models';
 
 const TAB_ORDER: Record<ActiveTab, number> = {
   dashboard: 0,
@@ -84,8 +85,9 @@ export function App() {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
 
   // Savings & Goals Bottom Sheets mounted at Root z-50
   const [isCreateSavingsOpen, setIsCreateSavingsOpen] = useState(false);
@@ -111,6 +113,9 @@ export function App() {
   const loadSavingsAndGoals = useSavingsStore(state => state.loadSavingsAndGoals);
   const loadBudgets = useBudgetStore(state => state.loadBudgets);
   const loadTransactions = useTransactionStore(state => state.loadTransactions);
+  const pendingBudgetConflict = useTransactionStore(state => state.pendingBudgetConflict);
+  const setPendingBudgetConflict = useTransactionStore(state => state.setPendingBudgetConflict);
+  const updateTransaction = useTransactionStore(state => state.updateTransaction);
 
   useEffect(() => {
     loadSettings();
@@ -224,7 +229,6 @@ export function App() {
                       onBack={closeSettings}
                       onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
                       onOpenAddWallet={() => setIsAddWalletOpen(true)}
-                      onEditCategory={setEditingCategory}
                     />
                   ) : (
                     <>
@@ -240,12 +244,6 @@ export function App() {
                           }}
                           onOpenNotifications={openNotifications}
                           onOpenSettings={openSettings}
-                          onOpenSavingsWithAmount={(amount) => {
-                            setSavingsDefaultAmount(amount);
-                            setSelectedSavingsForAction(null);
-                            setSavingsDefaultAction('DEPOSIT');
-                            setIsSavingsActionOpen(true);
-                          }}
                         />
                       )}
 
@@ -255,7 +253,8 @@ export function App() {
 
                       {activeTab === 'budgets' && (
                         <BudgetsView
-                          onEditCategory={setEditingCategory}
+                          onEditBudget={(b) => setEditingBudget(b)}
+                          onOpenCreateBudget={() => setIsCreateBudgetOpen(true)}
                           onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
                           onOpenCreateSavings={() => setIsCreateSavingsOpen(true)}
                           onOpenCreateGoal={(savingsId) => {
@@ -317,8 +316,12 @@ export function App() {
             />
 
             <BudgetEditBottomSheet
-              category={editingCategory}
-              onClose={() => setEditingCategory(null)}
+              budget={editingBudget}
+              isOpen={isCreateBudgetOpen || Boolean(editingBudget)}
+              onClose={() => {
+                setEditingBudget(null);
+                setIsCreateBudgetOpen(false);
+              }}
             />
 
             <CreateCategoryBottomSheet
@@ -358,6 +361,17 @@ export function App() {
               savings={selectedSavingsForAction}
               defaultAction={savingsDefaultAction}
               defaultAmount={savingsDefaultAmount}
+            />
+
+            <AssignBudgetBottomSheet
+              isOpen={Boolean(pendingBudgetConflict)}
+              transaction={pendingBudgetConflict?.transaction || null}
+              matchingBudgets={pendingBudgetConflict?.matchingBudgets || []}
+              onClose={() => setPendingBudgetConflict(null)}
+              onAssignBudget={async (txnId, budgetId) => {
+                await updateTransaction(txnId, { budgetId });
+                setPendingBudgetConflict(null);
+              }}
             />
           </div>
         </motion.div>

@@ -93,18 +93,22 @@ export interface Category {
   type: CategoryType;
   color: string;
   icon: string;
-  monthlyLimit?: number;           // Rejoint depuis la table budgets
-  isEssential?: boolean;           // Rejoint depuis la table budgets
-  isFixed?: boolean;               // Rejoint depuis la table budgets
   createdAt: number;
 }
 
 export interface Budget {
   id: string;                      // UUID v4
-  categoryId: string;
+  name: string;
   monthlyLimit: number;
+  color: string;
+  icon: string;
   isEssential: boolean;
   isFixed: boolean;
+  categoryIds: string[];
+  categories?: Category[];
+  spent?: number;
+  remaining?: number;
+  percentage?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -136,6 +140,7 @@ export interface Transaction {
   savingsId?: string;
   goalId?: string;
   categoryId?: string;
+  budgetId?: string;
   amount: number;
   feeAmount: number;
   totalAmount: number;
@@ -192,8 +197,8 @@ export interface CadenceMetrics {
   dailyBurnRate: number;
 }
 
-export interface CategorySavingsBreakdown {
-  categoryId: string;
+export interface BudgetSavingsBreakdown {
+  budgetId: string;
   name: string;
   color: string;
   icon: string;
@@ -204,6 +209,8 @@ export interface CategorySavingsBreakdown {
   overspentAmount: number;
   isEssential: boolean;
   isFixed: boolean;
+  categoryIds: string[];
+  categories?: Category[];
 }
 
 export interface MonthlySavingsReport {
@@ -215,7 +222,7 @@ export interface MonthlySavingsReport {
   netSavings: number;
   savingsRate: number;
   hasBudgets: boolean;
-  categories: CategorySavingsBreakdown[];
+  budgets: BudgetSavingsBreakdown[];
 }
 
 export interface MonthlyHistoricalStats {

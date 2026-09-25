@@ -33,7 +33,7 @@ transactionsRouter.get('/:id', (c) => {
 
 transactionsRouter.put('/:id', async (c) => {
   const id = c.req.param('id');
-  const body = await c.req.json<{ categoryId?: string; title?: string; note?: string }>();
+  const body = await c.req.json<{ categoryId?: string; budgetId?: string; title?: string; note?: string }>();
   const updated = transactionRepository.updateTransaction(id, body);
   if (!updated) return c.json({ error: 'Transaction not found' }, 404);
   return c.json(updated);
@@ -68,6 +68,7 @@ transactionsRouter.post('/', async (c) => {
     savingsId: body.savingsId || undefined,
     goalId: body.goalId || undefined,
     categoryId: body.categoryId || undefined,
+    budgetId: body.budgetId || undefined,
     amount,
     feeAmount,
     totalAmount,

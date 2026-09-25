@@ -7,12 +7,11 @@ import { Category, Wallet } from '../../types/models';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { WalletLogo } from '../common/WalletLogo';
 import { ConfirmationModal } from '../common/ConfirmationModal';
-import { formatAmount, formatCurrency } from '../../utils/formatters';
+import { formatCurrency } from '../../utils/formatters';
 import { api } from '../../services/api';
 import {
   AltArrowLeftLinearIcon,
   TrashBinTrashLinearIcon,
-  PenNewSquareLinearIcon,
   AddBoldIcon,
   KeyMinimalisticBoldIcon,
   DownloadMinimalisticBoldIcon,
@@ -22,14 +21,12 @@ interface SettingsViewProps {
   onBack: () => void;
   onOpenCreateCategory: () => void;
   onOpenAddWallet: () => void;
-  onEditCategory: (cat: Category) => void;
 }
 
 export function SettingsView({
   onBack,
   onOpenCreateCategory,
   onOpenAddWallet,
-  onEditCategory,
 }: SettingsViewProps) {
   const settings = useSettingsStore(state => state.settings);
   const updateSettings = useSettingsStore(state => state.updateSettings);
@@ -282,10 +279,7 @@ export function SettingsView({
               key={cat.id}
               className="p-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 transition-colors"
             >
-              <div
-                onClick={() => onEditCategory(cat)}
-                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
-              >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
                   style={{ backgroundColor: `${cat.color}18`, color: cat.color }}
                   className="w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 border border-black/5 shadow-2xs"
@@ -303,28 +297,15 @@ export function SettingsView({
                         Revenu
                       </span>
                     )}
-                    {cat.isEssential && (
-                      <span className="bg-zinc-100 text-zinc-600 text-[9px] font-bold px-1.5 py-0.2 rounded border border-zinc-200 shrink-0">
-                        Vital
-                      </span>
-                    )}
                   </div>
 
-                  <span className="text-[11px] text-zinc-400 font-medium block mt-0.5 tabular-nums">
-                    {cat.monthlyLimit ? `Plafond : ${formatAmount(cat.monthlyLimit)} Ar` : 'Sans plafond'}
+                  <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
+                    {cat.type === 'INCOME' ? "Entrée d'argent" : "Dépense"}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => onEditCategory(cat)}
-                  title="Modifier le plafond"
-                  className="w-7 h-7 rounded-lg hover:bg-zinc-100 text-zinc-500 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <PenNewSquareLinearIcon size={14} />
-                </button>
                 <button
                   type="button"
                   onClick={() => setCategoryToDelete(cat)}

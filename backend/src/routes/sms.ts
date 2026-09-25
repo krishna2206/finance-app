@@ -5,6 +5,7 @@ import { autoCategorizer } from '../services/autoCategorizer';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { categoryRepository } from '../db/repositories/categoryRepository';
+import { budgetRepository } from '../db/repositories/budgetRepository';
 import { Transaction } from '../types';
 
 export const smsRouter = new Hono();
@@ -204,6 +205,12 @@ smsRouter.post('/webhook', async (c) => {
   // 5. Deterministic Auto-Categorization
   const categoryId = autoCategorizer.resolveCategory(parsed);
 
+  // 5.1 Resolve Budget Envelope & Check for Multi-Budget Conflicts
+  const allBudgets = budgetRepository.getAllBudgets();
+  const matchingBudgets = allBudgets.filter(b => b.categoryIds.includes(categoryId));
+  const defaultBudgetId = matchingBudgets[0]?.id || undefined;
+  const hasBudgetConflict = matchingBudgets.length > 1;
+
   // 6. Create Transaction Record
   const noteWithRef = [
     parsed.note,
@@ -216,6 +223,7 @@ smsRouter.post('/webhook', async (c) => {
     walletId: sourceWallet.id,
     destinationWalletId: destWalletId,
     categoryId: categoryId || undefined,
+    budgetId: defaultBudgetId,
     amount: parsed.amount,
     feeAmount: parsed.feeAmount,
     totalAmount: parsed.totalAmount,
@@ -232,6 +240,8 @@ smsRouter.post('/webhook', async (c) => {
     transaction: createdTxn,
     parsed,
     walletName: sourceWallet.name,
+    hasBudgetConflict,
+    matchingBudgets,
   });
 
   return c.json({

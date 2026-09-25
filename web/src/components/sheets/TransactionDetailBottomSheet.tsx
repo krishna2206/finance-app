@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Transaction, Category } from '../../types/models';
+import { Transaction, Category, Budget } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
@@ -20,6 +20,7 @@ import {
   DocumentAddLinearIcon,
   PenNewSquareLinearIcon,
   CheckCircleBoldIcon,
+  PieChartBoldIcon,
 } from '@solar-icons/react';
 
 interface TransactionDetailBottomSheetProps {
@@ -29,6 +30,7 @@ interface TransactionDetailBottomSheetProps {
 
 export function TransactionDetailBottomSheet({ transaction, onClose }: TransactionDetailBottomSheetProps) {
   const categories = useBudgetStore(state => state.categories);
+  const budgets = useBudgetStore(state => state.budgets);
   const wallets = useWalletStore(state => state.wallets);
   const deleteTransaction = useTransactionStore(state => state.deleteTransaction);
   const updateTransaction = useTransactionStore(state => state.updateTransaction);
@@ -37,10 +39,13 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSelectingCategory, setIsSelectingCategory] = useState(false);
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [isSelectingBudget, setIsSelectingBudget] = useState(false);
+  const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
 
   if (!transaction) return null;
 
   const category = categories.find(c => c.id === transaction.categoryId);
+  const currentBudget = budgets.find(b => b.id === transaction.budgetId);
   const isDebit = transaction.flow === 'DEBIT';
   const walletId = transaction.walletId || transaction.wallet || '';
   const walletObj = wallets[walletId];
@@ -76,6 +81,23 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
     }
   };
 
+  const handleSelectBudget = async (b: Budget | null) => {
+    setIsUpdatingBudget(true);
+    try {
+      await updateTransaction(transaction.id, { budgetId: b ? b.id : undefined });
+      setIsSelectingBudget(false);
+      useToastStore.getState().showToast({
+        title: b ? 'Enveloppe modifiée' : 'Retiré du budget',
+        description: b ? b.name : 'Dépense hors enveloppe',
+        type: 'success',
+      });
+    } catch (err) {
+      console.error('Failed to update budget:', err);
+    } finally {
+      setIsUpdatingBudget(false);
+    }
+  };
+
   // Filter categories matching the flow of the transaction (Expense or Income)
   const selectableCategories = categories.filter(c => isDebit ? c.type === 'EXPENSE' : c.type === 'INCOME');
 
@@ -91,6 +113,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
             transition={{ duration: 0.18 }}
             onClick={() => {
               if (isSelectingCategory) setIsSelectingCategory(false);
+              else if (isSelectingBudget) setIsSelectingBudget(false);
               else onClose();
             }}
             className="absolute inset-0 bg-black/50 cursor-pointer pointer-events-auto"
@@ -173,6 +196,28 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                 </div>
               </div>
 
+              {/* Interactive Budget Envelope Row (For DEBIT transactions) */}
+              {isDebit && (
+                <div
+                  onClick={() => setIsSelectingBudget(true)}
+                  className="p-3.5 flex items-center justify-between hover:bg-zinc-50 active:bg-zinc-100 transition-colors cursor-pointer select-none border-t border-zinc-100"
+                >
+                  <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
+                    <div
+                      style={{ backgroundColor: currentBudget?.color || '#F59E0B' }}
+                      className="w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-2xs shrink-0"
+                    >
+                      <PieChartBoldIcon size={14} />
+                    </div>
+                    <span>Enveloppe de budget</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900">
+                    <span>{currentBudget?.name || 'Non alloué'}</span>
+                    <PenNewSquareLinearIcon size={14} className="text-zinc-400" />
+                  </div>
+                </div>
+              )}
+
               <InsetGroupedRow>
                 <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                   <WalletLogo id={walletId} name={walletObj?.name || walletId} size="sm" />
@@ -231,7 +276,6 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
       <AnimatePresence>
         {isSelectingCategory && (
           <div className="fixed inset-0 z-60 flex justify-center items-end pointer-events-none">
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -241,7 +285,6 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
               className="absolute inset-0 bg-black/40 cursor-pointer pointer-events-auto"
             />
 
-            {/* Category Selector Sheet */}
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
@@ -280,7 +323,7 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                           : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-900'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
                           style={{ backgroundColor: isSelected ? '#FFFFFF' : cat.color }}
                           className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
@@ -300,6 +343,107 @@ export function TransactionDetailBottomSheet({ transaction, onClose }: Transacti
                     </button>
                   );
                 })}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Budget Envelope Selection Sub-Sheet */}
+      <AnimatePresence>
+        {isSelectingBudget && (
+          <div className="fixed inset-0 z-60 flex justify-center items-end pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16 }}
+              onClick={() => setIsSelectingBudget(false)}
+              className="absolute inset-0 bg-black/40 cursor-pointer pointer-events-auto"
+            />
+
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 400, mass: 0.7 }}
+              className="relative w-full max-w-[430px] mx-auto bg-white rounded-t-[32px] pt-3 px-5 pb-8 shadow-2xl z-10 max-h-[75vh] overflow-y-auto pointer-events-auto text-zinc-900"
+            >
+              <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
+
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-zinc-900 tracking-tight">
+                  Changer d'enveloppe
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsSelectingBudget(false)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <CloseLinearIcon size={16} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-1.5">
+                {budgets.map(b => {
+                  const isSelected = b.id === transaction.budgetId;
+
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      disabled={isUpdatingBudget}
+                      onClick={() => handleSelectBudget(b)}
+                      className={`w-full p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-zinc-900 text-white shadow-xs'
+                          : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div
+                          style={{ backgroundColor: isSelected ? '#FFFFFF' : b.color }}
+                          className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs ${
+                            isSelected ? 'text-zinc-900' : 'text-white'
+                          }`}
+                        >
+                          <CategoryIcon name={b.icon || 'PieChartBoldIcon'} weight="Bold" size={16} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <span className="text-xs font-bold truncate block">
+                            {b.name}
+                          </span>
+                          <span className="text-[10px] text-zinc-400 font-medium block mt-0.5">
+                            Plafond : {formatAmount(b.monthlyLimit)} Ar
+                          </span>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <CheckCircleBoldIcon size={18} className="text-white shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Option to clear budget allocation */}
+                <button
+                  type="button"
+                  disabled={isUpdatingBudget}
+                  onClick={() => handleSelectBudget(null)}
+                  className={`w-full p-3 rounded-2xl flex items-center justify-between gap-3 text-left transition-all cursor-pointer ${
+                    !transaction.budgetId
+                      ? 'bg-zinc-900 text-white shadow-xs'
+                      : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-900'
+                  }`}
+                >
+                  <span className="text-xs font-bold text-zinc-500 truncate">
+                    Ne pas allouer à un budget
+                  </span>
+                  {!transaction.budgetId && (
+                    <CheckCircleBoldIcon size={18} className="text-white shrink-0" />
+                  )}
+                </button>
               </div>
             </motion.div>
           </div>

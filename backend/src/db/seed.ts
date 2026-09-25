@@ -47,7 +47,9 @@ export function seedDatabase(db: BunSQLiteDatabase<typeof schema>): void {
     }
   }
 
-  // 3. Settings
+  // 3. Budgets table starts completely empty (User creates budget envelopes on demand)
+
+  // 4. Settings
   const existingSettings = db.select().from(schema.settings).all();
   if (existingSettings.length === 0) {
     db.insert(schema.settings).values({

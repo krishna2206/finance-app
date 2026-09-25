@@ -1,43 +1,50 @@
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
-import { MonthlySavingsReport, MonthlyHistoricalStats, CategorySavingsBreakdown } from '../types';
+import { MonthlySavingsReport, MonthlyHistoricalStats, BudgetSavingsBreakdown } from '../types';
 
 export const statsService = {
   /**
    * Calculates the budget performance and surplus report for a given month (YYYY-MM).
-   * Pure deterministic calculation from transactions and budgeted categories.
+   * Aggregates spending across all categories grouped inside each budget envelope.
    */
   getMonthlySavingsReport(period?: string): MonthlySavingsReport {
     const targetPeriod = period || new Date().toISOString().slice(0, 7);
     const allBudgets = budgetRepository.getAllBudgets();
-    const budgetedCategories = allBudgets.filter(b => b.monthlyLimit > 0);
+    const activeBudgets = allBudgets.filter(b => b.monthlyLimit > 0);
 
     const monthTransactions = transactionRepository.getTransactionsForMonth(targetPeriod);
 
-    // Compute actual spending per category for DEBIT transactions
-    const spendingMap: Record<string, number> = {};
-    monthTransactions.forEach(t => {
-      if (
-        t.flow === 'DEBIT' &&
-        t.operationType !== 'SAVINGS_DEPOSIT' &&
-        t.operationType !== 'WITHDRAWAL_CASH'
-      ) {
-        const catId = t.categoryId;
-        if (catId) {
-          const impact = t.totalAmount ?? t.amount;
-          spendingMap[catId] = (spendingMap[catId] || 0) + impact;
-        }
-      }
-    });
+    // Strict Activity Guard: if no transactions occurred in the month, no surplus is generated
+    if (monthTransactions.length === 0 || activeBudgets.length === 0) {
+      return {
+        period: targetPeriod,
+        totalBudget: activeBudgets.reduce((sum, b) => sum + b.monthlyLimit, 0),
+        totalSpent: 0,
+        totalSurplus: 0,
+        totalOverspent: 0,
+        netSavings: 0,
+        savingsRate: 0,
+        hasBudgets: false,
+        budgets: [],
+      };
+    }
 
     let totalBudget = 0;
     let totalSpent = 0;
     let totalSurplus = 0;
     let totalOverspent = 0;
 
-    const categories: CategorySavingsBreakdown[] = budgetedCategories.map(b => {
+    const budgetsBreakdown: BudgetSavingsBreakdown[] = activeBudgets.map(b => {
       const limit = b.monthlyLimit;
-      const spent = spendingMap[b.categoryId] || 0;
+      // Exact calculation: sum transactions assigned to this budget (with fallback on category)
+      const spent = monthTransactions
+        .filter(t => {
+          if (t.flow !== 'DEBIT' || t.operationType === 'SAVINGS_DEPOSIT' || t.operationType === 'WITHDRAWAL_CASH') return false;
+          if (t.budgetId) return t.budgetId === b.id;
+          return t.categoryId ? b.categoryIds.includes(t.categoryId) : false;
+        })
+        .reduce((sum, t) => sum + (t.totalAmount ?? t.amount), 0);
+
       const isOverspent = spent > limit;
       const surplus = isOverspent ? 0 : Math.max(0, limit - spent);
       const overspentAmount = isOverspent ? spent - limit : 0;
@@ -48,10 +55,10 @@ export const statsService = {
       totalOverspent += overspentAmount;
 
       return {
-        categoryId: b.categoryId,
-        name: b.categoryName,
-        color: b.categoryColor,
-        icon: b.categoryIcon,
+        budgetId: b.id,
+        name: b.name,
+        color: b.color,
+        icon: b.icon,
         monthlyLimit: limit,
         spent,
         surplus,
@@ -59,6 +66,8 @@ export const statsService = {
         overspentAmount,
         isEssential: b.isEssential,
         isFixed: b.isFixed,
+        categoryIds: b.categoryIds,
+        categories: b.categories,
       };
     });
 
@@ -75,8 +84,8 @@ export const statsService = {
       totalOverspent,
       netSavings,
       savingsRate,
-      hasBudgets: budgetedCategories.length > 0,
-      categories,
+      hasBudgets: activeBudgets.length > 0,
+      budgets: budgetsBreakdown,
     };
   },
 

@@ -1,11 +1,10 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
 import { useNotificationStore } from '../../stores/useNotificationStore';
 import { DashboardHeader } from '../dashboard/DashboardHeader';
-import { MonthlySettlementCard } from '../dashboard/MonthlySettlementCard';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
 import { WalletLogo } from '../common/WalletLogo';
@@ -16,7 +15,6 @@ import {
   AddLinearIcon,
   Safe2BoldIcon,
   DangerTriangleBoldIcon,
-  LetterBoldIcon,
   LockBoldIcon,
 } from '@solar-icons/react';
 
@@ -28,7 +26,6 @@ interface DashboardViewProps {
   onOpenSavingsAction?: () => void;
   onOpenNotifications?: () => void;
   onOpenSettings?: () => void;
-  onOpenSavingsWithAmount?: (amount: number, period?: string) => void;
 }
 
 export function DashboardView({
@@ -39,22 +36,13 @@ export function DashboardView({
   onOpenSavingsAction,
   onOpenNotifications,
   onOpenSettings,
-  onOpenSavingsWithAmount,
 }: DashboardViewProps) {
   const settings = useSettingsStore(state => state.settings);
   const wallets = useWalletStore(state => state.wallets);
   const transactions = useTransactionStore(state => state.transactions);
-  const categories = useBudgetStore(state => state.categories);
+  const budgets = useBudgetStore(state => state.budgets);
   const monthlySavingsTarget = useBudgetStore(state => state.monthlySavingsTarget);
-
-  const pendingSettlementReport = useNotificationStore(state => state.pendingSettlementReport);
-  const checkMonthlySettlements = useNotificationStore(state => state.checkMonthlySettlements);
-  const dismissSettlement = useNotificationStore(state => state.dismissSettlement);
   const unreadNotificationsCount = useNotificationStore(state => state.getUnreadCount());
-
-  useEffect(() => {
-    checkMonthlySettlements();
-  }, [checkMonthlySettlements]);
 
   const spendableWallets = useMemo(() => {
     return Object.values(wallets).filter(w => w.isSpendable);
@@ -73,10 +61,10 @@ export function DashboardView({
 
   // 2. Calculations for CE MOIS (Dépensé & Rythme)
   const currentYearMonth = new Date().toISOString().slice(0, 7);
-  const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
-  const totalMonthlyBudget = useMemo(() => expenseCategories.reduce((sum, c) => sum + (c.monthlyLimit || 0), 0), [expenseCategories]);
+  const activeBudgets = useMemo(() => budgets.filter(b => b.monthlyLimit > 0), [budgets]);
+  const totalMonthlyBudget = useMemo(() => activeBudgets.reduce((sum, b) => sum + b.monthlyLimit, 0), [activeBudgets]);
 
-  const { totalSpentThisMonth, totalFeesThisMonth, spendingMap } = useMemo(() => {
+  const { totalSpentThisMonth, totalFeesThisMonth, categorySpendingMap } = useMemo(() => {
     let spent = 0;
     let fees = 0;
     const map: Record<string, number> = {};
@@ -99,7 +87,7 @@ export function DashboardView({
       }
     });
 
-    return { totalSpentThisMonth: spent, totalFeesThisMonth: fees, spendingMap: map };
+    return { totalSpentThisMonth: spent, totalFeesThisMonth: fees, categorySpendingMap: map };
   }, [transactions, currentYearMonth]);
 
   const budgetConsumedPct = totalMonthlyBudget > 0
@@ -129,28 +117,23 @@ export function DashboardView({
     ? Math.min(100, Math.round((monthlySavingsDeposited / monthlySavingsTarget) * 100))
     : 0;
 
-  // 4. Conditional Alerts: Budget warning if any category >= 65% of limit
+  // 4. Conditional Alerts: Budget warning if any budget envelope >= 65% of limit
   const criticalBudgetAlert = useMemo<{ name: string; pct: number } | null>(() => {
-    let worstCat: { name: string; pct: number } | null = null;
-    expenseCategories.forEach(c => {
-      const limit = c.monthlyLimit || 0;
-      const spent = spendingMap[c.id] || 0;
+    let worstBudget: { name: string; pct: number } | null = null;
+    activeBudgets.forEach(b => {
+      const limit = b.monthlyLimit;
+      const spent = b.categoryIds.reduce((sum, catId) => sum + (categorySpendingMap[catId] || 0), 0);
       if (limit > 0) {
         const pct = Math.round((spent / limit) * 100);
         if (pct >= 65) {
-          if (!worstCat || pct > worstCat.pct) {
-            worstCat = { name: c.name, pct };
+          if (!worstBudget || pct > worstBudget.pct) {
+            worstBudget = { name: b.name, pct };
           }
         }
       }
     });
-    return worstCat;
-  }, [expenseCategories, spendingMap]);
-
-  // 5. Conditional Alerts: Uncategorized transactions
-  const uncategorizedTransactionsCount = useMemo(() => {
-    return transactions.filter(t => !t.categoryId || t.categoryId === 'cat_uncategorized').length;
-  }, [transactions]);
+    return worstBudget;
+  }, [activeBudgets, categorySpendingMap]);
 
   // Group top recent transactions
   const groupedRecentTransactions = useMemo(() => {
@@ -190,21 +173,6 @@ export function DashboardView({
         onOpenNotifications={onOpenNotifications}
         unreadNotificationsCount={unreadNotificationsCount}
       />
-
-      {/* 1.1 Optional Contextual Monthly Settlement Banner */}
-      {pendingSettlementReport && (
-        <MonthlySettlementCard
-          report={pendingSettlementReport}
-          onSaveSurplus={(amount) => {
-            if (onOpenSavingsWithAmount) {
-              onOpenSavingsWithAmount(amount, pendingSettlementReport.period);
-            } else if (onOpenSavingsAction) {
-              onOpenSavingsAction();
-            }
-          }}
-          onDismiss={() => dismissSettlement(pendingSettlementReport.period)}
-        />
-      )}
 
       {/* 2. Hero Section: DISPONIBLE */}
       <div className="pt-3 pb-1 space-y-1">
@@ -372,21 +340,6 @@ export function DashboardView({
             </span>
           </div>
           <AltArrowRightLinearIcon size={14} className="text-amber-500 shrink-0" />
-        </div>
-      )}
-
-      {uncategorizedTransactionsCount > 0 && (
-        <div
-          onClick={onNavigateToTransactions}
-          className="p-3 bg-white border border-zinc-200 rounded-2xl text-zinc-900 flex items-center justify-between gap-2 transition-colors cursor-pointer hover:bg-zinc-50 shadow-2xs"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <LetterBoldIcon size={17} className="text-zinc-600 shrink-0" />
-            <span className="text-xs font-bold truncate">
-              {uncategorizedTransactionsCount} transaction{uncategorizedTransactionsCount > 1 ? 's' : ''} à vérifier
-            </span>
-          </div>
-          <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
         </div>
       )}
 

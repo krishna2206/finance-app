@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
@@ -55,8 +55,11 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const feeCategory = useMemo(() => categories.find(c => c.name.toLowerCase().includes('frais')) || categories[0], [categories]);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
   const [includeFees, setIncludeFees] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getMatchingBudgetsForCategory = useBudgetStore(state => state.getMatchingBudgetsForCategory);
 
   // Stacked picker sheets state
   const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'DATE' | null>(null);
@@ -96,6 +99,25 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const selectedCategory = useMemo(() => {
     return categories.find(c => c.id === activeCategoryId) || categories[0];
   }, [categories, activeCategoryId]);
+
+  // Matching budgets for current expense category
+  const matchingBudgets = useMemo(() => {
+    if (mode !== 'EXPENSE' || !activeCategoryId) return [];
+    return getMatchingBudgetsForCategory(activeCategoryId);
+  }, [mode, activeCategoryId, getMatchingBudgetsForCategory]);
+
+  // Keep selected budget in sync with matching budgets
+  useEffect(() => {
+    if (matchingBudgets.length === 1) {
+      setSelectedBudgetId(matchingBudgets[0].id);
+    } else if (matchingBudgets.length > 1) {
+      if (!selectedBudgetId || !matchingBudgets.some(b => b.id === selectedBudgetId)) {
+        setSelectedBudgetId(matchingBudgets[0].id);
+      }
+    } else {
+      setSelectedBudgetId(undefined);
+    }
+  }, [matchingBudgets, selectedBudgetId]);
 
   const selectedSourceWallet = useMemo(() => {
     if (wallets[sourceWalletId] && (mode !== 'TRANSFER' || sourceWalletId !== destinationWalletId)) {
@@ -190,6 +212,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
           totalImpact,
           title: finalTitle,
           categoryId: selectedCategory?.id,
+          budgetId: selectedBudgetId,
           date: dateIso,
           note: note.trim() || undefined,
           source: 'MANUAL',
@@ -521,6 +544,38 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
                     </div>
                   </button>
+                )}
+
+                {/* 4.1 Conditional Envelope Pill Selector (Rendered ONLY when category is in 2+ budgets) */}
+                {mode === 'EXPENSE' && matchingBudgets.length > 1 && (
+                  <div className="px-4 py-2.5 bg-zinc-50/50 space-y-1.5 border-t border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
+                      Financer depuis l'enveloppe
+                    </span>
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                      {matchingBudgets.map(b => {
+                        const isSelected = selectedBudgetId === b.id;
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => setSelectedBudgetId(b.id)}
+                            className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                              isSelected
+                                ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
+                                : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                            }`}
+                          >
+                            <span
+                              style={{ backgroundColor: isSelected ? '#FFFFFF' : b.color }}
+                              className="w-2 h-2 rounded-full shrink-0"
+                            />
+                            <span className="truncate">{b.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
 
                 {/* 5. Date & Time Configurable Row */}

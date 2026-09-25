@@ -62,13 +62,24 @@ const TABLE_CREATION_STATEMENTS = [
 
   `CREATE TABLE IF NOT EXISTS budgets (
     id TEXT PRIMARY KEY,
-    category_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     monthly_limit REAL NOT NULL DEFAULT 0,
+    color TEXT NOT NULL DEFAULT '#10B981',
+    icon TEXT NOT NULL DEFAULT 'PieChartBoldIcon',
     is_essential INTEGER NOT NULL DEFAULT 0,
     is_fixed INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL,
-    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE
+    updated_at INTEGER NOT NULL
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS budget_categories (
+    id TEXT PRIMARY KEY,
+    budget_id TEXT NOT NULL,
+    category_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (budget_id) REFERENCES budgets (id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE,
+    UNIQUE(budget_id, category_id)
   );`,
 
   `CREATE TABLE IF NOT EXISTS transactions (
@@ -80,6 +91,7 @@ const TABLE_CREATION_STATEMENTS = [
     savings_id TEXT,
     goal_id TEXT,
     category_id TEXT,
+    budget_id TEXT,
     amount REAL NOT NULL,
     fee_amount REAL NOT NULL DEFAULT 0,
     total_amount REAL NOT NULL,
@@ -99,7 +111,8 @@ const TABLE_CREATION_STATEMENTS = [
     FOREIGN KEY (destination_wallet_id) REFERENCES wallets (id),
     FOREIGN KEY (savings_id) REFERENCES savings (id),
     FOREIGN KEY (goal_id) REFERENCES savings_goals (id),
-    FOREIGN KEY (category_id) REFERENCES categories (id)
+    FOREIGN KEY (category_id) REFERENCES categories (id),
+    FOREIGN KEY (budget_id) REFERENCES budgets (id) ON DELETE SET NULL
   );`,
 
   `CREATE TABLE IF NOT EXISTS transaction_items (
@@ -151,6 +164,13 @@ export function getDatabase() {
     // Auto-create tables statement by statement
     for (const stmt of TABLE_CREATION_STATEMENTS) {
       sqliteDb.exec(stmt);
+    }
+
+    // Auto-migration: ensure budget_id exists on transactions
+    try {
+      sqliteDb.exec(`ALTER TABLE transactions ADD COLUMN budget_id TEXT;`);
+    } catch {
+      // column already exists
     }
 
     dbInstance = drizzle(sqliteDb, { schema });

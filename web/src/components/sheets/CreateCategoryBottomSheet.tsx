@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { CategoryType } from '../../types/models';
-import { formatAmount } from '../../utils/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
 import {
   CloseLinearIcon,
@@ -17,23 +16,29 @@ interface CreateCategoryBottomSheetProps {
 
 const AVAILABLE_ICONS = [
   'CartLarge4BoldIcon',
-  'Home2BoldIcon',
+  'CupBoldIcon',
   'BusBoldIcon',
-  'WiFiBoldIcon',
+  'Home2BoldIcon',
+  'RepeatBoldIcon',
+  'CodeBoldIcon',
+  'HeartBoldIcon',
+  'TShirtBoldIcon',
   'WineglassTriangleBoldIcon',
-  'CupHotBoldIcon',
+  'HandMoneyBoldIcon',
+  'SmartphoneBoldIcon',
+  'MenuDotsBoldIcon',
+  'WiFiBoldIcon',
   'DangerTriangleBoldIcon',
-  'CardTransferBoldIcon',
-  'ShieldCheckBoldIcon',
   'Banknote2BoldIcon',
   'LaptopBoldIcon',
+  'AddCircleBoldIcon',
   'TagBoldIcon',
 ];
 
 const COLORS = [
-  '#34D399', '#60A5FA', '#FBBF24', '#A78BFA',
-  '#F472B6', '#FB7185', '#9CA3AF', '#10B981',
-  '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'
+  '#F59E0B', '#D97706', '#3B82F6', '#8B5CF6',
+  '#EC4899', '#6366F1', '#EF4444', '#A855F7',
+  '#F97316', '#475569', '#64748B', '#10B981',
 ];
 
 export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBottomSheetProps) {
@@ -41,14 +46,9 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
 
   const [name, setName] = useState('');
   const [type, setType] = useState<CategoryType>('EXPENSE');
-  const [monthlyLimit, setMonthlyLimit] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('CartLarge4BoldIcon');
-  const [selectedColor, setSelectedColor] = useState('#34D399');
-  const [isEssential, setIsEssential] = useState(false);
-  const [isFixed, setIsFixed] = useState(false);
+  const [selectedColor, setSelectedColor] = useState('#F59E0B');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const numericLimit = parseInt(monthlyLimit.replace(/\s/g, ''), 10) || 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,23 +56,17 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
 
     setIsSubmitting(true);
     try {
-      await createCategory(
-        {
-          name: name.trim(),
-          type,
-          color: selectedColor,
-          icon: selectedIcon,
-        },
-        type === 'EXPENSE' ? numericLimit : 0,
-        type === 'EXPENSE' ? isEssential : false,
-        type === 'EXPENSE' ? isFixed : false
-      );
+      await createCategory({
+        name: name.trim(),
+        type,
+        color: selectedColor,
+        icon: selectedIcon,
+      });
 
       setName('');
-      setMonthlyLimit('');
       setType('EXPENSE');
-      setIsEssential(false);
-      setIsFixed(false);
+      setSelectedIcon('CartLarge4BoldIcon');
+      setSelectedColor('#F59E0B');
       onClose();
     } catch (e) {
       console.error(e);
@@ -146,7 +140,7 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
               </div>
 
               {/* Form Fields Card */}
-              <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+              <div className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-xs">
                 <div className="p-3.5">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
                     Nom de la Catégorie
@@ -155,32 +149,10 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
                     type="text"
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Ex: Épicerie, Salle de sport, Abonnement..."
+                    placeholder="Ex: Épicerie, Salle de sport, Abonnements..."
                     className="w-full bg-transparent text-xs font-normal text-zinc-900 placeholder-zinc-400 focus:outline-none"
                   />
                 </div>
-
-                {type === 'EXPENSE' && (
-                  <div className="p-3 flex items-center justify-between">
-                    <div>
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-                        Plafond Mensuel Alloué
-                      </label>
-                      <span className="text-[10px] text-zinc-400">0 Ar si pas de limite stricte</span>
-                    </div>
-                    <div className="flex items-baseline gap-1 bg-zinc-50 border border-zinc-200/80 rounded-xl px-3 py-1.5 focus-within:border-zinc-900 focus-within:bg-white transition-all">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={monthlyLimit ? formatAmount(monthlyLimit) : ''}
-                        onChange={e => setMonthlyLimit(e.target.value.replace(/\D/g, ''))}
-                        placeholder="0"
-                        className="w-24 text-right bg-transparent text-xs font-bold text-zinc-900 focus:outline-none tabular-nums"
-                      />
-                      <span className="text-xs font-semibold text-zinc-400">Ar</span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Icon Picker */}
@@ -230,61 +202,6 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
                   ))}
                 </div>
               </div>
-
-              {/* Options if Expense */}
-              {type === 'EXPENSE' && (
-                <div className="bg-white border border-zinc-200/90 rounded-2xl p-3 shadow-xs divide-y divide-zinc-100">
-                  <div
-                    onClick={() => setIsEssential(!isEssential)}
-                    className="flex items-center justify-between py-1.5 cursor-pointer select-none"
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-zinc-900 block">
-                        Charge Essentielle (Section Vital)
-                      </span>
-                      <span className="text-[10px] text-zinc-400">
-                        Classé dans les besoins prioritaires.
-                      </span>
-                    </div>
-                    <div
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
-                        isEssential ? 'bg-zinc-900 border-zinc-900 text-white shadow-2xs' : 'bg-white border-zinc-300'
-                      }`}
-                    >
-                      {isEssential && (
-                        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-
-                  <div
-                    onClick={() => setIsFixed(!isFixed)}
-                    className="flex items-center justify-between py-1.5 cursor-pointer select-none"
-                  >
-                    <div>
-                      <span className="text-xs font-bold text-zinc-900 block">
-                        Montant Fixe Incompressible
-                      </span>
-                      <span className="text-[10px] text-zinc-400">
-                        Montant récurrent identique chaque mois.
-                      </span>
-                    </div>
-                    <div
-                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
-                        isFixed ? 'bg-zinc-900 border-zinc-900 text-white shadow-2xs' : 'bg-white border-zinc-300'
-                      }`}
-                    >
-                      {isFixed && (
-                        <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Submit */}
               <button

@@ -259,13 +259,54 @@ export const api = {
     return res.json();
   },
 
-  async updateCategoryBudget(categoryId: string, monthlyLimit: number, isEssential?: boolean, isFixed?: boolean): Promise<Budget> {
-    const res = await fetch(`${API_BASE}/budgets/${categoryId}`, {
+  // Budgets
+  async getBudgets(): Promise<Budget[]> {
+    const res = await fetch(`${API_BASE}/budgets`);
+    if (!res.ok) throw new Error('Failed to fetch budgets');
+    return res.json();
+  },
+
+  async createBudget(data: {
+    name: string;
+    monthlyLimit: number;
+    color?: string;
+    icon?: string;
+    isEssential?: boolean;
+    isFixed?: boolean;
+    categoryIds?: string[];
+  }): Promise<Budget> {
+    const res = await fetch(`${API_BASE}/budgets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create budget');
+    return res.json();
+  },
+
+  async updateBudget(id: string, data: {
+    name?: string;
+    monthlyLimit?: number;
+    color?: string;
+    icon?: string;
+    isEssential?: boolean;
+    isFixed?: boolean;
+    categoryIds?: string[];
+  }): Promise<Budget> {
+    const res = await fetch(`${API_BASE}/budgets/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ monthlyLimit, isEssential, isFixed }),
+      body: JSON.stringify(data),
     });
     if (!res.ok) throw new Error('Failed to update budget');
+    return res.json();
+  },
+
+  async deleteBudget(id: string): Promise<{ success: boolean; deletedId?: string }> {
+    const res = await fetch(`${API_BASE}/budgets/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete budget');
     return res.json();
   },
 

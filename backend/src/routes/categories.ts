@@ -1,36 +1,19 @@
 import { Hono } from 'hono';
 import { categoryRepository } from '../db/repositories/categoryRepository';
-import { budgetRepository } from '../db/repositories/budgetRepository';
 import { CategoryType } from '../types';
 
 export const categoriesRouter = new Hono();
 
 categoriesRouter.get('/', (c) => {
-  const categories = categoryRepository.getAllCategories();
-  const enhanced = categories.map(cat => {
-    const b = budgetRepository.getBudgetByCategoryId(cat.id);
-    return {
-      ...cat,
-      monthlyLimit: b?.monthlyLimit || 0,
-      isEssential: b?.isEssential || false,
-      isFixed: b?.isFixed || false,
-    };
-  });
-  return c.json(enhanced);
+  const list = categoryRepository.getAllCategories();
+  return c.json(list);
 });
 
 categoriesRouter.get('/:id', (c) => {
   const id = c.req.param('id');
   const category = categoryRepository.getCategoryById(id);
   if (!category) return c.json({ error: 'Category not found' }, 404);
-
-  const b = budgetRepository.getBudgetByCategoryId(category.id);
-  return c.json({
-    ...category,
-    monthlyLimit: b?.monthlyLimit || 0,
-    isEssential: b?.isEssential || false,
-    isFixed: b?.isFixed || false,
-  });
+  return c.json(category);
 });
 
 categoriesRouter.post('/', async (c) => {
@@ -44,22 +27,7 @@ categoriesRouter.post('/', async (c) => {
     icon: body.icon || 'TagBoldIcon',
   });
 
-  if (body.monthlyLimit !== undefined) {
-    budgetRepository.upsertBudget({
-      categoryId: created.id,
-      monthlyLimit: Number(body.monthlyLimit),
-      isEssential: Boolean(body.isEssential),
-      isFixed: Boolean(body.isFixed),
-    });
-  }
-
-  const b = budgetRepository.getBudgetByCategoryId(created.id);
-  return c.json({
-    ...created,
-    monthlyLimit: b?.monthlyLimit || 0,
-    isEssential: b?.isEssential || false,
-    isFixed: b?.isFixed || false,
-  }, 201);
+  return c.json(created, 201);
 });
 
 categoriesRouter.put('/:id', async (c) => {
@@ -77,22 +45,7 @@ categoriesRouter.put('/:id', async (c) => {
     createdAt: existing.createdAt,
   });
 
-  if (body.monthlyLimit !== undefined || body.isEssential !== undefined || body.isFixed !== undefined) {
-    budgetRepository.upsertBudget({
-      categoryId: id,
-      monthlyLimit: body.monthlyLimit !== undefined ? Number(body.monthlyLimit) : 0,
-      isEssential: body.isEssential !== undefined ? Boolean(body.isEssential) : undefined,
-      isFixed: body.isFixed !== undefined ? Boolean(body.isFixed) : undefined,
-    });
-  }
-
-  const b = budgetRepository.getBudgetByCategoryId(id);
-  return c.json({
-    ...updated,
-    monthlyLimit: b?.monthlyLimit || 0,
-    isEssential: b?.isEssential || false,
-    isFixed: b?.isFixed || false,
-  });
+  return c.json(updated);
 });
 
 categoriesRouter.delete('/:id', (c) => {
