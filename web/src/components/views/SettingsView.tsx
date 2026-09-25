@@ -16,18 +16,21 @@ import {
   AddBoldIcon,
   KeyMinimalisticBoldIcon,
   DownloadMinimalisticBoldIcon,
+  PenNewSquareLinearIcon,
 } from '@solar-icons/react';
 
 interface SettingsViewProps {
   onBack: () => void;
   onOpenCreateCategory: () => void;
   onOpenAddWallet: () => void;
+  onAdjustWallet: (walletId: string) => void;
 }
 
 export function SettingsView({
   onBack,
   onOpenCreateCategory,
   onOpenAddWallet,
+  onAdjustWallet,
 }: SettingsViewProps) {
   const settings = useSettingsStore(state => state.settings);
   const updateSettings = useSettingsStore(state => state.updateSettings);
@@ -360,9 +363,15 @@ export function SettingsView({
               </div>
 
               <div className="text-right shrink-0 flex items-center gap-2">
-                <div className="text-xs font-black text-zinc-900 tabular-nums">
-                  {formatCurrency(w.balance)}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onAdjustWallet(w.id)}
+                  title={`Corriger le solde ${w.name}`}
+                  className="flex items-center gap-1 px-2 py-1 -mr-1 rounded-lg text-xs font-black text-zinc-900 tabular-nums hover:bg-zinc-100 transition-colors cursor-pointer"
+                >
+                  <span>{formatCurrency(w.balance)}</span>
+                  <PenNewSquareLinearIcon size={13} className="text-zinc-400" />
+                </button>
 
                 {walletList.length > 1 && (
                   <button

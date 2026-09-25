@@ -137,6 +137,8 @@ export const api = {
   createWallet: (wallet: WalletInput) => request<Wallet>('POST', '/wallets', wallet),
   batchInitWallets: (wallets: WalletInput[]) => request<Wallet[]>('POST', '/wallets/batch-init', { wallets }),
   deleteWallet: (id: string) => request<{ success: boolean }>('DELETE', `/wallets/${id}`),
+  adjustWalletBalance: (id: string, newBalance: number) =>
+    request<Wallet>('POST', `/wallets/${id}/adjust`, { newBalance }),
 
   // Pots d'épargne
   getSavings: () => request<Savings[]>('GET', '/savings'),

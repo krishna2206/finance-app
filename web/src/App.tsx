@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTransactionStore } from './stores/useTransactionStore';
+import { useWalletStore } from './stores/useWalletStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { useAuthStore } from './stores/useAuthStore';
 import { startSmsListener } from './services/smsListener';
@@ -17,6 +18,7 @@ import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
 import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
 import { AddWalletBottomSheet } from './components/sheets/AddWalletBottomSheet';
+import { AdjustBalanceBottomSheet } from './components/sheets/AdjustBalanceBottomSheet';
 import { TransactionDetailBottomSheet } from './components/sheets/TransactionDetailBottomSheet';
 import { BudgetEditBottomSheet } from './components/sheets/BudgetEditBottomSheet';
 import { CreateCategoryBottomSheet } from './components/sheets/CreateCategoryBottomSheet';
@@ -84,6 +86,8 @@ export function App() {
   const [[activeTab, direction], setTabState] = useState<[ActiveTab, NavDirection]>(['dashboard', 0]);
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddWalletOpen, setIsAddWalletOpen] = useState(false);
+  const [adjustingWalletId, setAdjustingWalletId] = useState<string | null>(null);
+  const adjustingWallet = useWalletStore(state => (adjustingWalletId ? state.wallets[adjustingWalletId] ?? null : null));
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
@@ -224,6 +228,7 @@ export function App() {
                       onBack={closeSettings}
                       onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
                       onOpenAddWallet={() => setIsAddWalletOpen(true)}
+                      onAdjustWallet={setAdjustingWalletId}
                     />
                   ) : (
                     <>
@@ -233,6 +238,7 @@ export function App() {
                           onNavigateToTransactions={() => handleTabChange('transactions')}
                           onNavigateToBudgets={() => handleTabChange('budgets')}
                           onOpenAddWallet={() => setIsAddWalletOpen(true)}
+                          onAdjustWallet={setAdjustingWalletId}
                           onOpenSavingsAction={() => {
                             setSavingsDefaultAmount(undefined);
                             setIsSavingsActionOpen(true);
@@ -303,6 +309,11 @@ export function App() {
             <AddWalletBottomSheet
               isOpen={isAddWalletOpen}
               onClose={() => setIsAddWalletOpen(false)}
+            />
+
+            <AdjustBalanceBottomSheet
+              wallet={adjustingWallet}
+              onClose={() => setAdjustingWalletId(null)}
             />
 
             <TransactionDetailBottomSheet

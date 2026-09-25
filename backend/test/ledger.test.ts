@@ -240,6 +240,42 @@ describe('Enveloppes de budget', () => {
   });
 });
 
+describe('Correction de solde', () => {
+  beforeEach(() => resetWithWallets());
+
+  it('change le solde sans créer d’opération ni toucher aux dépenses', async () => {
+    const { status, body } = await api('POST', '/wallets/CASH/adjust', { newBalance: 42_500 });
+    expect(status).toBe(200);
+    expect(body.balance).toBe(42_500);
+    expect(body.spendableBalance).toBe(42_500);
+    expect((await balances()).CASH).toBe(42_500);
+    expect((await api('GET', '/transactions')).body).toHaveLength(0);
+    expect((await api('GET', '/stats/monthly-savings')).body.totalSpent).toBe(0);
+  });
+
+  it('refuse un montant invalide ou un compte inconnu', async () => {
+    expect((await api('POST', '/wallets/CASH/adjust', { newBalance: -1 })).status).toBe(400);
+    expect((await api('POST', '/wallets/CASH/adjust', { newBalance: 10.5 })).status).toBe(400);
+    expect((await api('POST', '/wallets/CASH/adjust', {})).status).toBe(400);
+    expect((await api('POST', '/wallets/INCONNU/adjust', { newBalance: 0 })).status).toBe(404);
+    expect((await balances()).CASH).toBe(10_000);
+  });
+
+  it('refuse un solde inférieur à l’épargne bloquée sur le compte', async () => {
+    const pot = await createPot('MVOLA', 'VIRTUAL_LOCK');
+    await api('POST', `/savings/${pot.id}/deposit`, { amount: 30_000 });
+
+    const refused = await api('POST', '/wallets/MVOLA/adjust', { newBalance: 20_000 });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toContain('épargne bloquée');
+    expect((await balances()).MVOLA).toBe(100_000);
+
+    const accepted = await api('POST', '/wallets/MVOLA/adjust', { newBalance: 30_000 });
+    expect(accepted.status).toBe(200);
+    expect(accepted.body.spendableBalance).toBe(0);
+  });
+});
+
 describe('Intégrité des référentiels', () => {
   beforeEach(() => resetWithWallets());
 

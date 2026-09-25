@@ -4,6 +4,7 @@ import { savingsRepository } from '../db/repositories/savingsRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { withTransaction } from '../db/index';
 import { badRequest, conflict, notFound } from '../lib/errors';
+import { formatAriary } from '../lib/format';
 import {
   asObject,
   optionalBoolean,
@@ -79,15 +80,27 @@ walletsRouter.post('/batch-init', async (c) => {
   return c.json(list.map(withSpendable));
 });
 
-/** Réajustement manuel du solde (ex : recompter ses espèces). */
+/**
+ * Correction manuelle du solde réel (ex : recompter ses espèces).
+ * Ne crée aucune opération : ni dépense, ni revenu, ni impact sur les enveloppes.
+ */
 walletsRouter.post('/:id/adjust', async (c) => {
   const id = c.req.param('id');
   const body = asObject(await c.req.json());
   const newBalance = requireNonNegativeAmount(body.newBalance, 'newBalance');
-  if (!walletRepository.getWalletById(id)) throw notFound('Compte introuvable');
 
-  walletRepository.updateBalance(id, newBalance);
-  return c.json(withSpendable(walletRepository.getWalletById(id)!));
+  const updated = withTransaction(() => {
+    if (!walletRepository.getWalletById(id)) throw notFound('Compte introuvable');
+
+    const locked = savingsRepository.getTotalVirtualLockedForWallet(id);
+    if (newBalance < locked) {
+      throw conflict(`Le solde ne peut pas être inférieur à l’épargne bloquée sur ce compte (${formatAriary(locked)})`);
+    }
+    walletRepository.updateBalance(id, newBalance);
+    return walletRepository.getWalletById(id)!;
+  });
+
+  return c.json(withSpendable(updated));
 });
 
 walletsRouter.delete('/:id', (c) => {

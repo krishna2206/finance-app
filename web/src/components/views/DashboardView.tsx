@@ -25,6 +25,7 @@ interface DashboardViewProps {
   onNavigateToTransactions: () => void;
   onNavigateToBudgets?: () => void;
   onOpenAddWallet?: () => void;
+  onAdjustWallet: (walletId: string) => void;
   onOpenSavingsAction?: () => void;
   onOpenNotifications?: () => void;
   onOpenSettings?: () => void;
@@ -35,6 +36,7 @@ export function DashboardView({
   onNavigateToTransactions,
   onNavigateToBudgets,
   onOpenAddWallet,
+  onAdjustWallet,
   onOpenSavingsAction,
   onOpenNotifications,
   onOpenSettings,
@@ -199,9 +201,12 @@ export function DashboardView({
             const freeBal = w.spendableBalance ?? w.balance;
             const tileStyle = getWalletTileStyle(w.type);
             return (
-              <div
+              <button
+                type="button"
                 key={w.id}
-                className={`min-w-[125px] max-w-[150px] p-3 rounded-2xl border flex flex-col justify-between h-[74px] shrink-0 shadow-2xs ${tileStyle}`}
+                onClick={() => onAdjustWallet(w.id)}
+                title={`Corriger le solde ${w.name}`}
+                className={`min-w-[125px] max-w-[150px] p-3 rounded-2xl border flex flex-col justify-between h-[74px] shrink-0 shadow-2xs text-left cursor-pointer active:scale-[0.98] transition-transform ${tileStyle}`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <WalletLogo id={w.id} name={w.name} size="sm" />
@@ -212,7 +217,7 @@ export function DashboardView({
                 <div className="text-sm font-black tabular-nums tracking-tight text-zinc-900">
                   {formatAmount(freeBal)} <span className="text-[10px] font-bold text-zinc-600">Ar</span>
                 </div>
-              </div>
+              </button>
             );
           })}
 
