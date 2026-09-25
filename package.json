@@ -1,0 +1,17 @@
+{
+  "name": "finance-app",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "backend",
+    "web"
+  ],
+  "scripts": {
+    "dev": "bun --filter \"*\" dev",
+    "dev:backend": "cd backend && bun dev",
+    "dev:web": "cd web && bun dev",
+    "typecheck": "bun --filter \"*\" typecheck",
+    "build": "cd web && bun run build",
+    "test": "cd backend && bun test"
+  }
+}
