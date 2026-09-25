@@ -23,6 +23,11 @@ flowchart LR
 
 En production, un seul processus Bun sert à la fois l'API et l'application web compilée, sur la même origine : pas de CORS, un seul port. En développement, Vite sert l'application web et redirige `/api` vers le backend.
 
+Pour les fichiers de l'application :
+- les fichiers versionnés par un hash (`/assets/*`) sont mis en cache un an ;
+- `index.html`, le service worker et le manifeste sont revalidés à chaque chargement, pour que les mises à jour arrivent immédiatement ;
+- une adresse de navigation (sans extension) reçoit l'application ; un fichier absent répond 404.
+
 ## Organisation du dépôt
 
 Un monorepo avec les workspaces Bun :
@@ -46,6 +51,7 @@ Un monorepo avec les workspaces Bun :
 | Styles et animations | Tailwind CSS v4, Framer Motion | Interface mobile : fenêtres glissantes, transitions |
 | État client | Zustand | Un store par domaine, sans surcouche |
 | Icônes | Solar Icons | |
+| PWA | vite-plugin-pwa (Workbox) | Manifeste et service worker générés au build ; seule l'interface est mise en cache |
 | Tests | `bun test`, Playwright | Unitaires et invariants sur une base en mémoire ; end-to-end sur un navigateur mobile |
 
 ## Backend
@@ -154,7 +160,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET | `/wallets/:id` | Un compte |
 | POST | `/wallets` | Création (`name`, `type`, `accountNumber`, `balance`, `isSpendable`) |
 | POST | `/wallets/batch-init` | Initialisation à l'onboarding (refusée si un historique existe) |
-| POST | `/wallets/:id/adjust` | Réajustement du solde (`newBalance`) |
+| POST | `/wallets/:id/adjust` | Correction du solde réel (`newBalance`), sans créer d'opération. Refusée sous l'épargne bloquée |
 | DELETE | `/wallets/:id` | Suppression (refusée si le compte est référencé) |
 
 ### Opérations
@@ -217,7 +223,11 @@ web/src/
 ├── services/          Client API, écoute temps réel, calcul des frais
 ├── utils/             Formatage, dates locales, erreurs
 └── types/models.ts    Types partagés avec l'API
+web/public/icons/      Icônes de l'application (générées)
+design/icon/           Icône source et script de génération des déclinaisons
 ```
+
+Les icônes se régénèrent avec `uv run --with pillow --with numpy python design/icon/generate.py` : versions « any » (tuile d'origine), « maskable » et iPhone (fond plein, motif dans la zone sûre), favicons.
 
 ### Flux de données
 

@@ -16,11 +16,12 @@ Ce document décrit ce que fait l'application et les règles qu'elle applique. P
 10. [Historique](#10-historique)
 11. [Paramètres, export et sauvegardes](#11-paramètres-export-et-sauvegardes)
 12. [Calcul des frais Mobile Money](#12-calcul-des-frais-mobile-money)
-13. [Feuille de route](#13-feuille-de-route)
+13. [Application installable](#13-application-installable)
+14. [Feuille de route](#14-feuille-de-route)
 
 ## 1. Principe
 
-L'application suit les finances personnelles en Ariary (MGA), avec deux objectifs :
+MyFinance suit les finances personnelles en Ariary (MGA), avec deux objectifs :
 
 - **Réduire la saisie au minimum** : les SMS de l'opérateur Mobile Money sont transformés automatiquement en opérations, en temps réel.
 - **Rendre visibles les fuites** : frais de transfert et de retrait, dépassements d'enveloppe, rythme de dépense du mois.
@@ -64,6 +65,14 @@ Trois notions de solde coexistent :
 | Disponible | Solde total moins l'épargne bloquée (jamais négatif) |
 
 Un compte ne peut être supprimé que s'il n'a aucune opération dans l'historique et aucun pot d'épargne rattaché.
+
+### Correction de solde
+
+Toucher la tuile d'un compte sur le tableau de bord, ou son solde dans Paramètres, ouvre la fenêtre « Corriger le solde ». On y saisit le solde réel (prérempli avec le solde actuel), et l'écart avec le solde actuel s'affiche en direct.
+
+- La correction remplace le solde réel du compte. Elle ne crée **aucune opération** : le « Dépensé ce mois », les enveloppes et l'historique ne changent pas.
+- Le nouveau solde ne peut pas être inférieur à l'épargne bloquée (gel virtuel) sur ce compte.
+- C'est le moyen de recaler un compte après un recomptage des espèces, ou de fixer un solde de départ. Pour un compte Mobile Money, le prochain SMS de l'opérateur recale de toute façon le solde automatiquement.
 
 ## 4. Opérations
 
@@ -237,7 +246,7 @@ De haut en bas :
 
 1. **Salutation et date**, avec accès aux paramètres (toucher le nom) et aux notifications.
 2. **Disponible**, avec le solde total et l'épargne bloquée.
-3. **Mes comptes** : carrousel des comptes avec leur solde libre.
+3. **Mes comptes** : carrousel des comptes avec leur solde libre. Toucher un compte ouvre la correction de solde.
 4. **Ce mois** :
    - *Dépensé* : total dépensé du mois (voir [section 4](#ce-qui-compte-comme-une-dépense)), pourcentage du budget total, et part des frais.
    - *Rythme journalier* : ce qu'on peut encore dépenser par jour jusqu'à la fin du mois. C'est le reste du budget (sans dépasser le disponible réel), divisé par les jours restants. Sans enveloppe, c'est le disponible divisé par les jours restants.
@@ -261,7 +270,7 @@ L'historique liste toutes les opérations, regroupées par jour local (« Aujour
 L'écran Paramètres permet de :
 
 - modifier le profil (nom, métier, ville) et les objectifs mensuels (revenu, épargne) ;
-- gérer les catégories personnelles et les comptes ;
+- gérer les catégories personnelles et les comptes (toucher le solde d'un compte ouvre la correction de solde) ;
 - enregistrer une clé API Google Gemini, réservée aux fonctionnalités d'IA à venir. Elle n'est jamais renvoyée à l'application, qui sait seulement si une clé existe ;
 - exporter toutes les données au format JSON (comptes, épargne, catégories, enveloppes, opérations, articles), sans aucun secret.
 
@@ -286,7 +295,14 @@ Les frais proposés à la saisie viennent de grilles tarifaires par tranche (`we
 
 Pour les SMS, les frais ne sont pas calculés : ce sont ceux annoncés par l'opérateur.
 
-## 13. Feuille de route
+## 13. Application installable
+
+MyFinance est une application web progressive (PWA). Sur Android, Chrome propose « Installer l'application » ; sur iPhone, Safari permet « Sur l'écran d'accueil ». Elle s'ouvre alors en plein écran, sans barre d'adresse, avec sa propre icône.
+
+- L'interface est mise en cache par un service worker : l'application s'ouvre instantanément, et se met à jour automatiquement à chaque nouvelle version.
+- Les données ne sont **jamais** mises en cache : soldes et opérations viennent toujours du serveur. Hors ligne, l'application s'ouvre mais signale que le serveur est injoignable.
+
+## 14. Feuille de route
 
 Ces fonctionnalités sont prévues, mais pas encore construites :
 
@@ -294,6 +310,5 @@ Ces fonctionnalités sont prévues, mais pas encore construites :
 - **Saisie vocale** : dicter une dépense en français ou en malgache.
 - **Assistant IA** : analyses et conseils à partir de l'historique, via la clé Gemini.
 - **Notifications** : l'écran existe mais n'a encore aucune source (bilan mensuel, alertes).
-- **Application installable (PWA)** : manifeste et icônes.
-- **Réajustement de solde** : une interface pour corriger le solde d'un compte (la route API existe déjà).
+- **Modification d'un compte** : changer le nom ou le numéro d'un compte existant.
 - **Client mobile natif** avec capture des SMS intégrée, qui remplacerait MacroDroid.

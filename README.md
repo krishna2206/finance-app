@@ -1,6 +1,6 @@
-# Finance App
+# MyFinance
 
-Application de finances personnelles auto-hébergée, pensée pour le Mobile Money à Madagascar :
+Application de finances personnelles auto-hébergée et installable (PWA), pensée pour le Mobile Money à Madagascar :
 
 - interception des SMS MVola en temps réel ;
 - budgets par enveloppes ;
@@ -38,12 +38,12 @@ Au premier démarrage, le backend génère un jeton d'accès dans `backend/.acce
 L'image contient l'API et l'application web compilée, servies sur le même port.
 
 ```bash
-docker build -t finance-app .
-docker run -d --name finance-app \
+docker build -t myfinance .
+docker run -d --name myfinance \
   -p 4880:4880 \
   -e APP_ACCESS_TOKEN="$(openssl rand -hex 24)" \
   -v finance-data:/data \
-  finance-app
+  myfinance
 ```
 
 Le volume `/data` contient la base, les sauvegardes et le jeton généré. Il doit être persistant.
@@ -65,7 +65,7 @@ La santé du service est exposée publiquement sur `GET /health`. Tout le reste 
 
 ### Exposition
 
-Placez l'application derrière un reverse proxy en HTTPS (Traefik, Caddy, Nginx, ou celui de votre PaaS). Le flux temps réel (`/api/sms/events`) est un flux Server-Sent Events : désactivez la mise en tampon des réponses si votre proxy en fait. Un signal est envoyé toutes les 10 secondes, pour que la connexion ne soit jamais considérée comme inactive.
+Placez l'application derrière un reverse proxy en HTTPS (Traefik, Caddy, Nginx, ou celui de votre PaaS). HTTPS est aussi indispensable pour installer l'application sur un téléphone. Le flux temps réel (`/api/sms/events`) est un flux Server-Sent Events : désactivez la mise en tampon des réponses si votre proxy en fait. Un signal est envoyé toutes les 10 secondes, pour que la connexion ne soit jamais considérée comme inactive.
 
 ### Déploiement continu (optionnel)
 
