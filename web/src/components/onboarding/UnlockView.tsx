@@ -34,11 +34,12 @@ export function UnlockView() {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-zinc-700 uppercase tracking-wider block mb-1">
+          <label htmlFor="access-token" className="text-xs font-bold text-zinc-700 uppercase tracking-wider block mb-1">
             Jeton d'accès
           </label>
           <div className="relative flex items-center">
             <input
+              id="access-token"
               autoFocus
               type="password"
               autoComplete="current-password"

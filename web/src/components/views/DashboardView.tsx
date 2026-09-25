@@ -171,7 +171,7 @@ export function DashboardView({
         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block">
           Disponible
         </span>
-        <div className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
+        <div data-testid="available-balance" className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
           {formatAmount(totalSpendableAvailable)} <span className="text-xl font-bold text-zinc-500">Ar</span>
         </div>
         <div className="text-xs text-zinc-500 font-medium tabular-nums flex items-center gap-1.5 flex-wrap">

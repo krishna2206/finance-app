@@ -359,6 +359,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   <input
                     ref={inputRef}
                     autoFocus
+                    aria-label="Montant"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"

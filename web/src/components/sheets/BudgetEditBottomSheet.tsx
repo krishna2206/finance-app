@@ -226,6 +226,7 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
                   <div className="relative flex items-center justify-center">
                     <input
                       ref={inputRef}
+                      aria-label="Plafond mensuel"
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"

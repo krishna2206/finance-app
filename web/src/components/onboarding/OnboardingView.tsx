@@ -377,6 +377,7 @@ export function OnboardingView() {
                             <div className="flex items-baseline gap-1 shrink-0 bg-zinc-50 border border-zinc-200/80 rounded-lg px-2.5 py-1 focus-within:border-zinc-900 focus-within:bg-white transition-all">
                               <input
                                 type="text"
+                                aria-label={`Solde ${w.name}`}
                                 inputMode="numeric"
                                 pattern="[0-9]*"
                                 value={w.balance ? formatAmount(w.balance) : ''}
