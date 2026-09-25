@@ -5,7 +5,8 @@
   "workspaces": [
     "shared",
     "backend",
-    "web"
+    "web",
+    "e2e"
   ],
   "scripts": {
     "dev": "bun --filter \"*\" dev",
@@ -15,6 +16,7 @@
     "start": "bun run build && cd backend && bun run start",
     "backup": "cd backend && bun run backup",
     "test": "cd backend && bun test",
-    "typecheck": "bun --filter \"*\" typecheck"
+    "typecheck": "bun --filter \"*\" typecheck",
+    "test:e2e": "cd e2e && bun run test"
   }
 }
