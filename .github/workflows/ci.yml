@@ -157,3 +157,63 @@ jobs:
       - name: Journaux du conteneur
         if: failure()
         run: docker logs finance
+
+  deploy:
+    name: Déploiement Dokploy (fitiavana)
+    needs: [quality, e2e, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://myfinance.hebergeko.online
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+      DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+      DOKPLOY_APPLICATION_ID: ${{ secrets.DOKPLOY_APPLICATION_ID }}
+      PUBLIC_URL: https://myfinance.hebergeko.online
+      COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+    steps:
+      - name: Déclencher le déploiement et attendre son résultat
+        run: |
+          set -euo pipefail
+          api() {
+            curl --fail-with-body -sS -H "x-api-key: $DOKPLOY_API_KEY" -H "Content-Type: application/json" "$@"
+          }
+          deployments() {
+            api "$DOKPLOY_URL/api/deployment.all?applicationId=$DOKPLOY_APPLICATION_ID"
+          }
+
+          before=$(deployments | jq 'length')
+          title="CI ${GITHUB_SHA::7} - $(printf '%s' "$COMMIT_MESSAGE" | head -n1 | cut -c1-80)"
+          api -X POST "$DOKPLOY_URL/api/application.deploy" \
+            -d "$(jq -n --arg id "$DOKPLOY_APPLICATION_ID" --arg title "$title" '{applicationId: $id, title: $title}')" > /dev/null
+
+          for i in $(seq 1 90); do
+            list=$(deployments)
+            if [ "$(echo "$list" | jq 'length')" -gt "$before" ]; then
+              status=$(echo "$list" | jq -r '.[0].status')
+              echo "Statut du déploiement : $status"
+              case "$status" in
+                done) exit 0 ;;
+                error) echo "::error::Le déploiement Dokploy a échoué (voir les journaux dans Dokploy)"; exit 1 ;;
+              esac
+            fi
+            sleep 10
+          done
+          echo "::error::Délai dépassé en attendant la fin du déploiement"
+          exit 1
+
+      - name: Vérifier la version en ligne
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            curl -fsS "$PUBLIC_URL/health" > /dev/null && break
+            sleep 5
+          done
+          curl -fsS "$PUBLIC_URL/health"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$PUBLIC_URL/api/wallets")" = "401"
+          curl -fsS "$PUBLIC_URL/" | grep -q '<div id="root">'

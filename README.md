@@ -27,7 +27,7 @@ Toute l'API est protégée par un jeton. Au premier démarrage, il est généré
 
 Action « Requête HTTP » déclenchée à la réception d'un SMS de l'expéditeur MVola :
 
-- Méthode `POST`, URL `http://<machine>:4880/api/sms/webhook?token=<jeton>`
+- Méthode `POST`, URL `https://myfinance.hebergeko.online/api/sms/webhook?token=<jeton>` (ou `http://<machine>:4880/...` en local)
 - Corps JSON : `{"sender": "MVOLA", "message": "[sms_message]"}`
 
 Un SMS déjà reçu (même référence opérateur) est ignoré. Le solde annoncé dans le SMS le plus récent fait foi.
@@ -61,4 +61,24 @@ Les SMS sont horodatés en heure de Madagascar (UTC+3) et les mois budgétaires 
 ```bash
 bun run test        # tests du parser SMS et des invariants comptables (base en mémoire)
 bun run typecheck
+bun run test:e2e    # Playwright, nécessite Chromium (exécuté en CI)
 ```
+
+Les tests end-to-end (`e2e/`) pilotent l'application compilée sur un téléphone Android simulé, dans le fuseau de Madagascar, contre une base neuve et isolée.
+
+## Intégration continue
+
+À chaque push et pull request (`.github/workflows/ci.yml`) :
+
+1. Vérification des types, migrations synchronisées avec le schéma, tests unitaires, build web.
+2. Tests end-to-end Playwright. Le rapport, les traces et les vidéos sont publiés en artefact en cas d'échec.
+3. Build de l'image Docker puis test de fumée : santé, accès protégé, persistance du volume après redémarrage, sauvegarde créée.
+4. Sur `main` uniquement, si tout est vert : déploiement sur Dokploy, puis vérification de la version en ligne.
+
+## Déploiement (Dokploy, nœud fitiavana)
+
+- Application `myfinance` (projet Self-hosted), build via le `Dockerfile`, déploiement automatique Dokploy désactivé : seule la CI déploie.
+- Domaine `https://myfinance.hebergeko.online` (Cloudflare proxifié, certificat Let's Encrypt), port 4880.
+- Volume persistant `myfinance-data` monté sur `/data` : base, sauvegardes quotidiennes (`/data/backups`).
+- Variables d'environnement dans Dokploy : `APP_ACCESS_TOKEN` (le jeton à saisir dans l'app et dans MacroDroid), `APP_UTC_OFFSET_MINUTES`, `BACKUP_RETENTION`.
+- Secrets GitHub : `DOKPLOY_URL`, `DOKPLOY_API_KEY`, `DOKPLOY_APPLICATION_ID`.
