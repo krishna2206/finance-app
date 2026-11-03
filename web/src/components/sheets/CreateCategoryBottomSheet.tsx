@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
-import { CategoryType } from '../../types/models';
+import { CATEGORY_GROUPS, defaultGroupFor } from '@finance/shared';
+import { CategoryGroup, CategoryType } from '../../types/models';
 import { CategoryIcon } from '../common/CategoryIcon';
 import {
   CloseLinearIcon,
@@ -33,6 +34,18 @@ const AVAILABLE_ICONS = [
   'LaptopBoldIcon',
   'AddCircleBoldIcon',
   'TagBoldIcon',
+  'LightbulbBoltBoldIcon',
+  'BroomBoldIcon',
+  'ScissorsBoldIcon',
+  'GamepadBoldIcon',
+  'HandHeartBoldIcon',
+  'SquareAcademicCapBoldIcon',
+  'GiftBoldIcon',
+  'PillBoldIcon',
+  'BookBoldIcon',
+  'WaterdropBoldIcon',
+  'TicketBoldIcon',
+  'UsersGroupRoundedBoldIcon',
 ];
 
 const COLORS = [
@@ -45,7 +58,12 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
   const createCategory = useBudgetStore(state => state.createCategory);
 
   const [name, setName] = useState('');
-  const [type, setType] = useState<CategoryType>('EXPENSE');
+  const [type, setTypeState] = useState<CategoryType>('EXPENSE');
+  const [group, setGroup] = useState<CategoryGroup>(defaultGroupFor('EXPENSE'));
+  const setType = (next: CategoryType) => {
+    setTypeState(next);
+    setGroup(defaultGroupFor(next));
+  };
   const [selectedIcon, setSelectedIcon] = useState('CartLarge4BoldIcon');
   const [selectedColor, setSelectedColor] = useState('#F59E0B');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,6 +77,7 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
       const created = await createCategory({
         name: name.trim(),
         type,
+        group,
         color: selectedColor,
         icon: selectedIcon,
       });
@@ -153,6 +172,32 @@ export function CreateCategoryBottomSheet({ isOpen, onClose }: CreateCategoryBot
                   />
                 </div>
               </div>
+
+              {/* Groupe d'affichage (dépenses uniquement : les revenus ont un seul groupe) */}
+              {type === 'EXPENSE' && (
+                <div>
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider block mb-1.5">
+                    Groupe
+                  </label>
+                  <div className="flex gap-1.5 flex-wrap" role="group" aria-label="Groupe">
+                    {CATEGORY_GROUPS.filter(g => g.type === 'EXPENSE').map(g => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        aria-pressed={group === g.id}
+                        onClick={() => setGroup(g.id)}
+                        className={`py-1.5 px-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          group === g.id
+                            ? 'bg-zinc-900 border-zinc-900 text-white shadow-xs'
+                            : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Icon Picker */}
               <div>

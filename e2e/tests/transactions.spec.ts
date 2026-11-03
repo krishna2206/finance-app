@@ -17,7 +17,7 @@ test.describe('Saisie manuelle et historique', () => {
     await page.getByLabel('Montant').fill('5000');
     await page.getByPlaceholder('Ex: Marché Anosibe, Déjeuner, Essence...').fill('Marché E2E');
     await pick(page, /Moyen de paiement/, /Espèces/);
-    await pick(page, /^Catégorie/, /Alimentation & Courses/);
+    await pick(page, /^Catégorie/, /^Courses$/);
     await page.getByRole('button', { name: /Enregistrer Dépense/ }).click();
 
     await expect(page.getByLabel('Montant')).toBeHidden();
@@ -29,7 +29,7 @@ test.describe('Saisie manuelle et historique', () => {
     await expect(page.getByRole('heading', { name: "Détail de l'opération" })).toBeVisible();
     await page.getByText('Catégorie', { exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Changer de catégorie' })).toBeVisible();
-    await page.getByRole('button', { name: /Restaurants & Cafés/ }).click();
+    await page.getByRole('button', { name: /Repas & sorties/ }).click();
     await expectToast(page, 'Catégorie modifiée');
 
     const updated = (await api.transactions()).find(t => t.title === 'Marché E2E');
@@ -149,5 +149,45 @@ test.describe('Modification d’une opération', () => {
     expect(updated).toMatchObject({ destinationWalletId: cashId, operationType: 'WITHDRAWAL_CASH' });
 
     await api.delete(`/transactions/${created.id}`);
+  });
+});
+
+test.describe('Catégories', () => {
+  test('chaque mode propose sa liste, groupée ; un transfert garde la catégorie des frais', async ({ page, api }) => {
+    await page.goto('/');
+    await openQuickAdd(page);
+
+    await page.getByRole('button', { name: 'Dépense', exact: true }).click();
+    await page.getByRole('button', { name: /^Catégorie/ }).click();
+    await expect(page.getByText('Essentiels', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Courses', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Salaire', exact: true })).toHaveCount(0);
+    await page.getByTitle('Fermer le choix').click();
+
+    await page.getByRole('button', { name: 'Entrée', exact: true }).click();
+    await page.getByRole('button', { name: /^Catégorie/ }).click();
+    await expect(page.getByRole('button', { name: 'Salaire', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Courses', exact: true })).toHaveCount(0);
+    await page.getByTitle('Fermer le choix').click();
+
+    // Transfert : aucune ligne Catégorie dans la saisie, et la fiche ne permet pas de la changer.
+    await page.getByRole('button', { name: 'Transfert', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Catégorie/ })).toHaveCount(0);
+
+    const mvolaId = await api.walletIdByType('MVOLA');
+    const cashId = await api.walletIdByType('CASH');
+    const transfer = await api.post<{ id: string; categoryId: string }>('/transactions', {
+      flow: 'DEBIT', operationType: 'TRANSFER_P2P', walletId: mvolaId, destinationWalletId: cashId,
+      amount: 1_000, categoryId: 'cat_shopping', title: 'Transfert catégorie E2E',
+    });
+    expect(transfer.categoryId).toBe('cat_fees_mobile_money');
+
+    await page.goto('/');
+    await page.getByText('Transfert catégorie E2E').first().click();
+    await expect(page.getByText('Frais bancaires & Mobile Money')).toBeVisible();
+    await page.getByText('Catégorie', { exact: true }).last().click();
+    await expect(page.getByRole('heading', { name: 'Changer de catégorie' })).toHaveCount(0);
+
+    await api.delete(`/transactions/${transfer.id}`);
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { isBudgetable, isSavingsMovement } from '@finance/shared';
+import { isBudgetable, isInternalTransfer, isSavingsMovement } from '@finance/shared';
+import { groupCategories } from '../../utils/categories';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, Category, Budget } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
@@ -55,6 +56,8 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
   const walletObj = wallets[walletId];
   const totalAmount = transaction.totalAmount;
   const isSavings = isSavingsMovement(transaction);
+  // La catégorie d'un transfert entre ses comptes est imposée (frais) : elle ne se change pas.
+  const isTransfer = !isSavings && isInternalTransfer(transaction);
   // Enveloppes possibles : uniquement celles qui couvrent la catégorie (pas d'option « hors budget »).
   const matchingBudgets = isBudgetable(transaction)
     ? budgets.filter(b => transaction.categoryId && b.categoryIds.includes(transaction.categoryId))
@@ -196,8 +199,10 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
               {/* Catégorie (les mouvements d'épargne n'en ont pas) */}
               {!isSavings && (
                 <div
-                  onClick={() => setIsSelectingCategory(true)}
-                  className="p-3.5 flex items-center justify-between hover:bg-zinc-50 active:bg-zinc-100 transition-colors cursor-pointer select-none"
+                  onClick={isTransfer ? undefined : () => setIsSelectingCategory(true)}
+                  className={`p-3.5 flex items-center justify-between transition-colors select-none ${
+                    isTransfer ? '' : 'hover:bg-zinc-50 active:bg-zinc-100 cursor-pointer'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
                     <div
@@ -209,8 +214,8 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
                     <span>Catégorie</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900">
-                    <span>{category?.name || 'Non catégorisé'}</span>
-                    <PenNewSquareLinearIcon size={14} className="text-zinc-400" />
+                    <span>{category?.name || 'Divers'}</span>
+                    {!isTransfer && <PenNewSquareLinearIcon size={14} className="text-zinc-400" />}
                   </div>
                 </div>
               )}
@@ -328,8 +333,16 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-1.5">
-                {selectableCategories.map(cat => {
+              <div className="space-y-3">
+                {groupCategories(selectableCategories).map(section => (
+                <div key={section.group}>
+                  {isDebit && (
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5 px-0.5">
+                      {section.label}
+                    </span>
+                  )}
+                  <div className="grid grid-cols-1 gap-1.5">
+                {section.categories.map(cat => {
                   const isSelected = cat.id === transaction.categoryId;
 
                   return (
@@ -364,6 +377,9 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
                     </button>
                   );
                 })}
+                  </div>
+                </div>
+                ))}
               </div>
             </motion.div>
           </div>

@@ -32,7 +32,8 @@ export type OperationType =
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
 
-export type CategoryType = 'EXPENSE' | 'INCOME';
+export type { CategoryGroup, CategoryType } from '@finance/shared';
+import type { CategoryGroup, CategoryType } from '@finance/shared';
 
 export interface Wallet {
   id: string;                      // UUID v4
@@ -91,6 +92,7 @@ export interface Category {
   id: string;                      // UUID v4
   name: string;
   type: CategoryType;
+  group: CategoryGroup;
   color: string;
   icon: string;
   createdAt: number;

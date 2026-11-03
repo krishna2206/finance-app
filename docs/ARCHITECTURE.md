@@ -191,8 +191,8 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET, POST | `/categories` | Liste, création |
-| GET, PUT, DELETE | `/categories/:id` | Détail, modification, suppression (protégées pour le système ou si utilisées) |
+| GET, POST | `/categories` | Liste, création (`name`, `type`, `group`, `color`, `icon`). Le groupe doit correspondre au type |
+| GET, PUT, DELETE | `/categories/:id` | Détail, modification, suppression. Les catégories système ne se modifient ni ne se suppriment ; une catégorie utilisée ne se supprime pas et ne change pas de type |
 | GET, POST | `/budgets` | Liste, création (`name`, `monthlyLimit`, `categoryIds`, `isEssential`, `isFixed`, `color`, `icon`) |
 | GET, PUT, DELETE | `/budgets/:id` | Détail, modification, suppression. Réaffecte les opérations du mois en cours |
 

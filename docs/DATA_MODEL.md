@@ -147,13 +147,16 @@ erDiagram
 
 | Colonne | Type | Contraintes | Description |
 |---|---|---|---|
-| `id` | text | clé primaire | `cat_*` pour les 16 catégories système |
+| `id` | text | clé primaire | `cat_*` pour les 22 catégories système |
 | `name` | text | non nul | |
 | `type` | text | non nul, défaut `EXPENSE` | `EXPENSE` ou `INCOME` |
+| `category_group` | text | non nul, défaut `DAILY` | Groupe d'affichage : `ESSENTIALS`, `DAILY`, `COMMITMENTS`, `MONEY` (dépenses) ou `INCOME` |
 | `color`, `icon` | text | non nul | L'icône est le nom d'un composant Solar Icons |
 | `created_at` | integer | non nul | |
 
-Les catégories système sont définies dans `shared/src/categories.ts`, et réinsérées si besoin à chaque démarrage.
+Les catégories système sont définies dans `shared/src/categories.ts`. À chaque démarrage, elles sont créées si besoin et remises à jour (nom, type, groupe, couleur, icône) : elles suivent toujours le code. Certains identifiants datent de la première liste et ont été conservés pour ne pas réécrire l'historique (par exemple `cat_restaurants_cafes` pour « Repas & sorties »).
+
+La migration `0002_category_groups` a fusionné `cat_tools_business` dans `cat_subscriptions` et `cat_cash_withdrawal` dans `cat_fees_mobile_money` (opérations, articles et enveloppes), donné la catégorie des frais à tous les transferts entre comptes, retiré les enveloppes qui ne couvraient plus la catégorie de leur opération, et noté le tout dans le journal.
 
 ### `budgets` : enveloppes
 
@@ -295,7 +298,7 @@ Si un effet ferait passer un pot ou un objectif en négatif, ou sous le total r�
 
 ## Invariants garantis
 
-- Une opération non-épargne a toujours une catégorie, dont le type correspond à son sens.
+- Une opération non-épargne a toujours une catégorie, dont le type correspond à son sens. Un transfert entre ses comptes a toujours `cat_fees_mobile_money`.
 - `total_amount = amount + fee_amount`. Les montants sont des entiers, et `amount > 0`.
 - `budget_id`, s'il est renseigné, désigne une enveloppe qui couvre la catégorie de l'opération : c'est vérifié à l'écriture, et réaligné quand les enveloppes du mois changent.
 - Un SMS (référence opérateur) n'est enregistré qu'une fois.

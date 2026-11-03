@@ -3,6 +3,7 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
+import { isInternalTransfer, isSavingsMovement } from '@finance/shared';
 import { Bag2LinearIcon } from '@solar-icons/react';
 
 interface TransactionRowProps {
@@ -14,6 +15,21 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const categories = useBudgetStore(state => state.categories);
   const wallets = useWalletStore(state => state.wallets);
   const category = categories.find(c => c.id === transaction.categoryId);
+
+  // Un transfert entre ses comptes se reconnaît à son type (retrait ou transfert), pas à sa catégorie.
+  const transferKind = !isSavingsMovement(transaction) && isInternalTransfer(transaction)
+    ? (transaction.operationType === 'WITHDRAWAL_CASH' ? 'WITHDRAWAL' : 'TRANSFER')
+    : null;
+  const iconName = transferKind === 'WITHDRAWAL'
+    ? 'CashOutBoldIcon'
+    : transferKind === 'TRANSFER'
+      ? 'TransferHorizontalBoldIcon'
+      : category?.icon || category?.name;
+  const subtitle = transferKind === 'WITHDRAWAL'
+    ? 'Retrait'
+    : transferKind === 'TRANSFER'
+      ? 'Transfert entre comptes'
+      : isSavingsMovement(transaction) ? 'Épargne' : category?.name || 'Catégorie';
 
   const isDebit = transaction.flow === 'DEBIT';
   const hasItems = transaction.items && transaction.items.length > 0;
@@ -30,7 +46,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
       <div className="flex items-center gap-3 flex-1 min-w-0 pr-3">
         {/* Category Icon (Clean monochrome Solar Icon, no colored box) */}
         <div className="w-7 h-7 flex items-center justify-center shrink-0 text-zinc-800">
-          <CategoryIcon name={category?.icon || category?.name} weight="Linear" size={20} />
+          <CategoryIcon name={iconName} weight="Linear" size={20} />
         </div>
 
         {/* Details */}
@@ -50,7 +66,7 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
           </div>
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 mt-0.5 truncate">
-            <span className="truncate">{category?.name || 'Catégorie'}</span>
+            <span className="truncate">{subtitle}</span>
             {walletName && (
               <>
                 <span className="text-zinc-300 shrink-0">•</span>

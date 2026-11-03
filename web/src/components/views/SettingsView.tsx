@@ -8,6 +8,7 @@ import { CategoryIcon } from '../common/CategoryIcon';
 import { WalletLogo } from '../common/WalletLogo';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { formatCurrency } from '../../utils/formatters';
+import { groupCategories } from '../../utils/categories';
 import { api } from '../../services/api';
 import { showErrorToast } from '../../utils/errors';
 import {
@@ -278,8 +279,14 @@ export function SettingsView({
           </button>
         </div>
 
+        <div className="space-y-3">
+        {groupCategories(categories).map(section => (
+        <div key={section.group}>
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5 px-1">
+          {section.label}
+        </span>
         <div className="bg-white border border-zinc-200/90 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
-          {categories.map(cat => (
+          {section.categories.map(cat => (
             <div
               key={cat.id}
               className="p-3.5 flex items-center justify-between gap-3 hover:bg-zinc-50/80 transition-colors"
@@ -324,6 +331,9 @@ export function SettingsView({
               )}
             </div>
           ))}
+        </div>
+        </div>
+        ))}
         </div>
       </div>
 

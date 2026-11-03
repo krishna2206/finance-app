@@ -4,6 +4,7 @@ import { Budget } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useToastStore } from '../../stores/useToastStore';
 import { CategoryIcon } from '../common/CategoryIcon';
+import { groupCategories } from '../../utils/categories';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { formatAmount } from '../../utils/formatters';
 import { CloseLinearIcon, TrashBinTrashLinearIcon, CheckCircleBoldIcon } from '@solar-icons/react';
@@ -280,8 +281,14 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
                     </span>
                   </div>
 
+                  <div className="space-y-3">
+                  {groupCategories(expenseCategories).map(section => (
+                  <div key={section.group}>
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5 px-0.5">
+                    {section.label}
+                  </span>
                   <div className="grid grid-cols-2 gap-2">
-                    {expenseCategories.map(cat => {
+                    {section.categories.map(cat => {
                       const isSelected = selectedCategoryIds.includes(cat.id);
                       const isUsedByOther = usedCategoryMap[cat.id];
 
@@ -323,6 +330,9 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
                         </button>
                       );
                     })}
+                  </div>
+                  </div>
+                  ))}
                   </div>
                 </div>
 

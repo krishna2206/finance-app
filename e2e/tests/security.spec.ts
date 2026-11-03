@@ -25,7 +25,7 @@ test.describe('Paramètres', () => {
   });
 
   test('les catégories système ne sont pas supprimables', async ({ page }) => {
-    await expect(page.getByText('Alimentation & Courses')).toBeVisible();
+    await expect(page.getByText('Courses', { exact: true }).first()).toBeVisible();
     await expect(page.getByTitle('Supprimer la catégorie')).toHaveCount(0);
   });
 

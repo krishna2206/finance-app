@@ -4,7 +4,8 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useToastStore } from '../../stores/useToastStore';
-import { SYSTEM_CATEGORY_IDS, isSavingsMovement } from '@finance/shared';
+import { SYSTEM_CATEGORY_IDS, TRANSFER_CATEGORY_ID, isSavingsMovement } from '@finance/shared';
+import { groupCategories } from '../../utils/categories';
 import { Transaction } from '../../types/models';
 import { TransactionPatch } from '../../services/api';
 import { showErrorToast } from '../../utils/errors';
@@ -263,7 +264,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
     }
 
     // Envoi d'argent à un tiers depuis le Mobile Money : grille P2P. Paiements directs : pas de frais.
-    if (mode === 'EXPENSE' && activeCategoryId === SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY && isMobileMoneySource) {
+    if (mode === 'EXPENSE' && activeCategoryId === SYSTEM_CATEGORY_IDS.MONEY_TRANSFERS && isMobileMoneySource) {
       return { rawFee: lookupTier(numericAmount, MVOLA_P2P_TIERS), feeLabel: 'envoi' };
     }
 
@@ -337,7 +338,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
       walletId: selectedSourceWallet.id,
       destinationWalletId: selectedDestWallet.id,
       feeAmount,
-      categoryId: isWithdrawalTransfer ? SYSTEM_CATEGORY_IDS.CASH_WITHDRAWAL : SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY,
+      categoryId: TRANSFER_CATEGORY_ID,
       budgetId: null,
     };
   };
@@ -407,7 +408,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
           amount: numericAmount,
           feeAmount,
           title: title.trim() || defaultTitle,
-          categoryId: isWithdrawal ? SYSTEM_CATEGORY_IDS.CASH_WITHDRAWAL : SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY,
+          categoryId: TRANSFER_CATEGORY_ID,
           date: dateIso,
           note: note.trim() || undefined,
         });
@@ -901,7 +902,9 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                           : 'Choisir la date et l\'heure'}
                   </h3>
                   <button
+                    type="button"
                     onClick={() => setPickerTarget(null)}
+                    title="Fermer le choix"
                     className="w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <CloseLinearIcon size={14} />
@@ -966,8 +969,16 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
 
                 {/* Category Picker */}
                 {pickerTarget === 'CATEGORY' && (
-                  <div className="grid grid-cols-2 gap-2 max-h-[55vh] overflow-y-auto pr-1">
-                    {(mode === 'INCOME' ? incomeCategories : expenseCategories).map(cat => {
+                  <div className="max-h-[55vh] overflow-y-auto pr-1 space-y-3">
+                    {groupCategories(mode === 'INCOME' ? incomeCategories : expenseCategories).map(section => (
+                    <div key={section.group}>
+                      {mode !== 'INCOME' && (
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5 px-0.5">
+                          {section.label}
+                        </span>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                    {section.categories.map(cat => {
                       const isSelected = activeCategoryId === cat.id;
                       return (
                         <button
@@ -998,6 +1009,9 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                         </button>
                       );
                     })}
+                      </div>
+                    </div>
+                    ))}
                   </div>
                 )}
 

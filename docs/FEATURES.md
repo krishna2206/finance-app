@@ -88,7 +88,7 @@ Le bouton « + » ouvre la saisie rapide, avec trois modes :
 |---|---|---|
 | Dépense | Débite le compte choisi (montant + frais) | Au choix parmi les catégories de dépense |
 | Entrée | Crédite le compte choisi | Au choix parmi les catégories de revenu |
-| Transfert | Débite le compte source (montant + frais), crédite le compte destination (montant) | « Retrait d'espèces » vers un compte Espèces, sinon « Frais & Mobile Money » |
+| Transfert | Débite le compte source (montant + frais), crédite le compte destination (montant) | Imposée : « Frais bancaires & Mobile Money » (seuls les frais sont une dépense) |
 
 La saisie propose aussi un titre, une date et une heure (sélecteur), et une note.
 
@@ -179,12 +179,13 @@ La catégorie dépend uniquement du type d'opération, sans mots-clés ni mémoi
 
 | Type d'opération | Catégorie |
 |---|---|
-| Achat de crédit | Abonnements |
-| Paiement marchand | Alimentation & Courses |
-| Retrait Cash Point | Retrait d'espèces |
+| Achat de crédit | Factures & charges |
+| Paiement marchand | Courses |
+| Retrait Cash Point | Frais bancaires & Mobile Money (transfert vers Espèces) |
+| Envoi vers un de ses propres comptes | Frais bancaires & Mobile Money (transfert interne) |
+| Envoi à un tiers | Envois d'argent |
 | Salaire | Salaire |
 | Argent reçu | Virements reçus |
-| Envoi d'argent (débit) | Frais & Mobile Money |
 
 ### Choix de l'enveloppe
 
@@ -196,22 +197,38 @@ Chaque SMS enregistré affiche une notification dans l'application : « SMS MVol
 
 ## 6. Catégories
 
-16 catégories système sont toujours présentes. Elles ne peuvent être ni supprimées, ni changées de type :
+22 catégories système sont toujours présentes, rangées en groupes. Elles ne peuvent être ni supprimées, ni modifiées :
 
-| Type | Catégories |
+| Groupe | Catégories |
 |---|---|
-| Revenu | Virements reçus, Salaire, Freelance / Prestations, Autres revenus |
-| Dépense | Alimentation & Courses, Restaurants & Cafés, Transport, Logement & Factures, Abonnements, Outils & Business, Santé, Shopping, Loisirs & Sorties, Retrait d'espèces, Frais & Mobile Money, Non catégorisé |
+| Essentiels | Logement, Factures & charges, Courses, Transport, Santé |
+| Vie courante | Repas & sorties, Maison & hygiène, Soins personnels, Shopping, Loisirs |
+| Engagements | Famille & dons, Abonnements & numérique, Éducation & travail |
+| Argent | Frais bancaires & Mobile Money, Envois d'argent, Divers |
+| Revenus | Salaire, Primes & bonus, Revenus annexes, Virements reçus, Remboursements, Autres revenus |
 
-On peut créer ses propres catégories (nom, type, couleur, icône). Une catégorie personnelle ne peut être supprimée que si aucune opération ne l'utilise.
+Les sélecteurs (saisie, fiche détail, enveloppes) et la liste de Paramètres affichent les catégories par groupe.
 
-Chaque opération (hors mouvements d'épargne) a toujours une catégorie, dont le type correspond à son sens : dépense pour un débit, revenu pour un crédit.
+On peut créer ses propres catégories (nom, type, groupe pour une dépense, couleur, icône). Une catégorie personnelle ne peut être supprimée que si aucune opération ne l'utilise.
+
+Règles :
+
+| Opération | Catégorie |
+|---|---|
+| Dépense | Obligatoire, parmi les catégories de dépense |
+| Entrée | Obligatoire, parmi les catégories de revenu |
+| Transfert entre ses comptes (dont retrait Cash Point) | Imposée par le serveur : Frais bancaires & Mobile Money, quelle que soit la demande. Elle n'est pas modifiable dans la fiche |
+| Versement ou déblocage d'épargne | Aucune |
+
+Dans l'historique, un transfert se reconnaît à son type (icône et libellé « Retrait » ou « Transfert entre comptes »), pas à sa catégorie.
+
+**Ancienne liste** (avant novembre 2026) : « Outils & Business » a rejoint « Abonnements & numérique », « Retrait d'espèces » a rejoint « Frais bancaires & Mobile Money ». Les autres catégories ont été renommées sans changer d'identifiant (par exemple « Alimentation & Courses » est devenue « Courses »). La migration est notée dans le journal d'activité.
 
 ## 7. Enveloppes de budget
 
 Une enveloppe est un plafond mensuel qui couvre une ou plusieurs catégories de dépense. Elle a un nom, un plafond, une couleur et une icône, et peut être marquée **essentielle** (besoin vital) ou **fixe** (montant identique chaque mois).
 
-Une même catégorie peut appartenir à plusieurs enveloppes, par exemple « Alimentation & Courses » dans « Courses » et dans « Sorties ».
+Une même catégorie peut appartenir à plusieurs enveloppes, par exemple « Courses » dans « Nourriture » et dans « Sorties ».
 
 ### Affectation
 
@@ -360,7 +377,7 @@ Les frais proposés à la saisie viennent de grilles tarifaires par tranche (`we
 | Transfert MVola vers Orange Money ou Airtel Money | Grille interopérateur |
 | Transfert Orange Money ou Airtel Money vers Espèces ou un autre opérateur | Mêmes grilles, par analogie |
 | Transfert vers un compte bancaire ou personnalisé | Aucun frais |
-| Dépense catégorie « Frais & Mobile Money » payée depuis un compte Mobile Money | Grille d'envoi MVola vers MVola |
+| Dépense catégorie « Envois d'argent » payée depuis un compte Mobile Money | Grille d'envoi MVola vers MVola |
 | Autres dépenses | Aucun frais |
 
 Pour les SMS, les frais ne sont pas calculés : ce sont ceux annoncés par l'opérateur.
