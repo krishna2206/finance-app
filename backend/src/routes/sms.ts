@@ -3,6 +3,8 @@ import { streamSSE } from 'hono/streaming';
 import { autoCategorizer } from '../services/autoCategorizer';
 import { smsService } from '../services/smsService';
 import { categoryRepository } from '../db/repositories/categoryRepository';
+import { auditService } from '../services/auditService';
+import { HttpError } from '../lib/errors';
 
 export const smsRouter = new Hono();
 
@@ -70,7 +72,22 @@ smsRouter.post('/test-parse', async (c) => {
  * Appelé par MacroDroid (ou une app compagnon) à la réception d'un SMS opérateur.
  */
 smsRouter.post('/webhook', async (c) => {
-  const result = smsService.ingest(await c.req.json());
+  const body = await c.req.json();
+  let result;
+  try {
+    result = smsService.ingest(body);
+  } catch (err) {
+    if (err instanceof HttpError && err.status === 422) {
+      const raw = typeof body?.message === 'string' ? body.message : typeof body?.text === 'string' ? body.text : '';
+      auditService.record({
+        domain: 'SMS',
+        action: 'SMS_REJECTED',
+        summary: 'SMS non reconnu, rien n’a été enregistré',
+        after: { sender: typeof body?.sender === 'string' ? body.sender : undefined, message: raw.slice(0, 1000) },
+      });
+    }
+    throw err;
+  }
 
   if (result.duplicate) {
     return c.json({

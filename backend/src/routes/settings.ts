@@ -7,6 +7,7 @@ import {
   optionalString,
 } from '../lib/validation';
 import { badRequest } from '../lib/errors';
+import { auditService } from '../services/auditService';
 
 export const settingsRouter = new Hono();
 
@@ -39,5 +40,25 @@ settingsRouter.put('/', async (c) => {
     update.geminiApiKey = optionalString(body.geminiApiKey, 'geminiApiKey') ?? null;
   }
 
-  return c.json(settingsRepository.updateSettings(update));
+  const result = auditService.track(() => {
+    const before = settingsRepository.getSettings();
+    return { before, after: settingsRepository.updateSettings(update) };
+  }, ({ before, after }) => {
+    const labels: Record<string, string> = {
+      userName: 'nom', userProfession: 'métier', userLocation: 'ville', monthlyIncomeTarget: 'objectif de revenu',
+      monthlySavingsTarget: 'objectif d’épargne', onboardingCompleted: 'premier lancement',
+    };
+    const changed = Object.keys(labels).filter(k => (before as any)[k] !== (after as any)[k]);
+    if (update.geminiApiKey !== undefined) changed.push('geminiApiKey');
+    if (!changed.length) return null;
+    // La clé Gemini n'est jamais écrite dans le journal, seulement le fait qu'elle a changé.
+    return {
+      domain: 'SETTINGS', action: 'SETTINGS_UPDATED', entityType: 'settings', entityId: 'default',
+      summary: `Réglages modifiés : ${changed.map(k => k === 'geminiApiKey' ? (update.geminiApiKey ? 'clé Gemini enregistrée' : 'clé Gemini effacée') : labels[k]).join(', ')}`,
+      before: Object.fromEntries(changed.filter(k => k !== 'geminiApiKey').map(k => [k, (before as any)[k]])),
+      after: Object.fromEntries(changed.filter(k => k !== 'geminiApiKey').map(k => [k, (after as any)[k]])),
+      walletChanges: [],
+    };
+  });
+  return c.json(result.after);
 });

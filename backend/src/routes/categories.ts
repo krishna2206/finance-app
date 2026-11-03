@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { isSystemCategory } from '@finance/shared';
 import { categoryRepository } from '../db/repositories/categoryRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
-import { withTransaction } from '../db/index';
+import { auditService } from '../services/auditService';
 import { conflict, notFound } from '../lib/errors';
 import { asObject, optionalEnum, optionalString, requireString } from '../lib/validation';
 import { CategoryType } from '../types';
@@ -23,12 +23,16 @@ categoriesRouter.get('/:id', (c) => {
 
 categoriesRouter.post('/', async (c) => {
   const body = asObject(await c.req.json());
-  const created = categoryRepository.createCategory({
+  const input = {
     name: requireString(body.name, 'name'),
     type: optionalEnum(body.type, CATEGORY_TYPES, 'type') || 'EXPENSE',
     color: optionalString(body.color, 'color') || '#34D399',
     icon: optionalString(body.icon, 'icon') || 'TagBoldIcon',
-  });
+  };
+  const created = auditService.track(() => categoryRepository.createCategory(input), (cat) => ({
+    domain: 'CATEGORY', action: 'CATEGORY_CREATED', entityType: 'category', entityId: cat.id,
+    summary: `Catégorie créée : ${cat.name}`, after: cat, walletChanges: [],
+  }));
   return c.json(created, 201);
 });
 
@@ -45,20 +49,26 @@ categoriesRouter.put('/:id', async (c) => {
     throw conflict('Le type de cette catégorie ne peut plus être modifié');
   }
 
-  const updated = categoryRepository.updateCategory({
+  const next = {
     ...existing,
     name: body.name !== undefined ? requireString(body.name, 'name') : existing.name,
     type: requestedType || existing.type,
     color: optionalString(body.color, 'color') || existing.color,
     icon: optionalString(body.icon, 'icon') || existing.icon,
-  });
+  };
+  const updated = auditService.track(() => categoryRepository.updateCategory(next)!, (cat) => ({
+    domain: 'CATEGORY', action: 'CATEGORY_UPDATED', entityType: 'category', entityId: cat.id,
+    summary: existing.name !== cat.name ? `Catégorie renommée : ${existing.name} → ${cat.name}` : `Catégorie modifiée : ${cat.name}`,
+    before: existing, after: cat, walletChanges: [],
+  }));
   return c.json(updated);
 });
 
 categoriesRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  withTransaction(() => {
-    if (!categoryRepository.getCategoryById(id)) throw notFound('Catégorie introuvable');
+  auditService.track(() => {
+    const category = categoryRepository.getCategoryById(id);
+    if (!category) throw notFound('Catégorie introuvable');
     if (isSystemCategory(id)) throw conflict('Les catégories système ne peuvent pas être supprimées');
 
     const used = transactionRepository.countByCategory(id);
@@ -66,6 +76,10 @@ categoriesRouter.delete('/:id', (c) => {
       throw conflict(`Cette catégorie est utilisée par ${used} opération${used > 1 ? 's' : ''} : changez-les de catégorie avant de la supprimer`);
     }
     categoryRepository.deleteCategory(id);
-  });
+    return category;
+  }, (cat) => ({
+    domain: 'CATEGORY', action: 'CATEGORY_DELETED', entityType: 'category', entityId: cat.id,
+    summary: `Catégorie supprimée : ${cat.name}`, before: cat, walletChanges: [],
+  }));
   return c.json({ success: true, deletedId: id });
 });

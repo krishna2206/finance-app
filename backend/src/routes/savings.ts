@@ -3,7 +3,8 @@ import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { savingsService } from '../services/savingsService';
-import { withTransaction } from '../db/index';
+import { auditService } from '../services/auditService';
+import { formatAriary } from '../lib/format';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import {
   asObject,
@@ -49,7 +50,7 @@ savingsRouter.post('/', async (c) => {
   const name = requireString(body.name, 'name');
   const balance = optionalNonNegativeAmount(body.balance, 'balance', 0);
 
-  const created = withTransaction(() => {
+  const created = auditService.track(() => {
     const wallet = walletRepository.getWalletById(walletId);
     if (!wallet) throw badRequest('Compte introuvable');
 
@@ -68,30 +69,47 @@ savingsRouter.post('/', async (c) => {
       color: optionalString(body.color, 'color'),
       icon: optionalString(body.icon, 'icon'),
     });
-  });
+  }, (pot) => ({
+    domain: 'SAVINGS', action: 'SAVINGS_CREATED', entityType: 'savings', entityId: pot.id,
+    summary: `Pot d’épargne créé : ${pot.name} (${pot.mode === 'NATIVE' ? 'épargne dédiée' : 'gel virtuel'}), solde initial ${formatAriary(pot.balance)}`,
+    after: pot, walletChanges: [],
+  }));
 
   return c.json(enhance(created), 201);
 });
 
 savingsRouter.put('/:id', async (c) => {
   const body = asObject(await c.req.json());
-  const updated = savingsRepository.updateSavings(c.req.param('id'), {
-    name: body.name !== undefined ? requireString(body.name, 'name') : undefined,
-    color: optionalString(body.color, 'color'),
-    icon: optionalString(body.icon, 'icon'),
-  });
-  if (!updated) throw notFound('Pot d’épargne introuvable');
+  const id = c.req.param('id');
+  const { after: updated } = auditService.track(() => {
+    const before = savingsRepository.getSavingsById(id);
+    if (!before) throw notFound('Pot d’épargne introuvable');
+    const after = savingsRepository.updateSavings(id, {
+      name: body.name !== undefined ? requireString(body.name, 'name') : undefined,
+      color: optionalString(body.color, 'color'),
+      icon: optionalString(body.icon, 'icon'),
+    })!;
+    return { before, after };
+  }, ({ before, after }) => ({
+    domain: 'SAVINGS', action: 'SAVINGS_UPDATED', entityType: 'savings', entityId: after.id,
+    summary: before.name !== after.name ? `Pot d’épargne renommé : ${before.name} → ${after.name}` : `Pot d’épargne modifié : ${after.name}`,
+    before, after, walletChanges: [],
+  }));
   return c.json(enhance(updated));
 });
 
 savingsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  withTransaction(() => {
+  auditService.track(() => {
     const s = savingsRepository.getSavingsById(id);
     if (!s) throw notFound('Pot d’épargne introuvable');
     if (s.balance > 0) throw conflict('Débloquez d’abord l’argent de ce pot avant de le supprimer');
     savingsRepository.deleteSavings(id);
-  });
+    return s;
+  }, (pot) => ({
+    domain: 'SAVINGS', action: 'SAVINGS_DELETED', entityType: 'savings', entityId: pot.id,
+    summary: `Pot d’épargne supprimé : ${pot.name}`, before: pot, walletChanges: [],
+  }));
   return c.json({ success: true, deletedId: id });
 });
 

@@ -1,9 +1,9 @@
-import { withTransaction } from '../db/index';
 import { transactionRepository, NewTransaction } from '../db/repositories/transactionRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { conflict, notFound } from '../lib/errors';
+import { auditService, describeTransaction, transactionSnapshot } from './auditService';
 import { Transaction } from '../types';
 
 interface LedgerEffects {
@@ -79,24 +79,45 @@ function applyEffects(t: Transaction, sign: 1 | -1) {
 }
 
 export const ledgerService = {
-  /** Enregistre une opération et applique ses effets de façon atomique. */
+  /** Enregistre une opération et applique ses effets de façon atomique, avec son entrée au journal. */
   record(input: NewTransaction, afterApply?: (created: Transaction) => void): Transaction {
-    return withTransaction(() => {
-      const created = transactionRepository.createTransaction(input);
-      applyEffects(created, 1);
-      afterApply?.(created);
-      return created;
-    });
+    return auditService.track(
+      () => {
+        const created = transactionRepository.createTransaction(input);
+        applyEffects(created, 1);
+        afterApply?.(created);
+        return created;
+      },
+      (created) => ({
+        domain: 'TRANSACTION',
+        action: 'TRANSACTION_CREATED',
+        entityType: 'transaction',
+        entityId: created.id,
+        summary: `Ajout : ${describeTransaction(created)}`,
+        after: transactionSnapshot(created),
+      }),
+    );
   },
 
   /** Supprime une opération et annule exactement ses effets. */
   remove(id: string): void {
-    withTransaction(() => {
-      const existing = transactionRepository.getTransactionById(id);
-      if (!existing) throw notFound('Transaction introuvable');
-      applyEffects(existing, -1);
-      transactionRepository.deleteTransaction(id);
-    });
+    auditService.track(
+      () => {
+        const existing = transactionRepository.getTransactionById(id);
+        if (!existing) throw notFound('Transaction introuvable');
+        applyEffects(existing, -1);
+        transactionRepository.deleteTransaction(id);
+        return existing;
+      },
+      (removed) => ({
+        domain: 'TRANSACTION',
+        action: 'TRANSACTION_DELETED',
+        entityType: 'transaction',
+        entityId: removed.id,
+        summary: `Suppression : ${describeTransaction(removed)}`,
+        before: transactionSnapshot(removed),
+      }),
+    );
   },
 
   /** Solde disponible d'un compte (hors épargne bloquée virtuellement). */

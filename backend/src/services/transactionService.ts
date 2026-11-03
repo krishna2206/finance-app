@@ -1,5 +1,5 @@
 import { isSavingsMovement } from '@finance/shared';
-import { withTransaction } from '../db/index';
+import { auditService, describeChanges, describeTransaction, transactionSnapshot } from './auditService';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { categoryRepository } from '../db/repositories/categoryRepository';
@@ -136,7 +136,7 @@ export const transactionService = {
   update(id: string, rawBody: unknown): Transaction {
     const body = asObject(rawBody);
 
-    return withTransaction(() => {
+    const { after } = auditService.track(() => {
       const existing = transactionRepository.getTransactionById(id);
       if (!existing) throw notFound('Transaction introuvable');
 
@@ -166,12 +166,26 @@ export const transactionService = {
       let note: string | null | undefined;
       if (body.note !== undefined) note = optionalString(body.note, 'note') ?? null;
 
-      return transactionRepository.updateTransaction(id, {
+      const updated = transactionRepository.updateTransaction(id, {
         categoryId,
         budgetId: budgetId ?? null,
         title,
         note,
       })!;
+      return { before: existing, after: updated };
+    }, ({ before, after }) => {
+      const changes = describeChanges(transactionSnapshot(before), transactionSnapshot(after));
+      if (!changes) return null;
+      return {
+        domain: 'TRANSACTION',
+        action: 'TRANSACTION_UPDATED',
+        entityType: 'transaction',
+        entityId: after.id,
+        summary: `Modification : ${describeTransaction(after)} (${changes})`,
+        before: transactionSnapshot(before),
+        after: transactionSnapshot(after),
+      };
     });
+    return after;
   },
 };

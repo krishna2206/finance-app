@@ -44,6 +44,8 @@ export function getDatabase(): AppDatabase {
 
     sqliteDb = sqlite;
     dbInstance = db;
+    // Import différé : le service d'audit dépend lui-même de getDatabase().
+    require('../services/auditService').auditService.ensureStarted();
   }
   return dbInstance;
 }

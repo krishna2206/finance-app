@@ -3,7 +3,7 @@ import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository'
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { savingsService } from '../services/savingsService';
-import { withTransaction } from '../db/index';
+import { auditService } from '../services/auditService';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { formatAriary } from '../lib/format';
 import {
@@ -57,7 +57,7 @@ savingsGoalsRouter.post('/', async (c) => {
   const savingsId = requireString(body.savingsId, 'savingsId');
   const currentAmount = optionalNonNegativeAmount(body.currentAmount, 'currentAmount', 0);
 
-  const created = withTransaction(() => {
+  const created = auditService.track(() => {
     const pot = savingsRepository.getSavingsById(savingsId);
     if (!pot) throw badRequest('Pot d’épargne introuvable');
 
@@ -79,7 +79,10 @@ savingsGoalsRouter.post('/', async (c) => {
       icon: optionalString(body.icon, 'icon'),
       note: optionalString(body.note, 'note'),
     });
-  });
+  }, (goal) => ({
+    domain: 'SAVINGS', action: 'GOAL_CREATED', entityType: 'goal', entityId: goal.id,
+    summary: `Objectif créé : ${goal.name}, cible ${formatAriary(goal.targetAmount)}`, after: goal, walletChanges: [],
+  }));
 
   return c.json(enhance(created), 201);
 });
@@ -87,10 +90,10 @@ savingsGoalsRouter.post('/', async (c) => {
 savingsGoalsRouter.put('/:id', async (c) => {
   const id = c.req.param('id');
   const body = asObject(await c.req.json());
-  requireGoal(id);
+  const before = requireGoal(id);
 
   // Le montant accumulé et le pot ne se modifient que via des versements / déblocages.
-  const updated = savingsGoalRepository.updateGoal(id, {
+  const updated = auditService.track(() => savingsGoalRepository.updateGoal(id, {
     name: body.name !== undefined ? requireString(body.name, 'name') : undefined,
     targetAmount: body.targetAmount !== undefined ? requirePositiveAmount(body.targetAmount, 'targetAmount') : undefined,
     deadline: optionalIsoDate(body.deadline, 'deadline'),
@@ -99,14 +102,20 @@ savingsGoalsRouter.put('/:id', async (c) => {
     color: optionalString(body.color, 'color'),
     icon: optionalString(body.icon, 'icon'),
     note: optionalString(body.note, 'note'),
-  });
-  return c.json(enhance(updated!));
+  })!, (goal) => ({
+    domain: 'SAVINGS', action: 'GOAL_UPDATED', entityType: 'goal', entityId: goal.id,
+    summary: `Objectif modifié : ${goal.name}`, before, after: goal, walletChanges: [],
+  }));
+  return c.json(enhance(updated));
 });
 
 savingsGoalsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  requireGoal(id);
-  savingsGoalRepository.deleteGoal(id);
+  const goal = requireGoal(id);
+  auditService.track(() => savingsGoalRepository.deleteGoal(id), () => ({
+    domain: 'SAVINGS', action: 'GOAL_DELETED', entityType: 'goal', entityId: goal.id,
+    summary: `Objectif supprimé : ${goal.name} (${formatAriary(goal.currentAmount)} libérés dans le pot)`, before: goal, walletChanges: [],
+  }));
   return c.json({ success: true, deletedId: id });
 });
 

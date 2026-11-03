@@ -141,6 +141,27 @@ export const settings = sqliteTable('settings', {
   updatedAt: integer('updated_at').notNull().default(0),
 });
 
+// 9. AUDIT_EVENTS (Journal d'audit, en ajout seulement)
+export const auditEvents = sqliteTable('audit_events', {
+  id: text('id').primaryKey(),
+  occurredAt: integer('occurred_at').notNull(),
+  actor: text('actor').notNull(), // 'APP' | 'SMS' | 'SYSTEM'
+  domain: text('domain').notNull(), // 'TRANSACTION' | 'BALANCE' | 'SMS' | 'WALLET' | 'SAVINGS' | 'BUDGET' | 'CATEGORY' | 'SETTINGS' | 'SYSTEM'
+  action: text('action').notNull(), // ex. 'TRANSACTION_UPDATED', 'BALANCE_ADJUSTED'
+  entityType: text('entity_type'),
+  entityId: text('entity_id'),
+  summary: text('summary').notNull(),
+  before: text('before'), // JSON
+  after: text('after'), // JSON
+  walletChanges: text('wallet_changes'), // JSON : [{ walletId, before, after }]
+  drift: integer('drift'), // Écart de solde non expliqué (recalage par SMS ou correction manuelle)
+  note: text('note'),
+}, (t) => [
+  index('audit_events_occurred_idx').on(t.occurredAt),
+  index('audit_events_entity_idx').on(t.entityType, t.entityId),
+  index('audit_events_domain_idx').on(t.domain),
+]);
+
 // Relations Drizzle
 export const walletsRelations = relations(wallets, ({ many }) => ({
   savings: many(savings),

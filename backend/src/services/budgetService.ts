@@ -42,8 +42,9 @@ export const budgetService = {
    * sinon elle passe dans la première enveloppe qui la couvre (ou aucune).
    * Les mois passés ne sont jamais réécrits.
    */
-  reassignCurrentPeriod(): void {
+  reassignCurrentPeriod(): Array<{ transactionId: string; from: string | null; to: string | null }> {
     const allBudgets = budgetRepository.getAllBudgets();
+    const changes: Array<{ transactionId: string; from: string | null; to: string | null }> = [];
 
     for (const t of transactionRepository.getTransactionsForPeriod(currentPeriod())) {
       if (!isBudgetable(t) || !t.categoryId) continue;
@@ -54,7 +55,9 @@ export const budgetService = {
       const nextBudgetId = matches[0]?.id ?? null;
       if ((t.budgetId ?? null) !== nextBudgetId) {
         transactionRepository.updateTransaction(t.id, { budgetId: nextBudgetId });
+        changes.push({ transactionId: t.id, from: t.budgetId ?? null, to: nextBudgetId });
       }
     }
+    return changes;
   },
 };

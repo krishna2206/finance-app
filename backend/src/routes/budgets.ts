@@ -2,7 +2,10 @@ import { Hono } from 'hono';
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { categoryRepository } from '../db/repositories/categoryRepository';
 import { budgetService } from '../services/budgetService';
-import { withTransaction } from '../db/index';
+import { auditService } from '../services/auditService';
+import { formatAriary } from '../lib/format';
+import { AuditInput } from '../db/repositories/auditRepository';
+import { Budget } from '../types';
 import { badRequest, notFound } from '../lib/errors';
 import {
   asObject,
@@ -24,6 +27,22 @@ function validateExpenseCategories(categoryIds: string[] | undefined): string[] 
     if (category.type !== 'EXPENSE') throw badRequest(`« ${category.name} » n’est pas une catégorie de dépense`);
   }
   return categoryIds;
+}
+
+function budgetEvents(action: string, summary: string, before: Budget | null, after: Budget | null, reassigned: Array<{ transactionId: string }>): AuditInput[] {
+  const budget = (after ?? before)!;
+  const events: AuditInput[] = [{
+    domain: 'BUDGET', action, entityType: 'budget', entityId: budget.id, summary,
+    before: before ?? undefined, after: after ?? undefined, walletChanges: [],
+  }];
+  if (reassigned.length) {
+    events.push({
+      domain: 'BUDGET', action: 'BUDGET_REASSIGNED', entityType: 'budget', entityId: budget.id,
+      summary: `${reassigned.length} opération${reassigned.length > 1 ? 's' : ''} du mois réaffectée${reassigned.length > 1 ? 's' : ''} à une autre enveloppe`,
+      after: reassigned, walletChanges: [],
+    });
+  }
+  return events;
 }
 
 budgetsRouter.get('/', (c) => {
@@ -48,11 +67,13 @@ budgetsRouter.post('/', async (c) => {
     categoryIds: validateExpenseCategories(optionalStringArray(body.categoryIds, 'categoryIds')) || [],
   };
 
-  const created = withTransaction(() => {
+  const { budget: created } = auditService.track(() => {
     const budget = budgetRepository.createBudget(input);
-    budgetService.reassignCurrentPeriod();
-    return budget;
-  });
+    const reassigned = budgetService.reassignCurrentPeriod();
+    return { budget, reassigned };
+  }, ({ budget, reassigned }) => budgetEvents(
+    'BUDGET_CREATED', `Enveloppe créée : ${budget.name}, plafond ${formatAriary(budget.monthlyLimit)}`, null, budget, reassigned,
+  ));
   return c.json(created, 201);
 });
 
@@ -69,20 +90,28 @@ budgetsRouter.put('/:id', async (c) => {
     categoryIds: validateExpenseCategories(optionalStringArray(body.categoryIds, 'categoryIds')),
   };
 
-  const updated = withTransaction(() => {
-    const budget = budgetRepository.updateBudget(id, input);
-    if (!budget) throw notFound('Enveloppe introuvable');
-    budgetService.reassignCurrentPeriod();
-    return budgetRepository.getBudgetById(id)!;
-  });
+  const { after: updated } = auditService.track(() => {
+    const before = budgetRepository.getBudgetById(id);
+    if (!before) throw notFound('Enveloppe introuvable');
+    budgetRepository.updateBudget(id, input);
+    const reassigned = budgetService.reassignCurrentPeriod();
+    return { before, after: budgetRepository.getBudgetById(id)!, reassigned };
+  }, ({ before, after, reassigned }) => budgetEvents(
+    'BUDGET_UPDATED',
+    before.monthlyLimit !== after.monthlyLimit
+      ? `Enveloppe modifiée : ${after.name}, plafond ${formatAriary(before.monthlyLimit)} → ${formatAriary(after.monthlyLimit)}`
+      : `Enveloppe modifiée : ${after.name}`,
+    before, after, reassigned,
+  ));
   return c.json(updated);
 });
 
 budgetsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  withTransaction(() => {
-    if (!budgetRepository.deleteBudget(id)) throw notFound('Enveloppe introuvable');
-    budgetService.reassignCurrentPeriod();
-  });
+  auditService.track(() => {
+    const before = budgetRepository.getBudgetById(id);
+    if (!before || !budgetRepository.deleteBudget(id)) throw notFound('Enveloppe introuvable');
+    return { before, reassigned: budgetService.reassignCurrentPeriod() };
+  }, ({ before, reassigned }) => budgetEvents('BUDGET_DELETED', `Enveloppe supprimée : ${before.name}`, before, null, reassigned));
   return c.json({ success: true, deletedId: id });
 });

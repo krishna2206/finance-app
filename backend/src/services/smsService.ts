@@ -8,6 +8,8 @@ import { transactionRepository } from '../db/repositories/transactionRepository'
 import { HttpError, badRequest } from '../lib/errors';
 import { asObject, optionalString } from '../lib/validation';
 import { Budget, Transaction, Wallet } from '../types';
+import { auditService } from './auditService';
+import { formatAriary } from '../lib/format';
 
 const DEFAULT_WALLET_NAMES: Record<string, string> = {
   MVOLA: 'MVola',
@@ -86,7 +88,16 @@ export const smsService = {
     return withTransaction(() => {
       if (externalRef) {
         const already = transactionRepository.getByExternalRef(externalRef);
-        if (already) return { duplicate: true, parsed, transaction: already };
+        if (already) {
+          auditService.record({
+            domain: 'SMS',
+            action: 'SMS_DUPLICATE',
+            entityType: 'transaction',
+            entityId: already.id,
+            summary: `SMS déjà reçu, ignoré : ${parsed.title} (réf. ${parsed.referenceNumber})`,
+          });
+          return { duplicate: true, parsed, transaction: already };
+        }
       }
 
       const source = resolveSourceWallet(parsed);
@@ -97,6 +108,8 @@ export const smsService = {
       const latestSmsDate = transactionRepository.getLatestSmsDate(source.id);
       const isMostRecent = !latestSmsDate || parsed.date >= latestSmsDate;
       const sourceBalanceBefore = walletRepository.getWalletById(source.id)!.balance;
+
+      let reconciliation: { expected: number; announced: number } | null = null;
 
       const note = [parsed.note, parsed.referenceNumber ? `Réf: ${parsed.referenceNumber}` : undefined]
         .filter(Boolean)
@@ -125,9 +138,37 @@ export const smsService = {
           // Le solde annoncé par l'opérateur fait foi, mais seulement s'il est le plus récent :
           // un SMS arrivé en retard est déjà inclus dans le solde d'un SMS plus récent.
           if (parsed.newBalance === undefined) return;
+          const expected = walletRepository.getWalletById(source.id)!.balance;
+          if (isMostRecent) reconciliation = { expected, announced: parsed.newBalance };
           walletRepository.updateBalance(source.id, isMostRecent ? parsed.newBalance : sourceBalanceBefore);
         },
       );
+
+      if (reconciliation) {
+        const { expected, announced } = reconciliation as { expected: number; announced: number };
+        const drift = announced - expected;
+        auditService.record({
+          domain: 'BALANCE',
+          action: 'BALANCE_RECONCILED',
+          entityType: 'wallet',
+          entityId: source.id,
+          summary: drift === 0
+            ? `Solde ${source.name} confirmé par SMS : ${formatAriary(announced)}`
+            : `Solde ${source.name} recalé par SMS : ${formatAriary(expected)} calculés, ${formatAriary(announced)} annoncés (écart ${drift > 0 ? '+' : '-'}${formatAriary(Math.abs(drift))})`,
+          before: { balance: expected },
+          after: { balance: announced },
+          walletChanges: drift === 0 ? [] : [{ walletId: source.id, before: expected, after: announced }],
+          drift,
+        });
+      } else if (parsed.newBalance !== undefined) {
+        auditService.record({
+          domain: 'SMS',
+          action: 'SMS_LATE',
+          entityType: 'transaction',
+          entityId: transaction.id,
+          summary: `SMS arrivé en retard : solde ${source.name} non recalé (déjà inclus dans un SMS plus récent)`,
+        });
+      }
 
       return {
         duplicate: false,

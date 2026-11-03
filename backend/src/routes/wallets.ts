@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
-import { withTransaction } from '../db/index';
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { formatAriary } from '../lib/format';
+import { auditService } from '../services/auditService';
 import {
   asObject,
   optionalBoolean,
@@ -56,7 +56,16 @@ walletsRouter.post('/', async (c) => {
   if (input.id && walletRepository.getWalletById(input.id)) {
     throw conflict('Un compte avec cet identifiant existe déjà');
   }
-  return c.json(withSpendable(walletRepository.createWallet(input)), 201);
+  const created = auditService.track(() => walletRepository.createWallet(input), (w) => ({
+    domain: 'WALLET',
+    action: 'WALLET_CREATED',
+    entityType: 'wallet',
+    entityId: w.id,
+    summary: `Compte créé : ${w.name}, solde initial ${formatAriary(w.balance)}`,
+    after: w,
+    walletChanges: [],
+  }));
+  return c.json(withSpendable(created), 201);
 });
 
 /**
@@ -70,12 +79,18 @@ walletsRouter.post('/batch-init', async (c) => {
   }
   const inputs = body.wallets.map(parseWalletInput);
 
-  const list = withTransaction(() => {
+  const list = auditService.track(() => {
     if (transactionRepository.countAll() > 0 || savingsRepository.getAllSavings().length > 0) {
       throw conflict('Des opérations existent déjà : les comptes ne peuvent plus être réinitialisés');
     }
     return walletRepository.replaceAllWallets(inputs);
-  });
+  }, (wallets) => ({
+    domain: 'WALLET',
+    action: 'WALLETS_INITIALIZED',
+    summary: `Comptes initialisés : ${wallets.map(w => `${w.name} ${formatAriary(w.balance)}`).join(', ')}`,
+    after: wallets,
+    walletChanges: [],
+  }));
 
   return c.json(list.map(withSpendable));
 });
@@ -88,17 +103,34 @@ walletsRouter.post('/:id/adjust', async (c) => {
   const id = c.req.param('id');
   const body = asObject(await c.req.json());
   const newBalance = requireNonNegativeAmount(body.newBalance, 'newBalance');
+  const note = optionalString(body.note, 'note');
 
-  const updated = withTransaction(() => {
-    if (!walletRepository.getWalletById(id)) throw notFound('Compte introuvable');
+  const { before, after } = auditService.track(() => {
+    const wallet = walletRepository.getWalletById(id);
+    if (!wallet) throw notFound('Compte introuvable');
 
     const locked = savingsRepository.getTotalVirtualLockedForWallet(id);
     if (newBalance < locked) {
       throw conflict(`Le solde ne peut pas être inférieur à l’épargne bloquée sur ce compte (${formatAriary(locked)})`);
     }
     walletRepository.updateBalance(id, newBalance);
-    return walletRepository.getWalletById(id)!;
+    return { before: wallet, after: walletRepository.getWalletById(id)! };
+  }, ({ before, after }) => {
+    const drift = after.balance - before.balance;
+    if (drift === 0) return null;
+    return {
+      domain: 'BALANCE',
+      action: 'BALANCE_ADJUSTED',
+      entityType: 'wallet',
+      entityId: id,
+      summary: `Solde ${after.name} corrigé : ${formatAriary(before.balance)} → ${formatAriary(after.balance)} (écart ${drift > 0 ? '+' : '-'}${formatAriary(Math.abs(drift))})`,
+      before: { balance: before.balance },
+      after: { balance: after.balance },
+      drift,
+      note: note ?? null,
+    };
   });
+  const updated = before.balance === after.balance ? before : after;
 
   return c.json(withSpendable(updated));
 });
@@ -106,7 +138,7 @@ walletsRouter.post('/:id/adjust', async (c) => {
 walletsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
 
-  withTransaction(() => {
+  auditService.track(() => {
     const wallet = walletRepository.getWalletById(id);
     if (!wallet) throw notFound('Compte introuvable');
 
@@ -118,7 +150,16 @@ walletsRouter.delete('/:id', (c) => {
       throw conflict('Supprimez d’abord les pots d’épargne rattachés à ce compte');
     }
     walletRepository.deleteWallet(id);
-  });
+    return wallet;
+  }, (wallet) => ({
+    domain: 'WALLET',
+    action: 'WALLET_DELETED',
+    entityType: 'wallet',
+    entityId: wallet.id,
+    summary: `Compte supprimé : ${wallet.name}`,
+    before: wallet,
+    walletChanges: [],
+  }));
 
   return c.json({ success: true, deletedId: id });
 });

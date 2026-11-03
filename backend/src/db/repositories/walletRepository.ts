@@ -4,6 +4,7 @@ import { Wallet, WalletType } from '../../types';
 import { eq } from 'drizzle-orm';
 import { conflict } from '../../lib/errors';
 import { normalizePhoneNumber } from '../../lib/validation';
+import { trackWalletChange } from '../../lib/audit';
 
 export const walletRepository = {
   getAllWallets(): Wallet[] {
@@ -72,8 +73,9 @@ export const walletRepository = {
 
   updateBalance(id: string, newBalance: number): void {
     const db = getDatabase();
-    const now = Date.now();
-    db.update(wallets).set({ balance: newBalance, updatedAt: now }).where(eq(wallets.id, id)).run();
+    const before = db.select({ balance: wallets.balance }).from(wallets).where(eq(wallets.id, id)).get();
+    db.update(wallets).set({ balance: newBalance, updatedAt: Date.now() }).where(eq(wallets.id, id)).run();
+    if (before) trackWalletChange(id, before.balance, newBalance);
   },
 
   findByAccountNumber(phoneNumber: string): Wallet | null {

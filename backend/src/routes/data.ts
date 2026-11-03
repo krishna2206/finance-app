@@ -19,6 +19,7 @@ dataRouter.get('/export', (c) => {
     budgetCategories: db.select().from(schema.budgetCategories).all(),
     transactions: db.select().from(schema.transactions).all(),
     transactionItems: db.select().from(schema.transactionItems).all(),
+    auditEvents: db.select().from(schema.auditEvents).all(),
   };
 
   c.header('Content-Disposition', `attachment; filename="finance-export-${payload.exportedAt.slice(0, 10)}.json"`);

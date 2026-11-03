@@ -14,6 +14,8 @@ import { settingsRouter } from './routes/settings';
 import { statsRouter } from './routes/stats';
 import { smsRouter } from './routes/sms';
 import { dataRouter } from './routes/data';
+import { auditRouter } from './routes/audit';
+import { runWithActor } from './lib/audit';
 
 const WEB_DIST = process.env.WEB_DIST || path.resolve(import.meta.dir, '../../web/dist');
 
@@ -26,6 +28,8 @@ export function createApp() {
 
   const api = new Hono();
   api.use('*', requireAccessToken);
+  // Origine de chaque action pour le journal : le webhook SMS, sinon l'application.
+  api.use('*', (c, next) => runWithActor(new URL(c.req.url).pathname.startsWith('/api/sms/webhook') ? 'SMS' : 'APP', () => next()));
   api.get('/auth/check', (c) => c.json({ ok: true }));
   api.route('/settings', settingsRouter);
   api.route('/wallets', walletsRouter);
@@ -37,6 +41,7 @@ export function createApp() {
   api.route('/stats', statsRouter);
   api.route('/sms', smsRouter);
   api.route('/data', dataRouter);
+  api.route('/audit', auditRouter);
   app.route('/api', api);
   app.all('/api/*', (c) => c.json({ error: 'Route introuvable' }, 404));
   app.notFound((c) => c.json({ error: 'Route introuvable' }, 404));
