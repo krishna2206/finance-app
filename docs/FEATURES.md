@@ -88,7 +88,12 @@ Le bouton « + » ouvre la saisie rapide, avec trois modes :
 | Entrée | Crédite le compte choisi | Au choix parmi les catégories de revenu |
 | Transfert | Débite le compte source (montant + frais), crédite le compte destination (montant) | « Retrait d'espèces » vers un compte Espèces, sinon « Frais & Mobile Money » |
 
-La saisie propose aussi un titre, une date et une heure (sélecteur), et une note. Quand les frais sont connus (voir [section 12](#12-calcul-des-frais-mobile-money)), ils sont proposés automatiquement, et un toucher permet de les exclure.
+La saisie propose aussi un titre, une date et une heure (sélecteur), et une note.
+
+La saisie se souvient de ce qui revient d'une fois sur l'autre :
+
+- **Mode, compte et catégorie** : le dernier mode utilisé est rouvert ; pour chaque mode, le dernier compte et la dernière catégorie sont proposés (conservés sur l'appareil). Chaque mode a sa propre catégorie : une catégorie de revenu n'est jamais proposée pour une dépense.
+- **Date** : par défaut, « Maintenant », c'est-à-dire l'heure réelle de l'enregistrement. Une date choisie à la main (par exemple « Hier, 19:30 ») est reprise pour les saisies suivantes, ce qui permet d'enchaîner les dépenses d'une même journée. Le bouton « Maintenant » revient à l'heure actuelle, et la date redevient « Maintenant » d'elle-même après 30 minutes sans saisie. Quand les frais sont connus (voir [section 12](#12-calcul-des-frais-mobile-money)), ils sont proposés automatiquement, et un toucher permet de les exclure.
 
 Quand la catégorie choisie est couverte par plusieurs enveloppes, des pastilles « Financer depuis l'enveloppe » apparaissent, avec la première enveloppe présélectionnée.
 

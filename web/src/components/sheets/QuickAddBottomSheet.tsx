@@ -6,6 +6,17 @@ import { useTransactionStore } from '../../stores/useTransactionStore';
 import { SYSTEM_CATEGORY_IDS } from '@finance/shared';
 import { showErrorToast } from '../../utils/errors';
 import {
+  EntryMode,
+  EntryPrefs,
+  loadEntryPrefs,
+  saveEntryPrefs,
+  resolveCategoryId,
+  resolveWalletId,
+  getDefaultEntryDate,
+  rememberEntryDate,
+  clearStickyDate,
+} from '../../utils/entryMemory';
+import {
   getTransferFee,
   lookupTier,
   resolveWalletType,
@@ -25,7 +36,7 @@ import {
   TransferHorizontalLinearIcon,
 } from '@solar-icons/react';
 
-export type QuickAddMode = 'EXPENSE' | 'INCOME' | 'TRANSFER';
+export type QuickAddMode = EntryMode;
 
 interface QuickAddBottomSheetProps {
   isOpen: boolean;
@@ -42,7 +53,10 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [isFocused, setIsFocused] = useState(true);
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  // true quand la date a été choisie à la main : elle est alors reprise pour les saisies suivantes.
+  const [isCustomDate, setIsCustomDate] = useState(false);
+  const [prefs, setPrefs] = useState<EntryPrefs>(() => loadEntryPrefs());
 
   // Wallets selection
   const spendableWallets = useMemo(() => Object.values(wallets).filter(w => w.isSpendable), [wallets]);
@@ -55,7 +69,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'EXPENSE'), [categories]);
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'INCOME'), [categories]);
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  // Une catégorie par mode : une catégorie de revenu n'est jamais réutilisée pour une dépense.
+  const [categoryByMode, setCategoryByMode] = useState<Partial<Record<'EXPENSE' | 'INCOME', string>>>({});
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
   const [includeFees, setIncludeFees] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,13 +104,47 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     return allWallets;
   }, [allWallets, mode, sourceWalletId]);
 
-  // Set default category according to mode
   const activeCategoryId = useMemo(() => {
-    if (selectedCategoryId) return selectedCategoryId;
-    if (mode === 'EXPENSE') return expenseCategories[0]?.id || '';
-    if (mode === 'INCOME') return incomeCategories[0]?.id || '';
-    return '';
-  }, [selectedCategoryId, mode, expenseCategories, incomeCategories]);
+    if (mode === 'TRANSFER') return '';
+    const list = mode === 'EXPENSE' ? expenseCategories : incomeCategories;
+    const remembered = mode === 'EXPENSE' ? prefs.expenseCategoryId : prefs.incomeCategoryId;
+    return resolveCategoryId([categoryByMode[mode], remembered], list.map(c => c.id)) ?? '';
+  }, [mode, categoryByMode, prefs, expenseCategories, incomeCategories]);
+
+  /** Applique les comptes mémorisés pour un mode. */
+  const applyWalletPrefs = (targetMode: QuickAddMode, from: EntryPrefs) => {
+    const spendableIds = spendableWallets.map(w => w.id);
+    const allIds = allWallets.map(w => w.id);
+    if (targetMode === 'EXPENSE') {
+      setSourceWalletId(resolveWalletId([from.expenseWalletId], spendableIds) ?? '');
+    } else if (targetMode === 'INCOME') {
+      setDestinationWalletId(resolveWalletId([from.incomeWalletId], allIds) ?? '');
+    } else {
+      const source = resolveWalletId([from.transferSourceWalletId], spendableIds) ?? '';
+      setSourceWalletId(source);
+      setDestinationWalletId(resolveWalletId([from.transferDestinationWalletId], allIds, source) ?? '');
+    }
+  };
+
+  const changeMode = (next: QuickAddMode) => {
+    if (next === mode) return;
+    setMode(next);
+    applyWalletPrefs(next, prefs);
+  };
+
+  // À chaque ouverture : dernier mode, comptes et catégories mémorisés, et date par défaut.
+  useEffect(() => {
+    if (!isOpen) return;
+    const loaded = loadEntryPrefs();
+    setPrefs(loaded);
+    setMode(loaded.lastMode);
+    setCategoryByMode({});
+    applyWalletPrefs(loaded.lastMode, loaded);
+    const { date, isSticky } = getDefaultEntryDate();
+    setSelectedDate(date);
+    setIsCustomDate(isSticky);
+    // Les comptes ne sont lus qu'à l'ouverture : une synchronisation ne doit pas changer la saisie en cours.
+  }, [isOpen]);
 
   const selectedCategory = useMemo(() => {
     return categories.find(c => c.id === activeCategoryId);
@@ -185,7 +234,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
 
     setIsSubmitting(true);
     try {
-      const dateIso = selectedDate.toISOString();
+      // Sans date choisie à la main, l'opération prend l'heure réelle de l'enregistrement.
+      const effectiveDate = isCustomDate ? selectedDate : new Date();
+      const dateIso = effectiveDate.toISOString();
 
       if (mode === 'EXPENSE') {
         if (!selectedCategory) return;
@@ -234,10 +285,24 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
         });
       }
 
+      const nextPrefs: EntryPrefs = { ...prefs, lastMode: mode };
+      if (mode === 'EXPENSE') {
+        nextPrefs.expenseWalletId = selectedSourceWallet.id;
+        nextPrefs.expenseCategoryId = activeCategoryId;
+      } else if (mode === 'INCOME') {
+        nextPrefs.incomeWalletId = selectedDestWallet.id;
+        nextPrefs.incomeCategoryId = activeCategoryId;
+      } else {
+        nextPrefs.transferSourceWalletId = selectedSourceWallet.id;
+        nextPrefs.transferDestinationWalletId = selectedDestWallet.id;
+      }
+      saveEntryPrefs(nextPrefs);
+      setPrefs(nextPrefs);
+      rememberEntryDate(effectiveDate, isCustomDate);
+
       setAmount('');
       setTitle('');
       setNote('');
-      setSelectedDate(new Date());
       onClose();
     } catch (err) {
       showErrorToast(err, 'Enregistrement impossible');
@@ -295,7 +360,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-full">
                 <button
                   type="button"
-                  onClick={() => setMode('EXPENSE')}
+                  onClick={() => changeMode('EXPENSE')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     mode === 'EXPENSE'
                       ? 'bg-zinc-900 text-white shadow-xs'
@@ -308,7 +373,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
 
                 <button
                   type="button"
-                  onClick={() => setMode('INCOME')}
+                  onClick={() => changeMode('INCOME')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     mode === 'INCOME'
                       ? 'bg-zinc-900 text-white shadow-xs'
@@ -321,7 +386,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
 
                 <button
                   type="button"
-                  onClick={() => setMode('TRANSFER')}
+                  onClick={() => changeMode('TRANSFER')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                     mode === 'TRANSFER'
                       ? 'bg-zinc-900 text-white shadow-xs'
@@ -553,23 +618,42 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </div>
                 )}
 
-                {/* 5. Date & Time Configurable Row */}
-                <button
-                  type="button"
-                  onClick={() => openPicker('DATE')}
-                  className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left text-xs"
-                >
-                  <div className="flex items-center gap-2.5 text-zinc-900 font-bold shrink-0">
-                    <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
-                      <CalendarLinearIcon size={14} />
+                {/* 5. Date & Heure : « Maintenant » par défaut, ou date choisie reprise pour les saisies suivantes */}
+                <div className="w-full flex items-center hover:bg-zinc-50 transition-colors text-xs">
+                  <button
+                    type="button"
+                    onClick={() => openPicker('DATE')}
+                    className="flex-1 min-w-0 pl-4 py-3 flex items-center justify-between cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-2.5 text-zinc-900 font-bold shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                        <CalendarLinearIcon size={14} />
+                      </div>
+                      <span>Date & Heure</span>
                     </div>
-                    <span>Date & Heure</span>
-                  </div>
-                  <div className="flex items-center justify-end gap-1 text-xs text-zinc-600 font-semibold min-w-0 flex-1 pl-3">
-                    <span className="truncate text-right tabular-nums">{formattedDateLabel}</span>
-                    <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
-                  </div>
-                </button>
+                    <div className={`flex items-center justify-end gap-1 text-xs font-semibold min-w-0 flex-1 pl-3 ${isCustomDate ? 'text-zinc-900' : 'text-zinc-600'}`}>
+                      <span data-testid="entry-date" className="truncate text-right tabular-nums">
+                        {isCustomDate ? formattedDateLabel : 'Maintenant'}
+                      </span>
+                      {!isCustomDate && <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />}
+                    </div>
+                  </button>
+                  {isCustomDate ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(new Date());
+                        setIsCustomDate(false);
+                        clearStickyDate();
+                      }}
+                      className="ml-2 mr-3 shrink-0 py-1 px-2.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-[11px] font-bold text-zinc-700 cursor-pointer"
+                    >
+                      Maintenant
+                    </button>
+                  ) : (
+                    <span className="w-4 shrink-0" />
+                  )}
+                </div>
 
                 {/* 6. Note / Remarque Optionnelle */}
                 <div className="px-4 py-3">
@@ -589,7 +673,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer}
+                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer || (mode !== 'TRANSFER' && !selectedCategory)}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
               >
                 {isSubmitting
@@ -699,7 +783,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                           type="button"
                           key={cat.id}
                           onClick={() => {
-                            setSelectedCategoryId(cat.id);
+                            if (mode !== 'TRANSFER') setCategoryByMode(prev => ({ ...prev, [mode]: cat.id }));
                             setPickerTarget(null);
                           }}
                           className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-all cursor-pointer min-h-[56px] ${
@@ -731,7 +815,12 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   <div className="pt-1">
                     <IOSDateTimePicker
                       value={selectedDate}
-                      onChange={setSelectedDate}
+                      onChange={(d) => {
+                        // La roue réémet la valeur affichée à son ouverture : seul un vrai changement compte.
+                        if (Math.floor(d.getTime() / 60_000) === Math.floor(selectedDate.getTime() / 60_000)) return;
+                        setSelectedDate(d);
+                        setIsCustomDate(true);
+                      }}
                       onConfirm={() => setPickerTarget(null)}
                     />
                   </div>

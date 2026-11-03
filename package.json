@@ -15,7 +15,7 @@
     "build": "cd web && bun run build",
     "start": "bun run build && cd backend && bun run start",
     "backup": "cd backend && bun run backup",
-    "test": "cd backend && bun test",
+    "test": "cd backend && bun test && cd ../web && bun run test",
     "typecheck": "bun --filter \"*\" typecheck",
     "test:e2e": "cd e2e && bun run test"
   }
