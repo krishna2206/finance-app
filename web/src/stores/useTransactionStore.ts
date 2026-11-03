@@ -51,6 +51,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
   updateTransaction: async (id, patch) => {
     const updated = await api.updateTransaction(id, patch);
     get().upsertLocal(updated);
+    // Montant, compte ou type modifiés : soldes et épargne changent aussi.
+    const touchesBalances = ['flow', 'operationType', 'walletId', 'destinationWalletId', 'amount', 'feeAmount']
+      .some(key => key in patch);
+    if (touchesBalances) {
+      await Promise.all([
+        useWalletStore.getState().loadWallets(),
+        import('./useSavingsStore').then(m => m.useSavingsStore.getState().loadSavingsAndGoals()),
+      ]);
+    }
     return updated;
   },
 

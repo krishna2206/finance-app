@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
-import { SYSTEM_CATEGORY_IDS } from '@finance/shared';
+import { useToastStore } from '../../stores/useToastStore';
+import { SYSTEM_CATEGORY_IDS, isSavingsMovement } from '@finance/shared';
+import { Transaction } from '../../types/models';
+import { TransactionPatch } from '../../services/api';
 import { showErrorToast } from '../../utils/errors';
 import {
   EntryMode,
@@ -38,15 +41,39 @@ import {
 
 export type QuickAddMode = EntryMode;
 
-interface QuickAddBottomSheetProps {
+interface TransactionFormSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Opération à modifier. Sans elle, c'est la saisie rapide d'une nouvelle opération. */
+  transaction?: Transaction | null;
 }
 
-export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProps) {
+/** Mode d'affichage d'une opération existante. */
+export function modeOfTransaction(t: Pick<Transaction, 'flow' | 'destinationWalletId'>): QuickAddMode {
+  if (t.flow === 'CREDIT') return 'INCOME';
+  return t.destinationWalletId ? 'TRANSFER' : 'EXPENSE';
+}
+
+/**
+ * Formulaire d'une opération, commun à la saisie rapide et à la modification.
+ * En modification, tous les champs sont repris de l'opération et rien n'est mémorisé pour les saisies suivantes.
+ * Une opération d'épargne ne permet de changer que le montant, le compte, la date, le titre et la note.
+ */
+export function TransactionFormSheet({ isOpen, onClose, transaction }: TransactionFormSheetProps) {
   const categories = useBudgetStore(state => state.categories);
   const wallets = useWalletStore(state => state.wallets);
   const addTransaction = useTransactionStore(state => state.addTransaction);
+  const updateTransaction = useTransactionStore(state => state.updateTransaction);
+
+  // Conserve l'opération pendant l'animation de fermeture.
+  const [lastTransaction, setLastTransaction] = useState(transaction ?? null);
+  useEffect(() => {
+    if (isOpen) setLastTransaction(transaction ?? null);
+  }, [isOpen, transaction]);
+  const editing = isOpen ? transaction ?? null : lastTransaction;
+  const isEdit = Boolean(editing);
+  const isSavingsEdit = Boolean(editing && isSavingsMovement(editing));
+  const isDepositEdit = editing?.operationType === 'SAVINGS_DEPOSIT';
 
   const [mode, setMode] = useState<QuickAddMode>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -73,6 +100,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const [categoryByMode, setCategoryByMode] = useState<Partial<Record<'EXPENSE' | 'INCOME', string>>>({});
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
   const [includeFees, setIncludeFees] = useState(true);
+  // En modification, les frais sont saisis directement (repris de l'opération).
+  const [feeInput, setFeeInput] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getMatchingBudgetsForCategory = useBudgetStore(state => state.getMatchingBudgetsForCategory);
@@ -124,14 +153,51 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
   const changeMode = (next: QuickAddMode) => {
     if (next === mode) return;
     setMode(next);
-    applyWalletPrefs(next, prefs);
+    if (!isEdit) {
+      applyWalletPrefs(next, prefs);
+      return;
+    }
+    // En modification, le compte de l'opération est conservé d'un mode à l'autre.
+    const current = mode === 'INCOME' ? selectedDestWallet.id : selectedSourceWallet.id;
+    if (next === 'INCOME') {
+      setDestinationWalletId(current);
+    } else {
+      setSourceWalletId(spendableWallets.some(w => w.id === current) ? current : spendableWallets[0]?.id ?? '');
+      if (next === 'TRANSFER') setDestinationWalletId(allWallets.find(w => w.id !== current)?.id ?? '');
+    }
   };
 
-  // À chaque ouverture : dernier mode, comptes et catégories mémorisés, et date par défaut.
+  // À chaque ouverture : l'opération à modifier, ou le dernier mode, les comptes et catégories mémorisés.
   useEffect(() => {
     if (!isOpen) return;
     const loaded = loadEntryPrefs();
     setPrefs(loaded);
+
+    if (transaction) {
+      const t = transaction;
+      const tMode: QuickAddMode = isSavingsMovement(t)
+        ? (t.operationType === 'SAVINGS_DEPOSIT' ? 'EXPENSE' : 'INCOME')
+        : modeOfTransaction(t);
+      setMode(tMode);
+      setAmount(String(t.amount));
+      setTitle(t.title);
+      setNote(t.note ?? '');
+      setFeeInput(String(t.feeAmount));
+      setCategoryByMode(tMode !== 'TRANSFER' && t.categoryId ? { [tMode]: t.categoryId } : {});
+      setSelectedBudgetId(t.budgetId);
+      if (t.operationType === 'SAVINGS_WITHDRAWAL') {
+        setDestinationWalletId(t.destinationWalletId ?? t.walletId);
+      } else if (tMode === 'INCOME') {
+        setDestinationWalletId(t.walletId);
+      } else {
+        setSourceWalletId(t.walletId);
+        setDestinationWalletId(t.destinationWalletId ?? '');
+      }
+      setSelectedDate(new Date(t.date));
+      setIsCustomDate(true);
+      return;
+    }
+
     setMode(loaded.lastMode);
     setCategoryByMode({});
     applyWalletPrefs(loaded.lastMode, loaded);
@@ -139,7 +205,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     setSelectedDate(date);
     setIsCustomDate(isSticky);
     // Les comptes ne sont lus qu'à l'ouverture : une synchronisation ne doit pas changer la saisie en cours.
-  }, [isOpen]);
+  }, [isOpen, transaction?.id]);
 
   const selectedCategory = useMemo(() => {
     return categories.find(c => c.id === activeCategoryId);
@@ -204,7 +270,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     return { rawFee: 0, feeLabel: '' };
   }, [mode, numericAmount, sourceType, destType, activeCategoryId, isMobileMoneySource]);
 
-  const feeAmount = includeFees ? rawFee : 0;
+  const feeInputValue = parseInt(feeInput, 10) || 0;
+  const feeAmount = isSavingsEdit || mode === 'INCOME' ? 0 : isEdit ? feeInputValue : includeFees ? rawFee : 0;
   const totalImpact = numericAmount + feeAmount;
   const isInvalidTransfer = mode === 'TRANSFER' && selectedSourceWallet.id === selectedDestWallet.id;
 
@@ -223,9 +290,75 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     return `${selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}, ${timeStr}`;
   }, [selectedDate]);
 
+  const isWithdrawalTransfer = selectedDestWallet.type === 'CASH';
+
+  /** Champs envoyés pour une modification : tout est renvoyé, les champs qui ne s'appliquent plus sont vidés. */
+  const buildPatch = (t: Transaction): TransactionPatch => {
+    const base = {
+      amount: numericAmount,
+      title: title.trim() || t.title,
+      date: selectedDate.toISOString(),
+      note: note.trim() || null,
+    };
+    if (isSavingsEdit) {
+      return isDepositEdit
+        ? { ...base, walletId: selectedSourceWallet.id }
+        : { ...base, destinationWalletId: selectedDestWallet.id };
+    }
+    const originalMode = modeOfTransaction(t);
+    if (mode === 'EXPENSE') {
+      return {
+        ...base,
+        flow: 'DEBIT',
+        operationType: originalMode === 'EXPENSE' ? t.operationType : 'EXPENSE_GENERAL',
+        walletId: selectedSourceWallet.id,
+        destinationWalletId: null,
+        feeAmount,
+        categoryId: activeCategoryId,
+        budgetId: selectedBudgetId ?? null,
+      };
+    }
+    if (mode === 'INCOME') {
+      return {
+        ...base,
+        flow: 'CREDIT',
+        operationType: originalMode === 'INCOME' ? t.operationType : 'INCOME_TRANSFER',
+        walletId: selectedDestWallet.id,
+        destinationWalletId: null,
+        feeAmount: 0,
+        categoryId: activeCategoryId,
+        budgetId: null,
+      };
+    }
+    return {
+      ...base,
+      flow: 'DEBIT',
+      operationType: isWithdrawalTransfer ? 'WITHDRAWAL_CASH' : 'TRANSFER_P2P',
+      walletId: selectedSourceWallet.id,
+      destinationWalletId: selectedDestWallet.id,
+      feeAmount,
+      categoryId: isWithdrawalTransfer ? SYSTEM_CATEGORY_IDS.CASH_WITHDRAWAL : SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY,
+      budgetId: null,
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (numericAmount <= 0) return;
+
+    if (editing) {
+      setIsSubmitting(true);
+      try {
+        await updateTransaction(editing.id, buildPatch(editing));
+        useToastStore.getState().showToast({ title: 'Opération modifiée', description: title.trim() || editing.title, type: 'success' });
+        onClose();
+      } catch (err) {
+        showErrorToast(err, 'Modification impossible');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -261,7 +394,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
         });
       } else {
         // Mouvement entre ses propres comptes : seuls les frais comptent comme dépense.
-        const isWithdrawal = selectedDestWallet.type === 'CASH';
+        const isWithdrawal = isWithdrawalTransfer;
         const defaultTitle = isWithdrawal
           ? `Retrait vers ${selectedDestWallet.name}`
           : `Transfert ${selectedSourceWallet.name} ➔ ${selectedDestWallet.name}`;
@@ -350,7 +483,25 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
             {/* Grabber */}
             <div className="w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-2.5" />
 
+            {/* En modification : titre de la fenêtre au-dessus du choix du mode */}
+            {isEdit && (
+              <div className="flex justify-between items-center mb-3">
+                <h2 className="text-base font-bold text-zinc-900 tracking-tight">
+                  {isSavingsEdit ? (isDepositEdit ? 'Modifier le versement' : 'Modifier le déblocage') : "Modifier l'opération"}
+                </h2>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  title="Fermer"
+                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <CloseLinearIcon size={16} />
+                </button>
+              </div>
+            )}
+
             {/* Header: Mode Segmented Toggle + Close Button */}
+            {!isSavingsEdit && (
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-full">
                 <button
@@ -393,13 +544,16 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 </button>
               </div>
 
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <CloseLinearIcon size={16} />
-              </button>
+              {!isEdit && (
+                <button
+                  onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <CloseLinearIcon size={16} />
+                </button>
+              )}
             </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Hero Amount Input */}
@@ -408,7 +562,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 className="relative py-2 flex flex-col items-center justify-center cursor-text select-none"
               >
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
-                  {mode === 'EXPENSE'
+                  {isSavingsEdit
+                    ? (isDepositEdit ? 'Montant versé' : 'Montant débloqué')
+                    : mode === 'EXPENSE'
                     ? 'Montant de la Dépense'
                     : mode === 'INCOME'
                       ? 'Montant Reçu'
@@ -460,9 +616,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </div>
                 </div>
 
-                {/* Frais */}
+                {/* Frais (saisie rapide) : proposés selon la grille, un toucher les exclut */}
                 <AnimatePresence>
-                  {rawFee > 0 && (
+                  {!isEdit && rawFee > 0 && (
                     <motion.div
                       initial={{ opacity: 0, y: -6, height: 0 }}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
@@ -495,7 +651,9 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 {/* 1. Description / Commerce */}
                 <div className="px-4 py-3">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
-                    {mode === 'EXPENSE'
+                    {isSavingsEdit
+                      ? 'Libellé'
+                      : mode === 'EXPENSE'
                       ? 'Description / Commerce'
                       : mode === 'INCOME'
                         ? 'Source du Revenu'
@@ -556,8 +714,36 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                   </button>
                 )}
 
+                {/* 3.1 Frais (modification) : saisis directement, avec la grille en suggestion */}
+                {isEdit && !isSavingsEdit && mode !== 'INCOME' && (
+                  <div className="px-4 py-3 flex items-center justify-between gap-3">
+                    <label htmlFor="edit-fee" className="text-xs font-bold text-zinc-900 shrink-0">Frais</label>
+                    <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+                      {rawFee > 0 && rawFee !== feeInputValue && (
+                        <button
+                          type="button"
+                          onClick={() => setFeeInput(String(rawFee))}
+                          className="py-1 px-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-[11px] font-bold text-zinc-700 cursor-pointer shrink-0 tabular-nums"
+                        >
+                          Grille : {formatAmount(rawFee)} Ar
+                        </button>
+                      )}
+                      <input
+                        id="edit-fee"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={feeInput}
+                        onChange={(e) => setFeeInput(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                        className="w-20 bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-xs font-bold text-zinc-900 text-right tabular-nums focus:outline-none focus:border-zinc-900"
+                      />
+                      <span className="text-xs font-semibold text-zinc-500">Ar</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* 4. Catégorie Row */}
-                {mode !== 'TRANSFER' && (
+                {mode !== 'TRANSFER' && !isSavingsEdit && (
                   <button
                     type="button"
                     onClick={() => openPicker('CATEGORY')}
@@ -582,7 +768,7 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 )}
 
                 {/* 4.1 Conditional Envelope Pill Selector (Rendered ONLY when category is in 2+ budgets) */}
-                {mode === 'EXPENSE' && matchingBudgets.length > 1 && (
+                {mode === 'EXPENSE' && !isSavingsEdit && matchingBudgets.length > 1 && (
                   <div className="px-4 py-2.5 bg-zinc-50/50 space-y-1.5 border-t border-zinc-100">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
                       Financer depuis l'enveloppe
@@ -630,10 +816,10 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                       <span data-testid="entry-date" className="truncate text-right tabular-nums">
                         {isCustomDate ? formattedDateLabel : 'Maintenant'}
                       </span>
-                      {!isCustomDate && <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />}
+                      {(!isCustomDate || isEdit) && <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />}
                     </div>
                   </button>
-                  {isCustomDate ? (
+                  {isCustomDate && !isEdit ? (
                     <button
                       type="button"
                       onClick={() => {
@@ -665,14 +851,22 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                 </div>
               </div>
 
+              {editing?.source === 'SMS_AUTO' && (
+                <p className="text-[11px] text-zinc-500 text-center leading-relaxed px-2">
+                  Opération reçue par SMS : au prochain SMS, le solde annoncé par l'opérateur reste la référence.
+                </p>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer || (mode !== 'TRANSFER' && !selectedCategory)}
+                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer || (mode !== 'TRANSFER' && !isSavingsEdit && !selectedCategory)}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
               >
                 {isSubmitting
                   ? 'Enregistrement...'
+                  : isEdit
+                    ? `Enregistrer les modifications (${formatCurrency(mode === 'INCOME' || isSavingsEdit ? numericAmount : totalImpact)})`
                   : mode === 'EXPENSE'
                     ? `Enregistrer Dépense (${formatCurrency(totalImpact)})`
                     : mode === 'INCOME'

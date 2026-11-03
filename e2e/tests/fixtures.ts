@@ -14,8 +14,14 @@ export interface Wallet {
 export interface Transaction {
   id: string;
   title: string;
+  flow: 'DEBIT' | 'CREDIT';
+  operationType: string;
+  walletId: string;
+  destinationWalletId?: string;
   categoryId?: string;
   budgetId?: string;
+  amount: number;
+  feeAmount: number;
   totalAmount: number;
   date: string;
 }

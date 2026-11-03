@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, openQuickAdd, expectToast } from './fixtures';
+import { test, expect, openQuickAdd, expectToast, ariary } from './fixtures';
 
 /** Ouvre un sélecteur de la saisie rapide et choisit une option (la liste est rendue après le formulaire). */
 async function pick(page: Page, row: RegExp, option: RegExp) {
@@ -89,5 +89,65 @@ test.describe('Saisie manuelle et historique', () => {
 
     await page.getByRole('button', { name: 'Dépenses', exact: true }).click();
     await expect(page.getByText(transfer!.title)).toHaveCount(0);
+  });
+});
+
+test.describe('Modification d’une opération', () => {
+  test('modifier le montant et le compte d’une dépense depuis sa fiche', async ({ page, api }) => {
+    const cashId = await api.walletIdByType('CASH');
+    const mvolaId = await api.walletIdByType('MVOLA');
+    const before = await api.balances();
+    const created = await api.post<{ id: string }>('/transactions', {
+      flow: 'DEBIT', walletId: cashId, amount: 3_000, categoryId: 'cat_transport', title: 'Taxi modif E2E',
+    });
+
+    await page.goto('/');
+    await page.getByText('Taxi modif E2E').first().click();
+    await page.getByTitle('Modifier la transaction').click();
+    await expect(page.getByRole('heading', { name: "Modifier l'opération" })).toBeVisible();
+    await expect(page.getByLabel('Montant')).toHaveValue('3000');
+
+    await page.getByLabel('Montant').fill('4500');
+    await pick(page, /Moyen de paiement/, /MVola/);
+    await page.getByRole('button', { name: /Enregistrer les modifications/ }).click();
+    await expectToast(page, 'Opération modifiée');
+
+    // La fiche détail réapparaît avec les nouvelles valeurs.
+    await expect(page.getByRole('heading', { name: "Détail de l'opération" })).toBeVisible();
+    await expect(page.getByText(`-${ariary(4_500)}`).last()).toBeVisible();
+
+    const after = await api.balances();
+    expect(after[cashId]).toBe(before[cashId]);
+    expect(after[mvolaId]).toBe(before[mvolaId] - 4_500);
+    const updated = (await api.transactions()).find(t => t.id === created.id);
+    expect(updated).toMatchObject({ walletId: mvolaId, amount: 4_500 });
+
+    await api.delete(`/transactions/${created.id}`);
+  });
+
+  test('passer une dépense en transfert vers Espèces', async ({ page, api }) => {
+    const cashId = await api.walletIdByType('CASH');
+    const mvolaId = await api.walletIdByType('MVOLA');
+    const before = await api.balances();
+    const created = await api.post<{ id: string }>('/transactions', {
+      flow: 'DEBIT', walletId: mvolaId, amount: 2_000, categoryId: 'cat_shopping', title: 'Type modif E2E',
+    });
+
+    await page.goto('/');
+    await page.getByText('Type modif E2E').first().click();
+    await page.getByTitle('Modifier la transaction').click();
+    await page.getByRole('button', { name: 'Transfert', exact: true }).click();
+    await pick(page, /Vers le compte/, /Espèces/);
+    await page.getByLabel('Frais', { exact: true }).fill('0');
+    await page.getByRole('button', { name: /Enregistrer les modifications/ }).click();
+    await expectToast(page, 'Opération modifiée');
+
+    const after = await api.balances();
+    expect(after[mvolaId]).toBe(before[mvolaId] - 2_000);
+    expect(after[cashId]).toBe(before[cashId] + 2_000);
+    const updated = (await api.transactions()).find(t => t.id === created.id);
+    expect(updated).toMatchObject({ destinationWalletId: cashId, operationType: 'WITHDRAWAL_CASH' });
+
+    await api.delete(`/transactions/${created.id}`);
   });
 });

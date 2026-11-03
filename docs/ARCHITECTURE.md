@@ -100,7 +100,10 @@ Toute écriture qui touche à l'argent passe par `withTransaction()`, qui s'appu
 
 `ledgerService` calcule une seule fois les effets d'une opération sur les soldes :
 - `record()` enregistre l'opération et applique ses effets ;
-- `remove()` applique leur inverse exact.
+- `remove()` applique leur inverse exact ;
+- `replace()` annule les effets de l'ancienne version puis applique ceux de la nouvelle, dans la même transaction. La nouvelle version est construite une fois les anciens effets annulés, ce qui permet de vérifier un disponible comme si l'opération n'avait jamais existé.
+
+La création et la modification d'une opération manuelle partagent le même analyseur d'entrée (`parseManualEntry` dans `transactionService`) : une modification n'est qu'une saisie dont les champs absents reprennent la valeur actuelle.
 
 Création et suppression sont donc toujours symétriques. Le détail des effets est dans [DATA_MODEL.md](DATA_MODEL.md#effets-sur-les-soldes).
 
@@ -181,7 +184,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET | `/transactions` | Toutes les opérations, les plus récentes d'abord. Options : `?month=YYYY-MM`, `?limit=N` |
 | GET | `/transactions/:id` | Une opération |
 | POST | `/transactions` | Saisie manuelle : `flow`, `operationType`, `walletId`, `destinationWalletId`, `categoryId`, `budgetId`, `amount`, `feeAmount`, `title`, `date`, `note`, `location`, `items` |
-| PUT | `/transactions/:id` | Modifie `categoryId`, `budgetId`, `title`, `note` |
+| PUT | `/transactions/:id` | Modification complète : `flow`, `operationType`, `walletId`, `destinationWalletId`, `amount`, `feeAmount`, `categoryId`, `budgetId`, `title`, `date`, `note`. Les champs absents gardent leur valeur, `null` vide un champ facultatif. Pour l'épargne : `amount`, `walletId` (versement), `destinationWalletId` (déblocage), `date`, `title`, `note` |
 | DELETE | `/transactions/:id` | Suppression, avec annulation des effets |
 
 ### Catégories et enveloppes
@@ -227,7 +230,7 @@ web/src/
 ├── App.tsx            Accès, onboarding, navigation par onglets, fenêtres globales
 ├── components/
 │   ├── views/         Écrans : Tableau de bord, Historique, Budgets, Paramètres, Notifications, Journal d'activité, Écarts de solde
-│   ├── sheets/        Fenêtres glissantes : saisie rapide, détail, enveloppe, épargne, etc.
+│   ├── sheets/        Fenêtres glissantes : formulaire d'opération (saisie rapide et modification), détail, enveloppe, épargne, etc.
 │   ├── onboarding/    Déverrouillage et premier lancement
 │   ├── layout/        Barre d'onglets, bouton d'ajout
 │   ├── common/        Composants génériques (cartes groupées, icônes, confirmation, notifications)

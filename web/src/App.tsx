@@ -18,7 +18,7 @@ import { DriftView } from './components/views/DriftView';
 import { SettingsView } from './components/views/SettingsView';
 import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
-import { QuickAddBottomSheet } from './components/sheets/QuickAddBottomSheet';
+import { TransactionFormSheet } from './components/sheets/TransactionFormSheet';
 import { AddWalletBottomSheet } from './components/sheets/AddWalletBottomSheet';
 import { AdjustBalanceBottomSheet } from './components/sheets/AdjustBalanceBottomSheet';
 import { TransactionDetailBottomSheet } from './components/sheets/TransactionDetailBottomSheet';
@@ -91,6 +91,8 @@ export function App() {
   const [adjustingWalletId, setAdjustingWalletId] = useState<string | null>(null);
   const adjustingWallet = useWalletStore(state => (adjustingWalletId ? state.wallets[adjustingWalletId] ?? null : null));
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  // Opération en cours de modification : la fiche détail réapparaît à la fermeture du formulaire.
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [isCreateBudgetOpen, setIsCreateBudgetOpen] = useState(false);
@@ -324,9 +326,15 @@ export function App() {
             </div>
 
             {/* Root-Level Bottom Sheets */}
-            <QuickAddBottomSheet
+            <TransactionFormSheet
               isOpen={isQuickAddOpen}
               onClose={() => setIsQuickAddOpen(false)}
+            />
+
+            <TransactionFormSheet
+              isOpen={Boolean(editingTransaction)}
+              transaction={editingTransaction}
+              onClose={() => setEditingTransaction(null)}
             />
 
             <AddWalletBottomSheet
@@ -340,8 +348,9 @@ export function App() {
             />
 
             <TransactionDetailBottomSheet
-              transaction={selectedTransaction}
+              transaction={editingTransaction ? null : selectedTransaction}
               onClose={() => setSelectedTransaction(null)}
+              onEdit={setEditingTransaction}
             />
 
             <BudgetEditBottomSheet

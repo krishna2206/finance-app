@@ -108,9 +108,30 @@ Toucher une opération ouvre sa fiche détail. On y trouve :
 - **Catégorie** : modifiable. L'enveloppe est alors recalculée : elle est conservée si elle couvre la nouvelle catégorie, sinon la première enveloppe qui la couvre est choisie.
 - **Enveloppe** : affichée quand l'opération en a une, et modifiable seulement si plusieurs enveloppes couvrent sa catégorie. Il n'existe pas d'option « hors budget ».
 - **Compte, date et heure, note, articles** (si présents).
+- **Modification** (bouton crayon) : voir ci-dessous.
 - **Suppression** : elle annule exactement les effets de l'opération sur les soldes des comptes, des pots d'épargne et des objectifs.
 
-Les montants d'une opération ne sont pas modifiables : pour corriger un montant, on supprime l'opération et on la saisit à nouveau.
+### Modification d'une opération
+
+Le bouton crayon de la fiche détail ouvre le même formulaire que la saisie rapide, prérempli avec l'opération. Tout y est modifiable :
+
+- le mode (Dépense, Entrée, Transfert) ;
+- le montant et les frais (saisis directement ; quand la grille tarifaire donne un autre montant, un bouton « Grille » le propose) ;
+- le compte et le compte de destination ;
+- la date et l'heure ;
+- la catégorie et l'enveloppe ;
+- le titre et la note.
+
+Règles :
+
+- **Soldes** : l'ancienne version est annulée puis la nouvelle appliquée, dans une seule transaction. Les soldes restent exacts, et une modification refusée ne change rien.
+- **Changement de mode** : le compte de l'opération est conservé ; la catégorie passe à la dernière utilisée dans le nouveau mode. Une entrée n'a ni frais ni compte de destination.
+- **Enveloppe** : conservée si elle couvre toujours la catégorie, sinon recalculée selon les règles habituelles.
+- **Opérations d'épargne** : seuls le montant, le compte (source d'un versement, destination d'un déblocage), la date, le libellé et la note se modifient. Le pot, l'objectif et le sens restent fixes, et les plafonds habituels s'appliquent (disponible du compte, montant libre du pot ou de l'objectif).
+- **Opérations reçues par SMS** : modifiables, elles gardent leur référence opérateur (un SMS reçu une seconde fois reste reconnu comme doublon). Au prochain SMS, le solde annoncé par l'opérateur reste la référence.
+- **Journal** : chaque modification est notée avec l'avant, l'après et les soldes touchés.
+
+La modification ne change pas les préférences mémorisées de la saisie rapide (mode, comptes, catégories, date).
 
 ### Ce qui compte comme une dépense
 

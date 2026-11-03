@@ -27,9 +27,10 @@ import {
 interface TransactionDetailBottomSheetProps {
   transaction: Transaction | null;
   onClose: () => void;
+  onEdit: (transaction: Transaction) => void;
 }
 
-export function TransactionDetailBottomSheet({ transaction: selected, onClose }: TransactionDetailBottomSheetProps) {
+export function TransactionDetailBottomSheet({ transaction: selected, onClose, onEdit }: TransactionDetailBottomSheetProps) {
   // Version à jour depuis le store (catégorie / enveloppe modifiées dans cette fiche).
   const transaction = useTransactionStore(state => state.transactions.find(t => t.id === selected?.id)) ?? selected;
   const categories = useBudgetStore(state => state.categories);
@@ -145,6 +146,13 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose }:
                 Détail de l'opération
               </h2>
               <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => onEdit(transaction)}
+                  title="Modifier la transaction"
+                  className="w-8 h-8 rounded-full hover:bg-zinc-100 text-zinc-400 hover:text-zinc-900 flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <PenNewSquareLinearIcon size={18} />
+                </button>
                 <button
                   onClick={() => setIsDeleteModalOpen(true)}
                   title="Supprimer la transaction"

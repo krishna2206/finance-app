@@ -95,10 +95,18 @@ export interface NewTransactionInput {
   note?: string;
 }
 
+/** Modification d'une opération : les champs absents gardent leur valeur, `null` vide un champ facultatif. */
 export interface TransactionPatch {
+  flow?: TransactionFlow;
+  operationType?: OperationType;
+  walletId?: string;
+  destinationWalletId?: string | null;
+  amount?: number;
+  feeAmount?: number;
   categoryId?: string;
-  budgetId?: string;
+  budgetId?: string | null;
   title?: string;
+  date?: string;
   note?: string | null;
 }
 
