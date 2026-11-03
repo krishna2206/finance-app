@@ -1,9 +1,9 @@
-import { transactionRepository, NewTransaction } from '../db/repositories/transactionRepository';
+import { transactionRepository, NewTransaction, TransactionReplacement } from '../db/repositories/transactionRepository';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { conflict, notFound } from '../lib/errors';
-import { auditService, describeTransaction, transactionSnapshot } from './auditService';
+import { auditService, describeChanges, describeTransaction, transactionSnapshot } from './auditService';
 import { Transaction } from '../types';
 
 interface LedgerEffects {
@@ -96,6 +96,37 @@ export const ledgerService = {
         summary: `Ajout : ${describeTransaction(created)}`,
         after: transactionSnapshot(created),
       }),
+    );
+  },
+
+  /**
+   * Modifie une opération : annule les effets de l'ancienne version puis applique ceux de la nouvelle,
+   * dans une seule transaction. `build` est appelé une fois les anciens effets annulés : il peut donc
+   * vérifier un solde disponible comme si l'opération n'avait jamais existé. Un refus n'écrit rien.
+   */
+  replace(id: string, build: (existing: Transaction) => TransactionReplacement): { before: Transaction; after: Transaction } {
+    return auditService.track(
+      () => {
+        const existing = transactionRepository.getTransactionById(id);
+        if (!existing) throw notFound('Transaction introuvable');
+        applyEffects(existing, -1);
+        const updated = transactionRepository.replaceTransaction(id, build(existing))!;
+        applyEffects(updated, 1);
+        return { before: existing, after: updated };
+      },
+      ({ before, after }) => {
+        const changes = describeChanges(transactionSnapshot(before), transactionSnapshot(after));
+        if (!changes) return null;
+        return {
+          domain: 'TRANSACTION',
+          action: 'TRANSACTION_UPDATED',
+          entityType: 'transaction',
+          entityId: after.id,
+          summary: `Modification : ${describeTransaction(after)} (${changes})`,
+          before: transactionSnapshot(before),
+          after: transactionSnapshot(after),
+        };
+      },
     );
   },
 

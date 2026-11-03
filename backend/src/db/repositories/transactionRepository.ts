@@ -16,6 +16,17 @@ export interface TransactionUpdate {
   note?: string | null;
 }
 
+/** Champs remplacés lors d'une modification complète. Origine, référence opérateur, articles et lieu sont conservés. */
+export type TransactionReplacement = Pick<
+  Transaction,
+  'flow' | 'operationType' | 'walletId' | 'amount' | 'feeAmount' | 'totalAmount' | 'title' | 'date'
+> & {
+  destinationWalletId?: string | null;
+  categoryId?: string | null;
+  budgetId?: string | null;
+  note?: string | null;
+};
+
 function mapItem(it: ItemRow): TransactionItem {
   return {
     id: it.id,
@@ -206,6 +217,26 @@ export const transactionRepository = {
     if (updates.note !== undefined) patch.note = updates.note;
 
     db.update(transactions).set(patch).where(eq(transactions.id, id)).run();
+    return this.getTransactionById(id);
+  },
+
+  replaceTransaction(id: string, next: TransactionReplacement): Transaction | null {
+    const db = getDatabase();
+    db.update(transactions).set({
+      flow: next.flow,
+      operationType: next.operationType,
+      walletId: next.walletId,
+      destinationWalletId: next.destinationWalletId ?? null,
+      categoryId: next.categoryId ?? null,
+      budgetId: next.budgetId ?? null,
+      amount: next.amount,
+      feeAmount: next.feeAmount,
+      totalAmount: next.totalAmount,
+      title: next.title,
+      date: next.date,
+      note: next.note ?? null,
+      updatedAt: Date.now(),
+    }).where(eq(transactions.id, id)).run();
     return this.getTransactionById(id);
   },
 
