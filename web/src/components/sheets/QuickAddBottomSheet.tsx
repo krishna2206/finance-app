@@ -89,13 +89,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     setPickerTarget(target);
   };
 
-  // Filter out the other wallet in transfer mode so source !== destination
-  const availableSourceWallets = useMemo(() => {
-    if (mode === 'TRANSFER') {
-      return spendableWallets.filter(w => w.id !== destinationWalletId);
-    }
-    return spendableWallets;
-  }, [spendableWallets, mode, destinationWalletId]);
+  // Tous les comptes restent proposés comme source : choisir le compte de destination inverse les deux.
+  const availableSourceWallets = spendableWallets;
 
   const availableDestWallets = useMemo(() => {
     if (mode === 'TRANSFER') {
@@ -173,8 +168,8 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
     if (wallets[sourceWalletId] && (mode !== 'TRANSFER' || sourceWalletId !== destinationWalletId)) {
       return wallets[sourceWalletId];
     }
-    return availableSourceWallets[0] || spendableWallets[0] || { id: 'w-source', name: 'Compte', type: 'MVOLA' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
-  }, [wallets, sourceWalletId, mode, destinationWalletId, availableSourceWallets, spendableWallets]);
+    return spendableWallets.find(w => mode !== 'TRANSFER' || w.id !== destinationWalletId) || spendableWallets[0] || { id: 'w-source', name: 'Compte', type: 'MVOLA' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
+  }, [wallets, sourceWalletId, mode, destinationWalletId, spendableWallets]);
 
   const selectedDestWallet = useMemo(() => {
     if (wallets[destinationWalletId] && (mode !== 'TRANSFER' || destinationWalletId !== sourceWalletId)) {
@@ -734,8 +729,10 @@ export function QuickAddBottomSheet({ isOpen, onClose }: QuickAddBottomSheetProp
                           onClick={() => {
                             if (pickerTarget === 'SOURCE_WALLET') {
                               setSourceWalletId(w.id);
-                              if (w.id === destinationWalletId) {
-                                const other = allWallets.find(item => item.id !== w.id);
+                              if (mode === 'TRANSFER' && w.id === selectedDestWallet.id) {
+                                const other = selectedSourceWallet.id !== w.id
+                                  ? selectedSourceWallet
+                                  : allWallets.find(item => item.id !== w.id);
                                 if (other) setDestinationWalletId(other.id);
                               }
                             } else {

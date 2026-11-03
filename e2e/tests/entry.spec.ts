@@ -79,21 +79,23 @@ test.describe('Saisie rapide', () => {
   });
 
   test('l’heure enregistrée est celle de la saisie, même longtemps après l’ouverture de l’app', async ({ page, api }) => {
-    await page.clock.install();
+    // L'app est ouverte « il y a 2 h » puis l'horloge avance jusqu'à maintenant :
+    // la date enregistrée doit suivre l'horloge, pas l'heure d'ouverture.
+    const before = Date.now();
+    await page.clock.install({ time: before - 2 * 3600e3 });
     await page.goto('/');
     await page.clock.fastForward('02:00:00');
 
-    const before = Date.now();
     await openQuickAdd(page);
     await page.getByRole('button', { name: 'Dépense', exact: true }).click();
     await page.getByLabel('Montant').fill('200');
     await page.getByPlaceholder('Ex: Marché Anosibe, Déjeuner, Essence...').fill('Heure E2E');
     await page.getByRole('button', { name: /Enregistrer Dépense/ }).click();
-    await expect(page.getByLabel('Montant')).toBeHidden();
+    // Sous l'horloge simulée, l'animation de fermeture du panneau ne se termine pas : on attend l'opération côté API.
+    await expect.poll(async () => (await api.transactions()).some(t => t.title === 'Heure E2E')).toBe(true);
 
     const txn = (await api.transactions()).find(t => t.title === 'Heure E2E')!;
-    // Horloge de la page avancée de 2 h : la date doit suivre l’horloge, pas l’heure d’ouverture.
-    expect(new Date(txn.date).getTime()).toBeGreaterThan(before + 2 * 3600e3 - 60_000);
+    expect(new Date(txn.date).getTime()).toBeGreaterThan(before - 60_000);
     await api.delete(`/transactions/${txn.id}`);
   });
 });
