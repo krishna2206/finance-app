@@ -23,6 +23,9 @@ export function transactionSnapshot(t: Transaction) {
     budgetId: t.budgetId ?? null,
     amount: t.amount,
     feeAmount: t.feeAmount,
+    feeRefundAmount: t.feeRefundAmount ?? 0,
+    withdrawalFeeCovered: t.withdrawalFeeCovered ?? 0,
+    counterpartyOperator: t.counterpartyOperator ?? null,
     totalAmount: t.totalAmount,
     title: t.title,
     date: t.date,
@@ -70,6 +73,12 @@ export function describeChanges(before: TransactionSnapshot, after: TransactionS
   }
   if (before.amount !== after.amount) parts.push(`montant ${formatAriary(before.amount)} → ${formatAriary(after.amount)}`);
   if (before.feeAmount !== after.feeAmount) parts.push(`frais ${formatAriary(before.feeAmount)} → ${formatAriary(after.feeAmount)}`);
+  if (before.feeRefundAmount !== after.feeRefundAmount) {
+    parts.push(`remboursement des frais ${formatAriary(before.feeRefundAmount)} → ${formatAriary(after.feeRefundAmount)}`);
+  }
+  if (before.withdrawalFeeCovered !== after.withdrawalFeeCovered) {
+    parts.push(`frais de retrait couverts ${formatAriary(before.withdrawalFeeCovered)} → ${formatAriary(after.withdrawalFeeCovered)}`);
+  }
   if (before.walletId !== after.walletId) parts.push(`compte ${walletName(before.walletId)} → ${walletName(after.walletId)}`);
   if (before.destinationWalletId !== after.destinationWalletId && after.destinationWalletId) {
     parts.push(`destination ${walletName(before.destinationWalletId) || 'aucune'} → ${walletName(after.destinationWalletId)}`);

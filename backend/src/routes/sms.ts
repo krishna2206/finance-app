@@ -73,6 +73,18 @@ smsRouter.post('/test-parse', async (c) => {
  */
 smsRouter.post('/webhook', async (c) => {
   const body = await c.req.json();
+
+  const refund = smsService.ingestFeeRefund(body);
+  if (refund) {
+    if (refund.transaction) {
+      broadcastEvent('NEW_SMS_TRANSACTION', {
+        transaction: refund.transaction,
+        parsed: { flow: 'CREDIT', amount: refund.amount, title: 'Remboursement des frais App MVola', sourceWalletType: 'MVOLA' },
+      });
+    }
+    return c.json({ success: true, feeRefund: true, ...refund });
+  }
+
   let result;
   try {
     result = smsService.ingest(body);

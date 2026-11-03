@@ -91,8 +91,11 @@ export const transactions = sqliteTable('transactions', {
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'restrict' }),
   budgetId: text('budget_id').references(() => budgets.id, { onDelete: 'set null' }),
   amount: integer('amount').notNull(),
-  feeAmount: integer('fee_amount').notNull().default(0),
-  totalAmount: integer('total_amount').notNull(),
+  feeAmount: integer('fee_amount').notNull().default(0), // Frais bruts
+  feeRefundAmount: integer('fee_refund_amount').notNull().default(0), // Part des frais remboursée (App MVola)
+  withdrawalFeeCovered: integer('withdrawal_fee_covered').notNull().default(0), // Part des frais payée pour le retrait du destinataire
+  counterpartyOperator: text('counterparty_operator'), // Opérateur du destinataire d'un envoi : 'MVOLA' | 'ORANGE_MONEY' | 'AIRTEL_MONEY'
+  totalAmount: integer('total_amount').notNull(), // Débité : montant + frais - remboursement
   title: text('title').notNull(),
   recipient: text('recipient'),
   sender: text('sender'),
@@ -138,6 +141,7 @@ export const settings = sqliteTable('settings', {
   geminiApiKey: text('gemini_api_key'),
   smsCaptureEnabled: integer('sms_capture_enabled').notNull().default(1),
   pushNotificationsEnabled: integer('push_notifications_enabled').notNull().default(1),
+  mvolaAppCashbackPercent: integer('mvola_app_cashback_percent').notNull().default(20),
   createdAt: integer('created_at').notNull().default(0),
   updatedAt: integer('updated_at').notNull().default(0),
 });

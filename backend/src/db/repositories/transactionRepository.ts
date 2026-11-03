@@ -1,13 +1,14 @@
 import { getDatabase } from '../index';
 import { transactions, transactionItems } from '../schema';
-import { Transaction, TransactionFlow, OperationType, TransactionSource, TransactionItem, TransactionLocation } from '../../types';
+import { Transaction, TransactionFlow, OperationType, TransactionSource, TransactionItem, TransactionLocation , MobileMoneyOperator } from '../../types';
 import { and, count, desc, eq, gte, inArray, lt, max, or } from 'drizzle-orm';
 import { periodBounds } from '../../lib/time';
 
 type TransactionRow = typeof transactions.$inferSelect;
 type ItemRow = typeof transactionItems.$inferSelect;
 
-export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>;
+export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'feeRefundAmount' | 'withdrawalFeeCovered'>
+  & Partial<Pick<Transaction, 'feeRefundAmount' | 'withdrawalFeeCovered'>>;
 
 export interface TransactionUpdate {
   categoryId?: string;
@@ -19,8 +20,10 @@ export interface TransactionUpdate {
 /** Champs remplacés lors d'une modification complète. Origine, référence opérateur, articles et lieu sont conservés. */
 export type TransactionReplacement = Pick<
   Transaction,
-  'flow' | 'operationType' | 'walletId' | 'amount' | 'feeAmount' | 'totalAmount' | 'title' | 'date'
+  'flow' | 'operationType' | 'walletId' | 'amount' | 'feeAmount' | 'feeRefundAmount' | 'withdrawalFeeCovered'
+  | 'totalAmount' | 'title' | 'date'
 > & {
+  counterpartyOperator?: MobileMoneyOperator | null;
   destinationWalletId?: string | null;
   categoryId?: string | null;
   budgetId?: string | null;
@@ -63,6 +66,9 @@ function mapRow(row: TransactionRow, items: TransactionItem[]): Transaction {
     budgetId: row.budgetId || undefined,
     amount: row.amount,
     feeAmount: row.feeAmount,
+    feeRefundAmount: row.feeRefundAmount,
+    withdrawalFeeCovered: row.withdrawalFeeCovered,
+    counterpartyOperator: (row.counterpartyOperator as MobileMoneyOperator | null) || undefined,
     totalAmount: row.totalAmount,
     title: row.title,
     recipient: row.recipient || undefined,
@@ -173,6 +179,9 @@ export const transactionRepository = {
       budgetId: txn.budgetId || null,
       amount: txn.amount,
       feeAmount: txn.feeAmount,
+      feeRefundAmount: txn.feeRefundAmount ?? 0,
+      withdrawalFeeCovered: txn.withdrawalFeeCovered ?? 0,
+      counterpartyOperator: txn.counterpartyOperator || null,
       totalAmount: txn.totalAmount,
       title: txn.title,
       recipient: txn.recipient || null,
@@ -231,6 +240,9 @@ export const transactionRepository = {
       budgetId: next.budgetId ?? null,
       amount: next.amount,
       feeAmount: next.feeAmount,
+      feeRefundAmount: next.feeRefundAmount,
+      withdrawalFeeCovered: next.withdrawalFeeCovered,
+      counterpartyOperator: next.counterpartyOperator ?? null,
       totalAmount: next.totalAmount,
       title: next.title,
       date: next.date,

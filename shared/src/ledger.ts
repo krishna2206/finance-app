@@ -10,7 +10,14 @@ export interface LedgerEntry {
   destinationWalletId?: string | null;
   amount: number;
   feeAmount: number;
+  /** Part des frais remboursée (App MVola). Absente des anciennes données : 0. */
+  feeRefundAmount?: number;
   totalAmount: number;
+}
+
+/** Frais réellement payés : frais bruts moins leur remboursement. */
+export function getNetFee(entry: Pick<LedgerEntry, 'feeAmount' | 'feeRefundAmount'>): number {
+  return entry.feeAmount - (entry.feeRefundAmount ?? 0);
 }
 
 const SAVINGS_OPERATIONS = new Set(['SAVINGS_DEPOSIT', 'SAVINGS_WITHDRAWAL']);
@@ -32,14 +39,14 @@ export function isBudgetable(entry: Pick<LedgerEntry, 'flow' | 'operationType'>)
 
 /**
  * Montant réellement dépensé (sorti du patrimoine de l'utilisateur).
- * - Dépense classique : montant + frais.
- * - Transfert interne / retrait Cash Point : seuls les frais sont une dépense.
+ * - Dépense classique : montant + frais nets (le remboursement des frais n'est jamais un revenu).
+ * - Transfert interne / retrait Cash Point : seuls les frais nets sont une dépense.
  * - Épargne, entrées d'argent et réajustements : 0.
  */
 export function getSpendingAmount(entry: LedgerEntry): number {
   if (!isBudgetable(entry)) return 0;
-  if (isInternalTransfer(entry)) return entry.feeAmount;
-  return entry.totalAmount;
+  if (isInternalTransfer(entry)) return getNetFee(entry);
+  return entry.amount + getNetFee(entry);
 }
 
 /** Montant réellement entré dans le patrimoine de l'utilisateur. */

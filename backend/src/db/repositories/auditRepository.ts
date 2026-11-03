@@ -123,6 +123,11 @@ export const auditRepository = {
     return getDatabase().select().from(auditEvents).orderBy(auditEvents.occurredAt).all().map(mapRow);
   },
 
+  existsWithNote(action: string, note: string): boolean {
+    return Boolean(getDatabase().select({ id: auditEvents.id }).from(auditEvents)
+      .where(and(eq(auditEvents.action, action), eq(auditEvents.note, note))).get());
+  },
+
   count(): number {
     return getDatabase().select({ n: sql<number>`count(*)` }).from(auditEvents).get()?.n ?? 0;
   },

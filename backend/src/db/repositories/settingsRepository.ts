@@ -26,6 +26,7 @@ export const settingsRepository = {
         hasGeminiApiKey: false,
         smsCaptureEnabled: true,
         pushNotificationsEnabled: true,
+        mvolaAppCashbackPercent: 20,
         createdAt: now,
         updatedAt: now,
       };
@@ -43,6 +44,7 @@ export const settingsRepository = {
       hasGeminiApiKey: Boolean(row.geminiApiKey),
       smsCaptureEnabled: Boolean(row.smsCaptureEnabled),
       pushNotificationsEnabled: Boolean(row.pushNotificationsEnabled),
+      mvolaAppCashbackPercent: row.mvolaAppCashbackPercent,
       createdAt: row.createdAt || 0,
       updatedAt: row.updatedAt || 0,
     };
@@ -67,6 +69,7 @@ export const settingsRepository = {
     if (data.geminiApiKey !== undefined) updatePayload.geminiApiKey = data.geminiApiKey || null;
     if (data.smsCaptureEnabled !== undefined) updatePayload.smsCaptureEnabled = data.smsCaptureEnabled ? 1 : 0;
     if (data.pushNotificationsEnabled !== undefined) updatePayload.pushNotificationsEnabled = data.pushNotificationsEnabled ? 1 : 0;
+    if (data.mvolaAppCashbackPercent !== undefined) updatePayload.mvolaAppCashbackPercent = data.mvolaAppCashbackPercent;
 
     db.update(settings).set(updatePayload).where(eq(settings.id, current.id)).run();
 

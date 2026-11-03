@@ -29,6 +29,11 @@ settingsRouter.put('/', async (c) => {
   if (body.monthlyIncomeTarget !== undefined) {
     update.monthlyIncomeTarget = optionalNonNegativeAmount(body.monthlyIncomeTarget, 'monthlyIncomeTarget', 0);
   }
+  if (body.mvolaAppCashbackPercent !== undefined) {
+    const percent = optionalNonNegativeAmount(body.mvolaAppCashbackPercent, 'mvolaAppCashbackPercent', 0);
+    if (percent > 100) throw badRequest('mvolaAppCashbackPercent doit être compris entre 0 et 100');
+    update.mvolaAppCashbackPercent = percent;
+  }
   if (body.monthlySavingsTarget !== undefined) {
     update.monthlySavingsTarget = optionalNonNegativeAmount(body.monthlySavingsTarget, 'monthlySavingsTarget', 0);
   }
@@ -47,6 +52,7 @@ settingsRouter.put('/', async (c) => {
     const labels: Record<string, string> = {
       userName: 'nom', userProfession: 'métier', userLocation: 'ville', monthlyIncomeTarget: 'objectif de revenu',
       monthlySavingsTarget: 'objectif d’épargne', onboardingCompleted: 'premier lancement',
+      mvolaAppCashbackPercent: 'remboursement App MVola (%)',
     };
     const changed = Object.keys(labels).filter(k => (before as any)[k] !== (after as any)[k]);
     if (update.geminiApiKey !== undefined) changed.push('geminiApiKey');

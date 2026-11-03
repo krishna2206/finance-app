@@ -1,4 +1,4 @@
-import { TRANSFER_CATEGORY_ID, isBudgetable, isSavingsMovement } from '@finance/shared';
+import { MOBILE_MONEY_OPERATORS, MobileMoneyOperator, TRANSFER_CATEGORY_ID, isBudgetable, isSavingsMovement } from '@finance/shared';
 import { TransactionReplacement } from '../db/repositories/transactionRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
@@ -11,6 +11,7 @@ import { budgetService } from './budgetService';
 import { badRequest, conflict } from '../lib/errors';
 import {
   asObject,
+  optionalEnum,
   optionalIsoDate,
   optionalNonNegativeAmount,
   optionalString,
@@ -100,6 +101,10 @@ interface ManualEntry {
   budgetId?: string;
   amount: number;
   feeAmount: number;
+  feeRefundAmount: number;
+  withdrawalFeeCovered: number;
+  counterpartyOperator: MobileMoneyOperator | null;
+  totalAmount: number;
   title: string;
   date: string;
   note?: string | null;
@@ -139,7 +144,19 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
   }
 
   const amount = requirePositiveAmount(pick('amount'), 'amount');
-  const feeAmount = flow === 'DEBIT' ? optionalNonNegativeAmount(pick('feeAmount'), 'feeAmount', 0) : 0;
+  const isDebit = flow === 'DEBIT';
+  const feeAmount = isDebit ? optionalNonNegativeAmount(pick('feeAmount'), 'feeAmount', 0) : 0;
+  // Part des frais remboursée (App MVola) et part payée pour le retrait du destinataire : jamais plus que les frais.
+  const feeRefundAmount = isDebit ? optionalNonNegativeAmount(pick('feeRefundAmount'), 'feeRefundAmount', 0) : 0;
+  if (feeRefundAmount > feeAmount) throw badRequest('Le remboursement ne peut pas dépasser les frais');
+  const withdrawalFeeCovered = isDebit && !destinationWalletId
+    ? optionalNonNegativeAmount(pick('withdrawalFeeCovered'), 'withdrawalFeeCovered', 0)
+    : 0;
+  if (withdrawalFeeCovered > feeAmount) throw badRequest('Les frais de retrait couverts font partie des frais : ils ne peuvent pas les dépasser');
+  // Opérateur du destinataire : seulement pour un envoi à un tiers.
+  const counterpartyOperator = isDebit && operationType === 'TRANSFER_P2P' && !destinationWalletId
+    ? optionalEnum(pick('counterpartyOperator') ?? undefined, MOBILE_MONEY_OPERATORS, 'counterpartyOperator') ?? null
+    : null;
   // Un transfert entre ses comptes a toujours la catégorie des frais : seuls ses frais sont une dépense.
   const categoryId = destinationWalletId
     ? TRANSFER_CATEGORY_ID
@@ -160,7 +177,12 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
   const date = (has(body, 'date') ? optionalIsoDate(body.date, 'date') : existing?.date) || new Date().toISOString();
   const note = has(body, 'note') ? optionalString(body.note, 'note') ?? null : existing?.note;
 
-  return { flow, operationType, walletId, destinationWalletId, categoryId, budgetId, amount, feeAmount, title, date, note };
+  return {
+    flow, operationType, walletId, destinationWalletId, categoryId, budgetId, amount, feeAmount,
+    feeRefundAmount, withdrawalFeeCovered, counterpartyOperator,
+    totalAmount: amount + feeAmount - feeRefundAmount,
+    title, date, note,
+  };
 }
 
 const SAVINGS_FIXED_FIELDS = ['flow', 'operationType', 'savingsId', 'goalId', 'categoryId', 'budgetId'] as const;
@@ -217,6 +239,9 @@ function buildSavingsReplacement(body: Body, existing: Transaction): Transaction
     budgetId: null,
     amount,
     feeAmount: 0,
+    feeRefundAmount: 0,
+    withdrawalFeeCovered: 0,
+    counterpartyOperator: null,
     totalAmount: amount,
     title: has(body, 'title') ? requireString(body.title, 'title') : existing.title,
     date: (has(body, 'date') ? optionalIsoDate(body.date, 'date') : undefined) || existing.date,
@@ -232,8 +257,8 @@ export const transactionService = {
 
     return ledgerService.record({
       ...entry,
+      counterpartyOperator: entry.counterpartyOperator ?? undefined,
       note: entry.note ?? undefined,
-      totalAmount: entry.amount + entry.feeAmount,
       recipient: optionalString(body.recipient, 'recipient'),
       sender: optionalString(body.sender, 'sender'),
       source: 'MANUAL',
@@ -251,8 +276,7 @@ export const transactionService = {
     const body = asObject(rawBody);
     const { after } = ledgerService.replace(id, (existing) => {
       if (isSavingsMovement(existing)) return buildSavingsReplacement(body, existing);
-      const entry = parseManualEntry(body, existing);
-      return { ...entry, totalAmount: entry.amount + entry.feeAmount };
+      return parseManualEntry(body, existing);
     });
     return after;
   },

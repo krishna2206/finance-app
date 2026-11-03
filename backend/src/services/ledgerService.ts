@@ -50,7 +50,8 @@ function computeEffects(t: Transaction): LedgerEffects {
   }
 
   if (t.flow === 'DEBIT') {
-    addWalletDelta(effects, t.walletId, -(t.amount + t.feeAmount));
+    // Débité : montant + frais - remboursement des frais (App MVola).
+    addWalletDelta(effects, t.walletId, -(t.amount + t.feeAmount - (t.feeRefundAmount ?? 0)));
     if (t.destinationWalletId) addWalletDelta(effects, t.destinationWalletId, t.amount);
   } else {
     addWalletDelta(effects, t.walletId, t.amount);

@@ -9,6 +9,8 @@ import { HttpError, badRequest } from '../lib/errors';
 import { asObject, optionalString } from '../lib/validation';
 import { Budget, Transaction, Wallet } from '../types';
 import { auditService } from './auditService';
+import { auditRepository } from '../db/repositories/auditRepository';
+import { operatorOfPhoneNumber } from '@finance/shared';
 import { formatAriary } from '../lib/format';
 
 const DEFAULT_WALLET_NAMES: Record<string, string> = {
@@ -65,7 +67,88 @@ function resolveDestinationWallet(parsed: ParsedSMSResult, source: Wallet): Wall
   return undefined;
 }
 
+/** « 20 % de vos frais de transfert soit 30 Ar vous ont ete rembourses grace a votre derniere utilisation de l'App MVola. Ref : 101… » */
+const FEE_REFUND_SMS = /(\d+(?:[.,]\d+)?)\s*%\s*de vos frais de transfert soit\s*([\d\s\u00A0\u202F]+?)\s*Ar\s+vous ont [ée]t[ée] rembours[ée]s[\s\S]*?(?:R[ée]f\s*:?\s*(\d+))?\s*$/i;
+
+/** Un remboursement s'applique à un transfert récent : au plus 3 jours avant le SMS. */
+const FEE_REFUND_WINDOW_MS = 3 * 86400e3;
+
+export interface FeeRefundResult {
+  amount: number;
+  reference?: string;
+  /** Transfert complété, ou null si aucun ne correspond (SMS noté au journal seulement). */
+  transaction: Transaction | null;
+  alreadyApplied: boolean;
+}
+
 export const smsService = {
+  /**
+   * SMS de remboursement des frais App MVola. Il ne crée pas d'opération : il renseigne le
+   * remboursement du dernier transfert MVola vers MVola dont les frais donnent exactement ce montant.
+   * Renvoie null si le SMS n'est pas un SMS de remboursement.
+   */
+  ingestFeeRefund(rawBody: unknown): FeeRefundResult | null {
+    const body = asObject(rawBody);
+    const text = optionalString(body.message, 'message') || optionalString(body.text, 'text');
+    const match = text?.trim().match(FEE_REFUND_SMS);
+    if (!match) return null;
+
+    const percent = Number(match[1].replace(',', '.'));
+    const amount = Number(match[2].replace(/[\s\u00A0\u202F]/g, ''));
+    const reference = match[3];
+    const note = reference ? `Réf: ${reference}` : undefined;
+
+    return withTransaction(() => {
+      if (note && auditRepository.existsWithNote('FEE_REFUND_SMS', note)) {
+        return { amount, reference, transaction: null, alreadyApplied: true };
+      }
+
+      const now = Date.now();
+      const candidate = transactionRepository.getAllTransactions(200).find(t => {
+        if (t.flow !== 'DEBIT' || t.operationType !== 'TRANSFER_P2P' || t.feeAmount <= 0 || t.feeRefundAmount > 0) return false;
+        if (now - new Date(t.date).getTime() > FEE_REFUND_WINDOW_MS) return false;
+        if (walletRepository.getWalletById(t.walletId)?.type !== 'MVOLA') return false;
+        const toMvola = t.destinationWalletId
+          ? walletRepository.getWalletById(t.destinationWalletId)?.type === 'MVOLA'
+          : t.counterpartyOperator === 'MVOLA';
+        return toMvola && Math.floor((t.feeAmount * percent) / 100) === amount;
+      });
+
+      if (!candidate) {
+        auditService.record({
+          domain: 'SMS', action: 'FEE_REFUND_SMS', note,
+          summary: `Remboursement App MVola de ${formatAriary(amount)} reçu, sans transfert correspondant : rien n’a été modifié`,
+          after: { percent, amount, message: text!.slice(0, 500) },
+        });
+        return { amount, reference, transaction: null, alreadyApplied: false };
+      }
+
+      const { after } = ledgerService.replace(candidate.id, (t) => ({
+        flow: t.flow,
+        operationType: t.operationType,
+        walletId: t.walletId,
+        destinationWalletId: t.destinationWalletId ?? null,
+        categoryId: t.categoryId ?? null,
+        budgetId: t.budgetId ?? null,
+        amount: t.amount,
+        feeAmount: t.feeAmount,
+        feeRefundAmount: amount,
+        withdrawalFeeCovered: t.withdrawalFeeCovered,
+        counterpartyOperator: t.counterpartyOperator ?? null,
+        totalAmount: t.amount + t.feeAmount - amount,
+        title: t.title,
+        date: t.date,
+        note: t.note ?? null,
+      }));
+      auditService.record({
+        domain: 'SMS', action: 'FEE_REFUND_SMS', note, entityType: 'transaction', entityId: after.id,
+        summary: `Remboursement App MVola de ${formatAriary(amount)} rattaché à « ${after.title} »`,
+        after: { percent, amount },
+      });
+      return { amount, reference, transaction: after, alreadyApplied: false };
+    });
+  },
+
   parse(rawBody: unknown): ParsedSMSResult {
     const body = asObject(rawBody);
     const rawText = optionalString(body.message, 'message') || optionalString(body.text, 'text');
@@ -126,6 +209,10 @@ export const smsService = {
           amount: parsed.amount,
           feeAmount: parsed.feeAmount,
           totalAmount: parsed.totalAmount,
+          // Envoi à un tiers : opérateur du destinataire d'après le préfixe de son numéro.
+          counterpartyOperator: !destination && parsed.flow === 'DEBIT' && parsed.operationType === 'TRANSFER_P2P'
+            ? operatorOfPhoneNumber(parsed.phoneNumber) ?? undefined
+            : undefined,
           title: parsed.title,
           recipient: parsed.recipient,
           sender: parsed.sender,
