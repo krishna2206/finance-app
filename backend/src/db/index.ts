@@ -1,6 +1,7 @@
 import { Database } from 'bun:sqlite';
 import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite';
 import { migrate } from 'drizzle-orm/bun-sqlite/migrator';
+import { mkdirSync, readFileSync } from 'fs';
 import path from 'path';
 import * as schema from './schema';
 import { seedDatabase } from './seed';
@@ -24,6 +25,27 @@ function assertNotLegacyDatabase(sqlite: Database) {
   }
 }
 
+/**
+ * Copie de sécurité d'une base existante avant d'y appliquer des migrations en attente.
+ * Même nommage que les sauvegardes quotidiennes, qui en assurent la rotation.
+ */
+function backupBeforeMigrations(sqlite: Database) {
+  if (DB_PATH === ':memory:') return;
+  const hasMigrations = sqlite.query(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '__drizzle_migrations'`).get();
+  if (!hasMigrations) return;
+
+  const journal = JSON.parse(readFileSync(path.join(MIGRATIONS_FOLDER, 'meta/_journal.json'), 'utf8')) as { entries: unknown[] };
+  const applied = (sqlite.query('SELECT count(*) AS n FROM __drizzle_migrations').get() as { n: number }).n;
+  if (applied >= journal.entries.length) return;
+
+  const dir = process.env.BACKUP_DIR || path.resolve(path.dirname(DB_PATH), 'backups');
+  mkdirSync(dir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const target = path.join(dir, `finance-${stamp}-avant-migration.db`);
+  sqlite.query('VACUUM INTO ?').run(target);
+  console.log(`[Migrations] ${journal.entries.length - applied} migration(s) en attente, sauvegarde préalable : ${target}`);
+}
+
 export function getSqlite(): Database {
   getDatabase();
   return sqliteDb!;
@@ -39,6 +61,7 @@ export function getDatabase(): AppDatabase {
     assertNotLegacyDatabase(sqlite);
 
     const db = drizzle(sqlite, { schema });
+    backupBeforeMigrations(sqlite);
     migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
     seedDatabase(db);
 
