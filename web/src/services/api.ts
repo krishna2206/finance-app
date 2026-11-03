@@ -10,6 +10,9 @@ import {
   MonthlyHistoricalStats,
   TransactionFlow,
   OperationType,
+  AuditDomain,
+  AuditPage,
+  DriftSummaryEntry,
 } from '../types/models';
 
 export const API_BASE: string = import.meta.env.VITE_API_URL || '/api';
@@ -137,8 +140,8 @@ export const api = {
   createWallet: (wallet: WalletInput) => request<Wallet>('POST', '/wallets', wallet),
   batchInitWallets: (wallets: WalletInput[]) => request<Wallet[]>('POST', '/wallets/batch-init', { wallets }),
   deleteWallet: (id: string) => request<{ success: boolean }>('DELETE', `/wallets/${id}`),
-  adjustWalletBalance: (id: string, newBalance: number) =>
-    request<Wallet>('POST', `/wallets/${id}/adjust`, { newBalance }),
+  adjustWalletBalance: (id: string, newBalance: number, note?: string) =>
+    request<Wallet>('POST', `/wallets/${id}/adjust`, { newBalance, note }),
 
   // Pots d'épargne
   getSavings: () => request<Savings[]>('GET', '/savings'),
@@ -194,6 +197,19 @@ export const api = {
   getMonthlySavingsStats: (period?: string) =>
     request<MonthlySavingsReport>('GET', period ? `/stats/monthly-savings?period=${period}` : '/stats/monthly-savings'),
   getStatsHistory: (monthsCount = 6) => request<MonthlyHistoricalStats[]>('GET', `/stats/history?months=${monthsCount}`),
+
+  // Journal d'activité
+  getAudit: (query: { cursor?: string | null; domains?: AuditDomain[]; walletId?: string; driftOnly?: boolean; limit?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (query.limit) params.set('limit', String(query.limit));
+    if (query.cursor) params.set('cursor', query.cursor);
+    if (query.domains?.length) params.set('domains', query.domains.join(','));
+    if (query.walletId) params.set('walletId', query.walletId);
+    if (query.driftOnly) params.set('driftOnly', '1');
+    const qs = params.toString();
+    return request<AuditPage>('GET', `/audit${qs ? `?${qs}` : ''}`);
+  },
+  getDriftSummary: () => request<DriftSummaryEntry[]>('GET', '/audit/drift-summary'),
 
   // Données
   exportData: () => request<unknown>('GET', '/data/export'),

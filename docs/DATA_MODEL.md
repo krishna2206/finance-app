@@ -231,6 +231,26 @@ Index : `date`, `wallet_id`, `budget_id`, et l'index unique sur `external_ref`.
 | `sms_capture_enabled`, `push_notifications_enabled` | integer | Réservés |
 | `created_at`, `updated_at` | integer | |
 
+### `audit_events` : journal d'activité (en ajout seulement)
+
+Sans clé étrangère : une entrée reste lisible après la suppression de l'objet concerné.
+
+| Colonne | Type | Description |
+|---|---|---|
+| `id` | text | Clé primaire (UUID) |
+| `occurred_at` | integer | Horodatage (ms), strictement croissant |
+| `actor` | text | `APP`, `SMS` ou `SYSTEM` |
+| `domain` | text | `TRANSACTION`, `BALANCE`, `SMS`, `WALLET`, `SAVINGS`, `BUDGET`, `CATEGORY`, `SETTINGS`, `SYSTEM` |
+| `action` | text | Par exemple `TRANSACTION_UPDATED`, `BALANCE_ADJUSTED`, `BALANCE_RECONCILED`, `SMS_REJECTED` |
+| `entity_type`, `entity_id` | text | Objet concerné (`transaction`, `wallet`, `budget`…) |
+| `summary` | text | Phrase lisible |
+| `before`, `after` | text | État avant et après (JSON) |
+| `wallet_changes` | text | Soldes touchés : `[{ walletId, before, after }]` (JSON) |
+| `drift` | integer | Écart de solde (recalage SMS : annoncé moins calculé ; correction : nouveau moins ancien). Nul pour un SMS qui confirme le solde |
+| `note` | text | Motif saisi |
+
+Index : `occurred_at`, (`entity_type`, `entity_id`), `domain`.
+
 ## Types d'opération
 
 | `operation_type` | Sens | Origine | Usage |
@@ -282,7 +302,9 @@ Si un effet ferait passer un pot ou un objectif en négatif, ou sous le total r�
 - La somme des `current_amount` des objectifs d'un pot ne dépasse jamais le solde du pot.
 - On ne peut supprimer ni un compte référencé par une opération ou un pot, ni une catégorie utilisée, ni une catégorie système, ni un pot non vide.
 
-Ces invariants sont couverts par `backend/test/ledger.test.ts`.
+- Toute écriture est notée dans `audit_events` dans la même transaction ; une écriture refusée ne laisse aucune entrée.
+
+Ces invariants sont couverts par `backend/test/ledger.test.ts` et `backend/test/audit.test.ts`.
 
 ## Faire évoluer le schéma
 

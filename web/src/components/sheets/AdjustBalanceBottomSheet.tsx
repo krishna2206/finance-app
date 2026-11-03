@@ -21,6 +21,7 @@ export function AdjustBalanceBottomSheet({ wallet: incoming, onClose }: AdjustBa
   const [lastWallet, setLastWallet] = useState(incoming);
   const wallet = incoming ?? lastWallet;
   const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
   const [isFocused, setIsFocused] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,7 +33,10 @@ export function AdjustBalanceBottomSheet({ wallet: incoming, onClose }: AdjustBa
   // Préremplit avec le solde actuel à l'ouverture seulement : une synchronisation
   // en arrière-plan ne doit pas effacer la saisie en cours.
   useEffect(() => {
-    if (incoming) setAmount(String(incoming.balance));
+    if (incoming) {
+      setAmount(String(incoming.balance));
+      setNote('');
+    }
   }, [incoming?.id]);
 
   const isOpen = Boolean(incoming);
@@ -47,7 +51,7 @@ export function AdjustBalanceBottomSheet({ wallet: incoming, onClose }: AdjustBa
 
     setIsSubmitting(true);
     try {
-      await adjustWalletBalance(wallet.id, newBalance);
+      await adjustWalletBalance(wallet.id, newBalance, note.trim() || undefined);
       useToastStore.getState().showToast({
         title: 'Solde corrigé',
         description: `${wallet.name} : ${formatCurrency(newBalance)}`,
@@ -162,8 +166,23 @@ export function AdjustBalanceBottomSheet({ wallet: incoming, onClose }: AdjustBa
                 </span>
               </div>
 
+              <div>
+                <label htmlFor="adjust-note" className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+                  Motif (facultatif)
+                </label>
+                <input
+                  id="adjust-note"
+                  type="text"
+                  value={note}
+                  maxLength={200}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder="Ex: recomptage des espèces"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900 transition-colors"
+                />
+              </div>
+
               <p className="text-[11px] text-zinc-400 text-center leading-relaxed px-2">
-                Aucune opération n'est créée : le « Dépensé ce mois » et les enveloppes ne changent pas.
+                Aucune opération n'est créée : le « Dépensé ce mois » et les enveloppes ne changent pas. La correction et son écart sont notés dans le journal d'activité.
               </p>
 
               <button

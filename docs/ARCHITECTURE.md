@@ -72,6 +72,7 @@ backend/src/
 │   ├── smsParser.ts            Analyse des SMS par expressions régulières
 │   ├── autoCategorizer.ts      Catégorie selon le type d'opération
 │   ├── statsService.ts         Bilans mensuels et historique
+│   ├── auditService.ts         Journal d'activité : track(), résumés lisibles, écarts
 │   └── backupService.ts        Sauvegardes SQLite
 ├── db/
 │   ├── schema.ts      Schéma Drizzle (source unique)
@@ -83,6 +84,7 @@ backend/src/
 │   ├── errors.ts      HttpError et traduction des erreurs en JSON
 │   ├── validation.ts  Validation des entrées (montants entiers, énumérations, dates)
 │   ├── time.ts        Fuseau de l'application, périodes mensuelles
+│   ├── audit.ts       Origine de la requête (App, SMS) et collecte des changements de solde
 │   └── format.ts
 └── scripts/backup.ts  Sauvegarde manuelle
 ```
@@ -101,6 +103,15 @@ Toute écriture qui touche à l'argent passe par `withTransaction()`, qui s'appu
 - `remove()` applique leur inverse exact.
 
 Création et suppression sont donc toujours symétriques. Le détail des effets est dans [DATA_MODEL.md](DATA_MODEL.md#effets-sur-les-soldes).
+
+### Journal d'activité
+
+`auditService.track(fn, describe)` exécute `fn` dans une transaction, collecte les changements de solde qu'elle provoque, puis écrit les entrées décrites par `describe` dans la même transaction.
+
+- **Soldes** : `walletRepository.updateBalance()` signale chaque écriture de solde à `lib/audit.ts`, qui retient le premier « avant » et le dernier « après » de chaque compte. `bun:sqlite` étant synchrone, aucune autre requête ne s'intercale pendant la collecte.
+- **Origine** : un middleware place l'acteur (`SMS` pour `/api/sms/webhook`, sinon `APP`) dans un `AsyncLocalStorage` ; hors requête, c'est `SYSTEM`.
+- **Démarrage** : sur une base sans journal, une première entrée photographie les soldes.
+- **Points d'écriture** : `ledgerService` (ajout, suppression), `transactionService.update`, `smsService` (doublon, recalage avec écart, retard), la route SMS (SMS non reconnu), et les routes comptes, épargne, enveloppes, catégories et réglages.
 
 ### Erreurs
 
@@ -160,7 +171,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET | `/wallets/:id` | Un compte |
 | POST | `/wallets` | Création (`name`, `type`, `accountNumber`, `balance`, `isSpendable`) |
 | POST | `/wallets/batch-init` | Initialisation à l'onboarding (refusée si un historique existe) |
-| POST | `/wallets/:id/adjust` | Correction du solde réel (`newBalance`), sans créer d'opération. Refusée sous l'épargne bloquée |
+| POST | `/wallets/:id/adjust` | Correction du solde réel (`newBalance`, `note` facultatif), sans créer d'opération, notée au journal avec son écart. Refusée sous l'épargne bloquée |
 | DELETE | `/wallets/:id` | Suppression (refusée si le compte est référencé) |
 
 ### Opérations
@@ -203,7 +214,9 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET | `/sms/events` | Flux temps réel (SSE) |
 | GET | `/stats/monthly-savings?period=YYYY-MM` | Bilan par enveloppe |
 | GET | `/stats/history?months=N` | Revenus, dépenses et épargne des N derniers mois |
-| GET | `/data/export` | Export JSON complet, sans secret |
+| GET | `/data/export` | Export JSON complet (journal compris), sans secret |
+| GET | `/audit` | Journal, du plus récent au plus ancien. Paramètres : `limit` (50, max 200), `cursor` (renvoyé dans `nextCursor`), `domains` (liste séparée par des virgules), `walletId`, `driftOnly=1` |
+| GET | `/audit/drift-summary` | Total et nombre d'écarts par compte et par mois |
 
 ## Frontend
 
@@ -213,7 +226,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 web/src/
 ├── App.tsx            Accès, onboarding, navigation par onglets, fenêtres globales
 ├── components/
-│   ├── views/         Écrans : Tableau de bord, Historique, Budgets, Paramètres, Notifications
+│   ├── views/         Écrans : Tableau de bord, Historique, Budgets, Paramètres, Notifications, Journal d'activité, Écarts de solde
 │   ├── sheets/        Fenêtres glissantes : saisie rapide, détail, enveloppe, épargne, etc.
 │   ├── onboarding/    Déverrouillage et premier lancement
 │   ├── layout/        Barre d'onglets, bouton d'ajout

@@ -11,7 +11,7 @@ interface WalletState {
   createWallet: (wallet: WalletInput) => Promise<Wallet | null>;
   deleteWallet: (id: string) => Promise<boolean>;
   /** Corrige le solde réel sans créer d'opération. Lève une erreur en cas d'échec. */
-  adjustWalletBalance: (id: string, newBalance: number) => Promise<Wallet>;
+  adjustWalletBalance: (id: string, newBalance: number, note?: string) => Promise<Wallet>;
   batchInitWallets: (wallets: WalletInput[]) => Promise<void>;
   getTotalRealBalance: () => number;
   getTotalSpendableBalance: () => number;
@@ -69,8 +69,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
-  adjustWalletBalance: async (id, newBalance) => {
-    const updated = await api.adjustWalletBalance(id, newBalance);
+  adjustWalletBalance: async (id, newBalance, note) => {
+    const updated = await api.adjustWalletBalance(id, newBalance, note);
     set(state => ({ wallets: { ...state.wallets, [id]: updated } }));
     return updated;
   },

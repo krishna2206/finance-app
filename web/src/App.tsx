@@ -13,6 +13,8 @@ import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
 import { BudgetsView } from './components/views/BudgetsView';
 import { NotificationsView } from './components/views/NotificationsView';
+import { ActivityView } from './components/views/ActivityView';
+import { DriftView } from './components/views/DriftView';
 import { SettingsView } from './components/views/SettingsView';
 import { FloatingTabBar, ActiveTab } from './components/layout/FloatingTabBar';
 import { FloatingActionStack } from './components/layout/FloatingActionStack';
@@ -105,6 +107,7 @@ export function App() {
 
   const [isNotificationsViewOpen, setIsNotificationsViewOpen] = useState(false);
   const [isSettingsViewOpen, setIsSettingsViewOpen] = useState(false);
+  const [settingsPage, setSettingsPage] = useState<'activity' | 'drift' | null>(null);
 
   const [isGoalActionOpen, setIsGoalActionOpen] = useState(false);
   const [selectedGoalForAction, setSelectedGoalForAction] = useState<SavingsGoal | null>(null);
@@ -131,6 +134,7 @@ export function App() {
   const handleTabChange = (newTab: ActiveTab) => {
     setIsNotificationsViewOpen(false);
     setIsSettingsViewOpen(false);
+    setSettingsPage(null);
     if (newTab === activeTab) return;
     const newIndex = TAB_ORDER[newTab];
     const oldIndex = TAB_ORDER[activeTab];
@@ -157,6 +161,17 @@ export function App() {
   const closeSettings = () => {
     setTabState([activeTab, 'pop-left']);
     setIsSettingsViewOpen(false);
+    setSettingsPage(null);
+  };
+
+  const openSettingsPage = (page: 'activity' | 'drift') => {
+    setTabState([activeTab, 'push-right']);
+    setSettingsPage(page);
+  };
+
+  const closeSettingsPage = () => {
+    setTabState([activeTab, 'pop-right']);
+    setSettingsPage(null);
   };
 
   if (authStatus === 'locked') {
@@ -178,7 +193,9 @@ export function App() {
   }
 
   const showOnboarding = Boolean(settings && !settings.onboardingCompleted);
-  const currentViewKey = isNotificationsViewOpen ? 'notifications' : isSettingsViewOpen ? 'settings' : activeTab;
+  const currentViewKey = isNotificationsViewOpen
+    ? 'notifications'
+    : isSettingsViewOpen ? (settingsPage ?? 'settings') : activeTab;
 
   return (
     <>
@@ -223,12 +240,18 @@ export function App() {
                 >
                   {isNotificationsViewOpen ? (
                     <NotificationsView onBack={closeNotifications} />
+                  ) : isSettingsViewOpen && settingsPage === 'activity' ? (
+                    <ActivityView onBack={closeSettingsPage} />
+                  ) : isSettingsViewOpen && settingsPage === 'drift' ? (
+                    <DriftView onBack={closeSettingsPage} />
                   ) : isSettingsViewOpen ? (
                     <SettingsView
                       onBack={closeSettings}
                       onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
                       onOpenAddWallet={() => setIsAddWalletOpen(true)}
                       onAdjustWallet={setAdjustingWalletId}
+                      onOpenActivity={() => openSettingsPage('activity')}
+                      onOpenDrift={() => openSettingsPage('drift')}
                     />
                   ) : (
                     <>

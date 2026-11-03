@@ -17,6 +17,9 @@ import {
   KeyMinimalisticBoldIcon,
   DownloadMinimalisticBoldIcon,
   PenNewSquareLinearIcon,
+  ClipboardListLinearIcon,
+  ScaleLinearIcon,
+  AltArrowRightLinearIcon,
 } from '@solar-icons/react';
 
 interface SettingsViewProps {
@@ -24,6 +27,8 @@ interface SettingsViewProps {
   onOpenCreateCategory: () => void;
   onOpenAddWallet: () => void;
   onAdjustWallet: (walletId: string) => void;
+  onOpenActivity: () => void;
+  onOpenDrift: () => void;
 }
 
 export function SettingsView({
@@ -31,6 +36,8 @@ export function SettingsView({
   onOpenCreateCategory,
   onOpenAddWallet,
   onAdjustWallet,
+  onOpenActivity,
+  onOpenDrift,
 }: SettingsViewProps) {
   const settings = useSettingsStore(state => state.settings);
   const updateSettings = useSettingsStore(state => state.updateSettings);
@@ -427,7 +434,41 @@ export function SettingsView({
         </div>
       </div>
 
-      {/* 6. Section: Sauvegarde & Données */}
+      {/* 6. Section: Suivi (journal d'activité et écarts de solde) */}
+      <div>
+        <div className="px-1 mb-2">
+          <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+            Suivi
+          </h2>
+        </div>
+
+        <div className="bg-white border border-zinc-200/90 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+          {[
+            { label: "Journal d'activité", description: 'Tout ce qui a changé, avec les soldes avant et après', icon: ClipboardListLinearIcon, onClick: onOpenActivity },
+            { label: 'Écarts de solde', description: 'Différences entre le solde calculé et le solde réel', icon: ScaleLinearIcon, onClick: onOpenDrift },
+          ].map(item => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={item.onClick}
+              className="w-full p-3.5 flex items-center justify-between gap-3 text-left hover:bg-zinc-50/80 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-9 h-9 rounded-2xl bg-zinc-100 text-zinc-600 flex items-center justify-center shrink-0 border border-black/5">
+                  <item.icon size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="text-xs font-bold text-zinc-900 block">{item.label}</span>
+                  <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">{item.description}</span>
+                </div>
+              </div>
+              <AltArrowRightLinearIcon size={16} className="text-zinc-400 shrink-0" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 7. Section: Sauvegarde & Données */}
       <div>
         <div className="px-1 mb-2">
           <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">

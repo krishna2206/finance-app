@@ -15,9 +15,10 @@ Ce document décrit ce que fait l'application et les règles qu'elle applique. P
 9. [Tableau de bord](#9-tableau-de-bord)
 10. [Historique](#10-historique)
 11. [Paramètres, export et sauvegardes](#11-paramètres-export-et-sauvegardes)
-12. [Calcul des frais Mobile Money](#12-calcul-des-frais-mobile-money)
-13. [Application installable](#13-application-installable)
-14. [Feuille de route](#14-feuille-de-route)
+12. [Journal d'activité et écarts de solde](#12-journal-dactivité-et-écarts-de-solde)
+13. [Calcul des frais Mobile Money](#13-calcul-des-frais-mobile-money)
+14. [Application installable](#14-application-installable)
+15. [Feuille de route](#15-feuille-de-route)
 
 ## 1. Principe
 
@@ -71,6 +72,7 @@ Un compte ne peut être supprimé que s'il n'a aucune opération dans l'historiq
 Toucher la tuile d'un compte sur le tableau de bord, ou son solde dans Paramètres, ouvre la fenêtre « Corriger le solde ». On y saisit le solde réel (prérempli avec le solde actuel), et l'écart avec le solde actuel s'affiche en direct.
 
 - La correction remplace le solde réel du compte. Elle ne crée **aucune opération** : le « Dépensé ce mois », les enveloppes et l'historique ne changent pas.
+- Un motif facultatif peut être saisi (par exemple « recomptage des espèces »). La correction, son motif et son écart sont notés dans le [journal d'activité](#12-journal-dactivité-et-écarts-de-solde).
 - Le nouveau solde ne peut pas être inférieur à l'épargne bloquée (gel virtuel) sur ce compte.
 - C'est le moyen de recaler un compte après un recomptage des espèces, ou de fixer un solde de départ. Pour un compte Mobile Money, le prochain SMS de l'opérateur recale de toute façon le solde automatiquement.
 
@@ -93,7 +95,9 @@ La saisie propose aussi un titre, une date et une heure (sélecteur), et une not
 La saisie se souvient de ce qui revient d'une fois sur l'autre :
 
 - **Mode, compte et catégorie** : le dernier mode utilisé est rouvert ; pour chaque mode, le dernier compte et la dernière catégorie sont proposés (conservés sur l'appareil). Chaque mode a sa propre catégorie : une catégorie de revenu n'est jamais proposée pour une dépense.
-- **Date** : par défaut, « Maintenant », c'est-à-dire l'heure réelle de l'enregistrement. Une date choisie à la main (par exemple « Hier, 19:30 ») est reprise pour les saisies suivantes, ce qui permet d'enchaîner les dépenses d'une même journée. Le bouton « Maintenant » revient à l'heure actuelle, et la date redevient « Maintenant » d'elle-même après 30 minutes sans saisie. Quand les frais sont connus (voir [section 12](#12-calcul-des-frais-mobile-money)), ils sont proposés automatiquement, et un toucher permet de les exclure.
+- **Date** : par défaut, « Maintenant », c'est-à-dire l'heure réelle de l'enregistrement. Une date choisie à la main (par exemple « Hier, 19:30 ») est reprise pour les saisies suivantes, ce qui permet d'enchaîner les dépenses d'une même journée. Le bouton « Maintenant » revient à l'heure actuelle, et la date redevient « Maintenant » d'elle-même après 30 minutes sans saisie.
+
+Quand les frais sont connus (voir [section 13](#13-calcul-des-frais-mobile-money)), ils sont proposés automatiquement, et un toucher permet de les exclure.
 
 Quand la catégorie choisie est couverte par plusieurs enveloppes, des pastilles « Financer depuis l'enveloppe » apparaissent, avec la première enveloppe présélectionnée.
 
@@ -276,8 +280,9 @@ L'écran Paramètres permet de :
 
 - modifier le profil (nom, métier, ville) et les objectifs mensuels (revenu, épargne) ;
 - gérer les catégories personnelles et les comptes (toucher le solde d'un compte ouvre la correction de solde) ;
+- consulter le journal d'activité et les écarts de solde (section « Suivi ») ;
 - enregistrer une clé API Google Gemini, réservée aux fonctionnalités d'IA à venir. Elle n'est jamais renvoyée à l'application, qui sait seulement si une clé existe ;
-- exporter toutes les données au format JSON (comptes, épargne, catégories, enveloppes, opérations, articles), sans aucun secret.
+- exporter toutes les données au format JSON (comptes, épargne, catégories, enveloppes, opérations, articles, journal d'activité), sans aucun secret.
 
 Côté serveur, la base est sauvegardée automatiquement :
 - au démarrage, si la dernière sauvegarde a plus de 24 heures, puis toutes les 24 heures ;
@@ -285,7 +290,46 @@ Côté serveur, la base est sauvegardée automatiquement :
 
 Les erreurs (refus du serveur, réseau indisponible) s'affichent toujours dans une notification. Une fenêtre de saisie reste ouverte si l'enregistrement échoue.
 
-## 12. Calcul des frais Mobile Money
+## 12. Journal d'activité et écarts de solde
+
+### Ce qui est noté
+
+Toute action qui modifie des données est notée dans un journal, avec son origine : **App** (saisie dans l'application), **SMS** (webhook) ou **Système**.
+
+| Domaine | Événements |
+|---|---|
+| Opérations | Ajout, modification, suppression |
+| Soldes | Correction manuelle ; recalage par un SMS (avec l'écart) ; confirmation du solde par un SMS |
+| SMS | Doublon ignoré, SMS arrivé en retard (solde non recalé), SMS non reconnu (avec son texte, pour améliorer l'analyse) |
+| Comptes | Création, initialisation, suppression |
+| Épargne | Pot et objectif créés, modifiés ou supprimés. Les versements et déblocages sont des opérations |
+| Budgets et catégories | Création, modification, suppression, réaffectations automatiques des opérations du mois |
+| Réglages | Profil et objectifs. La clé Gemini est notée « clé enregistrée » ou « clé effacée », jamais sa valeur |
+| Système | Démarrage du journal, avec la photo des soldes à ce moment |
+
+Chaque entrée garde une phrase lisible, l'état de l'objet avant et après, et, pour chaque compte touché, le solde avant et après.
+
+**Garanties** :
+- l'entrée est écrite dans la même transaction que le changement : si l'action échoue, rien n'est noté ;
+- le journal ne se modifie pas et ne s'efface pas : aucune route ne le permet ;
+- il fait partie de l'export JSON et des sauvegardes.
+
+### Écarts de solde
+
+Un écart est la différence entre le solde réel et le solde calculé par l'app. C'est le signal d'une opération oubliée ou mal saisie.
+
+- **Recalage par SMS** : écart = solde annoncé par l'opérateur moins solde calculé (solde d'avant plus effet de l'opération). Un écart nul confirme que tout a été saisi depuis le SMS précédent.
+- **Correction manuelle** : écart = nouveau solde moins ancien solde.
+- Un SMS arrivé en retard ne recale pas le solde et n'a donc pas d'écart.
+
+### Écrans
+
+Les deux écrans sont dans Paramètres, section « Suivi » :
+
+- **Journal d'activité** : liste du plus récent au plus ancien, groupée par jour, avec filtres (Tout, Opérations, Soldes, SMS, Comptes & épargne, Budgets & catégories, Réglages) et filtre par compte. Toucher une ligne ouvre le détail : changements champ par champ, soldes des comptes avant et après, écart et motif.
+- **Écarts de solde** : pour chaque compte, le total des écarts du mois et la liste des écarts, avec la date du point de contrôle précédent (« Une dépense oubliée depuis le 12 nov. ? »).
+
+## 13. Calcul des frais Mobile Money
 
 Les frais proposés à la saisie viennent de grilles tarifaires par tranche (`web/src/services/mvolaFeeCalculator.ts`) :
 
@@ -300,14 +344,14 @@ Les frais proposés à la saisie viennent de grilles tarifaires par tranche (`we
 
 Pour les SMS, les frais ne sont pas calculés : ce sont ceux annoncés par l'opérateur.
 
-## 13. Application installable
+## 14. Application installable
 
 MyFinance est une application web progressive (PWA). Sur Android, Chrome propose « Installer l'application » ; sur iPhone, Safari permet « Sur l'écran d'accueil ». Elle s'ouvre alors en plein écran, sans barre d'adresse, avec sa propre icône.
 
 - L'interface est mise en cache par un service worker : l'application s'ouvre instantanément, et se met à jour automatiquement à chaque nouvelle version.
 - Les données ne sont **jamais** mises en cache : soldes et opérations viennent toujours du serveur. Hors ligne, l'application s'ouvre mais signale que le serveur est injoignable.
 
-## 14. Feuille de route
+## 15. Feuille de route
 
 Ces fonctionnalités sont prévues, mais pas encore construites :
 

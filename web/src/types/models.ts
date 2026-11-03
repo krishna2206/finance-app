@@ -224,3 +224,42 @@ export interface AppNotification {
   metadata?: Record<string, any>;
 }
 
+
+export type AuditActor = 'APP' | 'SMS' | 'SYSTEM';
+export type AuditDomain = 'TRANSACTION' | 'BALANCE' | 'SMS' | 'WALLET' | 'SAVINGS' | 'BUDGET' | 'CATEGORY' | 'SETTINGS' | 'SYSTEM';
+
+export interface AuditWalletChange {
+  walletId: string;
+  before: number;
+  after: number;
+}
+
+/** Entrée du journal d'activité (en ajout seulement). */
+export interface AuditEvent {
+  id: string;
+  occurredAt: number;
+  actor: AuditActor;
+  domain: AuditDomain;
+  action: string;
+  entityType?: string;
+  entityId?: string;
+  summary: string;
+  before?: unknown;
+  after?: unknown;
+  walletChanges: AuditWalletChange[];
+  /** Écart de solde non expliqué (recalage SMS ou correction manuelle), en Ar. */
+  drift?: number;
+  note?: string;
+}
+
+export interface AuditPage {
+  events: AuditEvent[];
+  nextCursor: string | null;
+}
+
+export interface DriftSummaryEntry {
+  walletId: string;
+  period: string;
+  total: number;
+  count: number;
+}
