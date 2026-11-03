@@ -36,7 +36,7 @@ describe('Journal d’audit', () => {
     expect(added.summary).toContain('Dépense « Courses »');
 
     expect(updated.action).toBe('TRANSACTION_UPDATED');
-    expect(updated.summary).toContain('catégorie Alimentation & Courses → Transport');
+    expect(updated.summary).toContain('catégorie Courses → Transport');
     expect(updated.before.categoryId).toBe('cat_food_groceries');
     expect(updated.after.categoryId).toBe('cat_transport');
     expect(updated.walletChanges).toEqual([]);

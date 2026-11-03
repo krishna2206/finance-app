@@ -1,6 +1,6 @@
 import { getDatabase } from '../index';
 import { budgets, budgetCategories, categories } from '../schema';
-import { Budget, Category, CategoryType } from '../../types';
+import { Budget, Category, CategoryGroup, CategoryType } from '../../types';
 import { asc, eq } from 'drizzle-orm';
 
 export const budgetRepository = {
@@ -14,6 +14,7 @@ export const budgetRepository = {
       categoryType: categories.type,
       categoryColor: categories.color,
       categoryIcon: categories.icon,
+      categoryGroup: categories.group,
       categoryCreatedAt: categories.createdAt,
     })
       .from(budgetCategories)
@@ -27,6 +28,7 @@ export const budgetRepository = {
         id: l.categoryId,
         name: l.categoryName,
         type: l.categoryType as CategoryType,
+        group: l.categoryGroup as CategoryGroup,
         color: l.categoryColor,
         icon: l.categoryIcon,
         createdAt: l.categoryCreatedAt,
@@ -59,6 +61,7 @@ export const budgetRepository = {
       categoryType: categories.type,
       categoryColor: categories.color,
       categoryIcon: categories.icon,
+      categoryGroup: categories.group,
       categoryCreatedAt: categories.createdAt,
     })
       .from(budgetCategories)
@@ -71,6 +74,7 @@ export const budgetRepository = {
       id: l.categoryId,
       name: l.categoryName,
       type: l.categoryType as CategoryType,
+      group: l.categoryGroup as CategoryGroup,
       color: l.categoryColor,
       icon: l.categoryIcon,
       createdAt: l.categoryCreatedAt,

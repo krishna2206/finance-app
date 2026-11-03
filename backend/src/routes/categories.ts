@@ -1,15 +1,23 @@
 import { Hono } from 'hono';
-import { isSystemCategory } from '@finance/shared';
+import { CATEGORY_GROUP_IDS, defaultGroupFor, isGroupOfType, isSystemCategory } from '@finance/shared';
 import { categoryRepository } from '../db/repositories/categoryRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { auditService } from '../services/auditService';
-import { conflict, notFound } from '../lib/errors';
+import { badRequest, conflict, notFound } from '../lib/errors';
 import { asObject, optionalEnum, optionalString, requireString } from '../lib/validation';
-import { CategoryType } from '../types';
+import { CategoryGroup, CategoryType } from '../types';
 
 export const categoriesRouter = new Hono();
 
 const CATEGORY_TYPES = ['EXPENSE', 'INCOME'] as const satisfies readonly CategoryType[];
+
+function requireGroupForType(value: unknown, type: CategoryType, fallback?: CategoryGroup): CategoryGroup {
+  const group = optionalEnum(value, CATEGORY_GROUP_IDS, 'group') || fallback || defaultGroupFor(type);
+  if (!isGroupOfType(group, type)) {
+    throw badRequest(type === 'INCOME' ? 'Une catégorie de revenu va dans le groupe Revenus' : 'Ce groupe est réservé aux revenus');
+  }
+  return group;
+}
 
 categoriesRouter.get('/', (c) => {
   return c.json(categoryRepository.getAllCategories());
@@ -23,9 +31,11 @@ categoriesRouter.get('/:id', (c) => {
 
 categoriesRouter.post('/', async (c) => {
   const body = asObject(await c.req.json());
+  const type = optionalEnum(body.type, CATEGORY_TYPES, 'type') || 'EXPENSE';
   const input = {
     name: requireString(body.name, 'name'),
-    type: optionalEnum(body.type, CATEGORY_TYPES, 'type') || 'EXPENSE',
+    type,
+    group: requireGroupForType(body.group, type),
     color: optionalString(body.color, 'color') || '#34D399',
     icon: optionalString(body.icon, 'icon') || 'TagBoldIcon',
   };
@@ -41,18 +51,21 @@ categoriesRouter.put('/:id', async (c) => {
   const body = asObject(await c.req.json());
   const existing = categoryRepository.getCategoryById(id);
   if (!existing) throw notFound('Catégorie introuvable');
+  // Les catégories système suivent le code (remises à jour à chaque démarrage).
+  if (isSystemCategory(id)) throw conflict('Les catégories système ne peuvent pas être modifiées');
 
   // Le type d'une catégorie système ou déjà utilisée ne peut pas changer (dépense <-> revenu).
   const requestedType = optionalEnum(body.type, CATEGORY_TYPES, 'type');
-  if (requestedType && requestedType !== existing.type
-    && (isSystemCategory(id) || transactionRepository.countByCategory(id) > 0)) {
+  if (requestedType && requestedType !== existing.type && transactionRepository.countByCategory(id) > 0) {
     throw conflict('Le type de cette catégorie ne peut plus être modifié');
   }
 
+  const type = requestedType || existing.type;
   const next = {
     ...existing,
     name: body.name !== undefined ? requireString(body.name, 'name') : existing.name,
-    type: requestedType || existing.type,
+    type,
+    group: requireGroupForType(body.group, type, type === existing.type ? existing.group : undefined),
     color: optionalString(body.color, 'color') || existing.color,
     icon: optionalString(body.icon, 'icon') || existing.icon,
   };

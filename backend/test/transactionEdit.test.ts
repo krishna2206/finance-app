@@ -52,7 +52,7 @@ describe('Modification complète d’une opération', () => {
   });
 
   it('un retrait redevenu dépense perd son type de retrait', async () => {
-    const t = await expense({ amount: 5_000, operationType: 'WITHDRAWAL_CASH', destinationWalletId: 'CASH', categoryId: 'cat_cash_withdrawal' });
+    const t = await expense({ amount: 5_000, operationType: 'WITHDRAWAL_CASH', destinationWalletId: 'CASH', categoryId: 'cat_fees_mobile_money' });
     const r = await edit(t.id, { destinationWalletId: null, categoryId: 'cat_shopping' });
     expect(r.status).toBe(200);
     expect(r.body.operationType).toBe('EXPENSE_GENERAL');

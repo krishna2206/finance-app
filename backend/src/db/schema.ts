@@ -52,6 +52,7 @@ export const categories = sqliteTable('categories', {
   type: text('type').notNull().default('EXPENSE'), // 'EXPENSE' | 'INCOME'
   color: text('color').notNull().default('#34D399'),
   icon: text('icon').notNull().default('TagBoldIcon'),
+  group: text('category_group').notNull().default('DAILY'), // 'ESSENTIALS' | 'DAILY' | 'COMMITMENTS' | 'MONEY' | 'INCOME'
   createdAt: integer('created_at').notNull(),
 });
 

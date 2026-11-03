@@ -1,21 +1,24 @@
-import { SYSTEM_CATEGORY_IDS } from '@finance/shared';
+import { SYSTEM_CATEGORY_IDS, TRANSFER_CATEGORY_ID } from '@finance/shared';
 import { ParsedSMSResult } from './smsParser';
 
 export const autoCategorizer = {
   /**
-   * Pure deterministic category resolver for incoming SMS transactions.
-   * Based strictly on the operator operation type and financial flow (no guessing, no keywords).
+   * Catégorie d'une opération reçue par SMS, déterminée uniquement par le type d'opération
+   * et le sens (aucun mot-clé, aucune mémoire de contact).
+   * `toOwnWallet` : l'opération va vers un autre compte de l'utilisateur (transfert interne).
    */
-  resolveCategory(parsed: ParsedSMSResult): string {
+  resolveCategory(parsed: ParsedSMSResult, toOwnWallet = false): string {
+    if (toOwnWallet) return TRANSFER_CATEGORY_ID;
+
     switch (parsed.operationType) {
       case 'TOPUP_AIRTIME':
-        return SYSTEM_CATEGORY_IDS.SUBSCRIPTIONS;
+        return SYSTEM_CATEGORY_IDS.BILLS;
 
       case 'MERCHANT_PAYMENT':
-        return SYSTEM_CATEGORY_IDS.FOOD_GROCERIES;
+        return SYSTEM_CATEGORY_IDS.GROCERIES;
 
       case 'WITHDRAWAL_CASH':
-        return SYSTEM_CATEGORY_IDS.CASH_WITHDRAWAL;
+        return TRANSFER_CATEGORY_ID;
 
       case 'SALARY':
         return SYSTEM_CATEGORY_IDS.SALARY;
@@ -27,7 +30,7 @@ export const autoCategorizer = {
       default:
         return parsed.flow === 'CREDIT'
           ? SYSTEM_CATEGORY_IDS.TRANSFERS_RECEIVED
-          : SYSTEM_CATEGORY_IDS.FEES_MOBILE_MONEY;
+          : SYSTEM_CATEGORY_IDS.MONEY_TRANSFERS;
     }
   },
 };

@@ -1,4 +1,4 @@
-import { isBudgetable, isSavingsMovement } from '@finance/shared';
+import { TRANSFER_CATEGORY_ID, isBudgetable, isSavingsMovement } from '@finance/shared';
 import { TransactionReplacement } from '../db/repositories/transactionRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
@@ -140,7 +140,10 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
 
   const amount = requirePositiveAmount(pick('amount'), 'amount');
   const feeAmount = flow === 'DEBIT' ? optionalNonNegativeAmount(pick('feeAmount'), 'feeAmount', 0) : 0;
-  const categoryId = requireCategoryForFlow(requireString(pick('categoryId'), 'categoryId'), flow);
+  // Un transfert entre ses comptes a toujours la catégorie des frais : seuls ses frais sont une dépense.
+  const categoryId = destinationWalletId
+    ? TRANSFER_CATEGORY_ID
+    : requireCategoryForFlow(requireString(pick('categoryId'), 'categoryId'), flow);
 
   // Enveloppe : celle demandée ; sinon l'actuelle si elle couvre toujours la catégorie ; sinon la règle habituelle.
   const entry = { flow, operationType, categoryId };

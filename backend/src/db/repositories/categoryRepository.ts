@@ -1,36 +1,28 @@
 import { getDatabase } from '../index';
 import { categories } from '../schema';
-import { Category, CategoryType } from '../../types';
+import { Category, CategoryGroup, CategoryType } from '../../types';
 import { eq } from 'drizzle-orm';
+
+function mapRow(r: typeof categories.$inferSelect): Category {
+  return {
+    id: r.id,
+    name: r.name,
+    type: r.type as CategoryType,
+    group: r.group as CategoryGroup,
+    color: r.color,
+    icon: r.icon,
+    createdAt: r.createdAt,
+  };
+}
 
 export const categoryRepository = {
   getAllCategories(): Category[] {
-    const db = getDatabase();
-    const rows = db.select().from(categories).all();
-
-    return rows.map(r => ({
-      id: r.id,
-      name: r.name,
-      type: r.type as CategoryType,
-      color: r.color,
-      icon: r.icon,
-      createdAt: r.createdAt,
-    }));
+    return getDatabase().select().from(categories).all().map(mapRow);
   },
 
   getCategoryById(id: string): Category | null {
-    const db = getDatabase();
-    const row = db.select().from(categories).where(eq(categories.id, id)).get();
-    if (!row) return null;
-
-    return {
-      id: row.id,
-      name: row.name,
-      type: row.type as CategoryType,
-      color: row.color,
-      icon: row.icon,
-      createdAt: row.createdAt,
-    };
+    const row = getDatabase().select().from(categories).where(eq(categories.id, id)).get();
+    return row ? mapRow(row) : null;
   },
 
   createCategory(category: Omit<Category, 'id' | 'createdAt'>): Category {
@@ -42,16 +34,13 @@ export const categoryRepository = {
       id,
       name: category.name,
       type: category.type,
+      group: category.group,
       color: category.color,
       icon: category.icon,
       createdAt: now,
     }).run();
 
-    return {
-      id,
-      ...category,
-      createdAt: now,
-    };
+    return { id, ...category, createdAt: now };
   },
 
   updateCategory(category: Category): Category | null {
@@ -59,6 +48,7 @@ export const categoryRepository = {
     db.update(categories).set({
       name: category.name,
       type: category.type,
+      group: category.group,
       color: category.color,
       icon: category.icon,
     }).where(eq(categories.id, category.id)).run();

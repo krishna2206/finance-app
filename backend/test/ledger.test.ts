@@ -50,7 +50,7 @@ describe('Opérations manuelles', () => {
   it('un transfert entre ses comptes ne compte que les frais comme dépense', async () => {
     const { body } = await api('POST', '/transactions', {
       flow: 'DEBIT', operationType: 'WITHDRAWAL_CASH', walletId: 'MVOLA', destinationWalletId: 'CASH',
-      amount: 50_000, feeAmount: 1_300, categoryId: 'cat_cash_withdrawal',
+      amount: 50_000, feeAmount: 1_300, categoryId: 'cat_fees_mobile_money',
     });
     expect(await balances()).toMatchObject({ MVOLA: 48_700, CASH: 60_000 });
     expect(getSpendingAmount(body)).toBe(1_300);

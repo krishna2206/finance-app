@@ -102,7 +102,7 @@ export const smsService = {
 
       const source = resolveSourceWallet(parsed);
       const destination = resolveDestinationWallet(parsed, source);
-      const categoryId = autoCategorizer.resolveCategory(parsed);
+      const categoryId = autoCategorizer.resolveCategory(parsed, Boolean(destination));
       const matchingBudgets = budgetService.getMatchingBudgets(categoryId);
 
       const latestSmsDate = transactionRepository.getLatestSmsDate(source.id);
