@@ -55,6 +55,7 @@ export function SettingsView({
   const [userLocation, setUserLocation] = useState('');
   const [incomeTarget, setIncomeTarget] = useState('');
   const [savingsTarget, setSavingsTarget] = useState('');
+  const [cashbackPercent, setCashbackPercent] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSavedFeedback, setProfileSavedFeedback] = useState(false);
@@ -75,6 +76,7 @@ export function SettingsView({
       setUserLocation(settings.userLocation || '');
       setIncomeTarget(String(settings.monthlyIncomeTarget || ''));
       setSavingsTarget(String(settings.monthlySavingsTarget || ''));
+      setCashbackPercent(String(settings.mvolaAppCashbackPercent ?? 20));
     }
   }, [settings]);
 
@@ -88,6 +90,7 @@ export function SettingsView({
         userLocation: userLocation.trim(),
         monthlyIncomeTarget: parseInt(incomeTarget.replace(/\s/g, ''), 10) || 0,
         monthlySavingsTarget: parseInt(savingsTarget.replace(/\s/g, ''), 10) || 0,
+        mvolaAppCashbackPercent: Math.min(100, parseInt(cashbackPercent, 10) || 0),
         // La clé enregistrée n'est jamais renvoyée : on ne l'envoie que si une nouvelle est saisie.
         ...(geminiKey.trim() ? { geminiApiKey: geminiKey.trim() } : {}),
       });
@@ -244,6 +247,24 @@ export function SettingsView({
                 />
               </div>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="cashback-percent" className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">
+              Remboursement des frais App MVola (%)
+            </label>
+            <input
+              id="cashback-percent"
+              type="text"
+              inputMode="numeric"
+              value={cashbackPercent}
+              onChange={e => setCashbackPercent(e.target.value.replace(/\D/g, '').slice(0, 3))}
+              placeholder="20"
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-zinc-900 tabular-nums focus:outline-none focus:border-zinc-900 transition-colors"
+            />
+            <p className="text-[10px] text-zinc-400 mt-1 leading-relaxed">
+              Part des frais d'un envoi MVola vers MVola remboursée quand il est fait depuis l'App MVola.
+            </p>
           </div>
 
           <div className="flex items-center justify-between pt-1">

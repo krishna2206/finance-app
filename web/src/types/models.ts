@@ -32,8 +32,8 @@ export type OperationType =
 
 export type TransactionSource = 'SMS_AUTO' | 'MANUAL' | 'VOICE' | 'IMAGE_OCR';
 
-export type { CategoryGroup, CategoryType } from '@finance/shared';
-import type { CategoryGroup, CategoryType } from '@finance/shared';
+export type { CategoryGroup, CategoryType, MobileMoneyOperator } from '@finance/shared';
+import type { CategoryGroup, CategoryType, MobileMoneyOperator } from '@finance/shared';
 
 export interface Wallet {
   id: string;                      // UUID v4
@@ -142,6 +142,12 @@ export interface Transaction {
   budgetId?: string;
   amount: number;
   feeAmount: number;
+  /** Part des frais remboursée (App MVola). */
+  feeRefundAmount: number;
+  /** Part des frais payée pour le retrait du destinataire (envoi à un tiers). */
+  withdrawalFeeCovered: number;
+  counterpartyOperator?: MobileMoneyOperator;
+  /** Débité : montant + frais - remboursement. */
   totalAmount: number;
   title: string;
   recipient?: string;
@@ -168,6 +174,7 @@ export interface AppSettings {
   hasGeminiApiKey: boolean;
   smsCaptureEnabled: boolean;
   pushNotificationsEnabled: boolean;
+  mvolaAppCashbackPercent: number;
   createdAt: number;
   updatedAt: number;
 }

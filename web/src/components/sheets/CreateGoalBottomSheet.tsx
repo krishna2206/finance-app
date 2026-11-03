@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSavingsStore } from '../../stores/useSavingsStore';
 import { SavingsGoalPriority } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
-import { calculateMVolaFees } from '../../services/mvolaFeeCalculator';
+import { FEE_GRIDS, feeFromGrid } from '@finance/shared';
 import {
   CloseLinearIcon,
   ShieldCheckBoldIcon,
@@ -58,7 +58,7 @@ export function CreateGoalBottomSheet({
   // Fee calculation if parent savings is on a mobile money wallet
   const estimatedFees = useMemo(() => {
     if (!numericTarget) return 0;
-    return calculateMVolaFees(numericTarget).withdrawalFee;
+    return feeFromGrid(numericTarget, FEE_GRIDS.MVOLA_WITHDRAWAL) ?? 0;
   }, [numericTarget]);
 
   const effectiveTarget = includeFees ? numericTarget + estimatedFees : numericTarget;

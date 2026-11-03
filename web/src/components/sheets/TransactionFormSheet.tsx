@@ -4,7 +4,26 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useToastStore } from '../../stores/useToastStore';
-import { SYSTEM_CATEGORY_IDS, TRANSFER_CATEGORY_ID, isSavingsMovement } from '@finance/shared';
+import {
+  CHANNEL_LABELS,
+  DEFAULT_MVOLA_APP_CASHBACK_PERCENT,
+  MOBILE_MONEY_OPERATORS,
+  MobileMoneyOperator,
+  OPERATOR_LABELS,
+  SYSTEM_CATEGORY_IDS,
+  SendChannel,
+  TRANSFER_CATEGORY_ID,
+  isMobileMoney,
+  isSavingsMovement,
+} from '@finance/shared';
+import { useSettingsStore } from '../../stores/useSettingsStore';
+import { PillGroup } from '../common/PillGroup';
+import {
+  computeEntryFees,
+  gridDateLabel,
+  operationTypeForPayment,
+  paymentTypeOfOperation,
+} from '../../utils/mobileMoneyEntry';
 import { groupCategories } from '../../utils/categories';
 import { Transaction } from '../../types/models';
 import { TransactionPatch } from '../../services/api';
@@ -19,13 +38,10 @@ import {
   getDefaultEntryDate,
   rememberEntryDate,
   clearStickyDate,
+  PaymentType,
+  sendPrefsFor,
+  withSendPrefs,
 } from '../../utils/entryMemory';
-import {
-  getTransferFee,
-  lookupTier,
-  resolveWalletType,
-  MVOLA_P2P_TIERS,
-} from '../../services/mvolaFeeCalculator';
 import { WalletLogo } from '../common/WalletLogo';
 import { CategoryIcon } from '../common/CategoryIcon';
 import { IOSDateTimePicker } from '../common/IOSDateTimePicker';
@@ -100,9 +116,17 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
   // Une catégorie par mode : une catégorie de revenu n'est jamais réutilisée pour une dépense.
   const [categoryByMode, setCategoryByMode] = useState<Partial<Record<'EXPENSE' | 'INCOME', string>>>({});
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
-  const [includeFees, setIncludeFees] = useState(true);
-  // En modification, les frais sont saisis directement (repris de l'opération).
+  // Frais et remboursement : proposés par la grille, modifiables à la main (`touched`).
   const [feeInput, setFeeInput] = useState('');
+  const [feeTouched, setFeeTouched] = useState(false);
+  const [refundInput, setRefundInput] = useState('');
+  const [refundTouched, setRefundTouched] = useState(false);
+  // Envoi Mobile Money : type de paiement, opérateur du destinataire, canal, retrait inclus.
+  const [paymentType, setPaymentType] = useState<PaymentType>('MERCHANT');
+  const [recipientOperator, setRecipientOperator] = useState<MobileMoneyOperator>('MVOLA');
+  const [channel, setChannel] = useState<SendChannel>('USSD');
+  const [includeWithdrawal, setIncludeWithdrawal] = useState(false);
+  const cashbackPercent = useSettingsStore(state => state.settings?.mvolaAppCashbackPercent ?? DEFAULT_MVOLA_APP_CASHBACK_PERCENT);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getMatchingBudgetsForCategory = useBudgetStore(state => state.getMatchingBudgetsForCategory);
@@ -184,6 +208,13 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
       setTitle(t.title);
       setNote(t.note ?? '');
       setFeeInput(String(t.feeAmount));
+      setFeeTouched(true);
+      setRefundInput(String(t.feeRefundAmount ?? 0));
+      setRefundTouched(true);
+      setPaymentType(paymentTypeOfOperation(t.operationType));
+      setRecipientOperator(t.counterpartyOperator ?? (isMobileMoney(wallets[t.walletId]?.type) ? wallets[t.walletId]!.type as MobileMoneyOperator : 'MVOLA'));
+      setChannel((t.feeRefundAmount ?? 0) > 0 ? 'APP' : 'USSD');
+      setIncludeWithdrawal((t.withdrawalFeeCovered ?? 0) > 0);
       setCategoryByMode(tMode !== 'TRANSFER' && t.categoryId ? { [tMode]: t.categoryId } : {});
       setSelectedBudgetId(t.budgetId);
       if (t.operationType === 'SAVINGS_WITHDRAWAL') {
@@ -202,6 +233,10 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
     setMode(loaded.lastMode);
     setCategoryByMode({});
     applyWalletPrefs(loaded.lastMode, loaded);
+    setFeeTouched(false);
+    setRefundTouched(false);
+    // Désactivé à chaque nouvelle saisie.
+    setIncludeWithdrawal(false);
     const { date, isSticky } = getDefaultEntryDate();
     setSelectedDate(date);
     setIsCustomDate(isSticky);
@@ -247,33 +282,48 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
 
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
 
-  // Declarative fee calculation via Strategy Matrix
-  const sourceType = resolveWalletType(selectedSourceWallet);
-  const destType = resolveWalletType(selectedDestWallet);
-  const isMobileMoneySource = sourceType === 'MVOLA' || sourceType === 'ORANGE_MONEY' || sourceType === 'AIRTEL_MONEY';
+  const sourceType = selectedSourceWallet.type;
+  const destType = selectedDestWallet.type;
+  const sourceOperator = isMobileMoney(sourceType) ? sourceType : null;
 
-  const { rawFee, feeLabel } = useMemo(() => {
-    if (numericAmount <= 0) return { rawFee: 0, feeLabel: '' };
+  // Saisie rapide : type de paiement, opérateur et canal mémorisés pour le compte de paiement.
+  useEffect(() => {
+    if (!isOpen || isEdit || !sourceOperator) return;
+    const saved = sendPrefsFor(prefs, selectedSourceWallet.id, sourceOperator);
+    setPaymentType(saved.paymentType);
+    setRecipientOperator(saved.recipientOperator);
+    setChannel(saved.channel);
+  }, [isOpen, isEdit, selectedSourceWallet.id, sourceOperator, prefs]);
 
-    if (mode === 'TRANSFER') {
-      const fee = getTransferFee(sourceType, destType, numericAmount);
-      const isCashOut = destType === 'CASH';
-      const isInterop = (destType === 'AIRTEL_MONEY' || destType === 'ORANGE_MONEY' || destType === 'MVOLA') && sourceType !== destType;
-      const label = isCashOut ? 'Cash Point' : isInterop ? 'inter-opérateur' : 'opérateur';
-      return { rawFee: fee, feeLabel: label };
-    }
+  const entryFees = useMemo(() => computeEntryFees({
+    mode, amount: numericAmount, sourceType, destType, paymentType, recipientOperator, channel, includeWithdrawal, cashbackPercent,
+  }), [mode, numericAmount, sourceType, destType, paymentType, recipientOperator, channel, includeWithdrawal, cashbackPercent]);
 
-    // Envoi d'argent à un tiers depuis le Mobile Money : grille P2P. Paiements directs : pas de frais.
-    if (mode === 'EXPENSE' && activeCategoryId === SYSTEM_CATEGORY_IDS.MONEY_TRANSFERS && isMobileMoneySource) {
-      return { rawFee: lookupTier(numericAmount, MVOLA_P2P_TIERS), feeLabel: 'envoi' };
-    }
-
-    return { rawFee: 0, feeLabel: '' };
-  }, [mode, numericAmount, sourceType, destType, activeCategoryId, isMobileMoneySource]);
-
+  const isDebitMode = !isSavingsEdit && mode !== 'INCOME';
   const feeInputValue = parseInt(feeInput, 10) || 0;
-  const feeAmount = isSavingsEdit || mode === 'INCOME' ? 0 : isEdit ? feeInputValue : includeFees ? rawFee : 0;
-  const totalImpact = numericAmount + feeAmount;
+  const feeAmount = !isDebitMode ? 0 : feeTouched ? feeInputValue : entryFees.fee ?? 0;
+  const refundInputValue = parseInt(refundInput, 10) || 0;
+  const feeRefundAmount = !isDebitMode ? 0 : Math.min(feeAmount, refundTouched ? refundInputValue : entryFees.refund);
+  const recordedAmount = isDebitMode ? entryFees.recordedAmount : numericAmount;
+  // Envoi à un tiers : la part « retrait » reste dans les frais, même si ceux-ci sont modifiés à la main.
+  const withdrawalFeeCovered = mode === 'EXPENSE' && paymentType === 'SEND' ? Math.min(feeAmount, entryFees.withdrawalFeeCovered) : 0;
+  const totalImpact = recordedAmount + feeAmount - feeRefundAmount;
+  const showFeeRow = isDebitMode && (entryFees.applies || isEdit || feeAmount > 0);
+  const showRefundRow = isDebitMode && (entryFees.refund > 0 || feeRefundAmount > 0 || (entryFees.channelOperator === 'MVOLA' && channel === 'APP'));
+
+  /** Un choix d'envoi change la grille : les frais redeviennent ceux de la grille. */
+  const resetFees = () => {
+    setFeeTouched(false);
+    setRefundTouched(false);
+  };
+
+  const changePaymentType = (next: PaymentType) => {
+    setPaymentType(next);
+    resetFees();
+    if (next === 'SEND') setCategoryByMode(prev => ({ ...prev, EXPENSE: SYSTEM_CATEGORY_IDS.MONEY_TRANSFERS }));
+    if (next === 'AIRTIME') setCategoryByMode(prev => ({ ...prev, EXPENSE: SYSTEM_CATEGORY_IDS.BILLS }));
+  };
+
   const isInvalidTransfer = mode === 'TRANSFER' && selectedSourceWallet.id === selectedDestWallet.id;
 
   // Formatted display for date button
@@ -308,13 +358,18 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
     }
     const originalMode = modeOfTransaction(t);
     if (mode === 'EXPENSE') {
+      const keepOriginal = originalMode === 'EXPENSE' && paymentTypeOfOperation(t.operationType) === paymentType
+        && (paymentType !== 'MERCHANT' || !sourceOperator || t.operationType !== 'EXPENSE_GENERAL');
       return {
         ...base,
         flow: 'DEBIT',
-        operationType: originalMode === 'EXPENSE' ? t.operationType : 'EXPENSE_GENERAL',
+        operationType: keepOriginal ? t.operationType : operationTypeForPayment(paymentType, Boolean(sourceOperator)),
         walletId: selectedSourceWallet.id,
         destinationWalletId: null,
         feeAmount,
+        feeRefundAmount,
+        withdrawalFeeCovered,
+        counterpartyOperator: paymentType === 'SEND' && sourceOperator ? recipientOperator : null,
         categoryId: activeCategoryId,
         budgetId: selectedBudgetId ?? null,
       };
@@ -327,17 +382,22 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
         walletId: selectedDestWallet.id,
         destinationWalletId: null,
         feeAmount: 0,
+        feeRefundAmount: 0,
+        withdrawalFeeCovered: 0,
         categoryId: activeCategoryId,
         budgetId: null,
       };
     }
     return {
       ...base,
+      amount: recordedAmount,
       flow: 'DEBIT',
       operationType: isWithdrawalTransfer ? 'WITHDRAWAL_CASH' : 'TRANSFER_P2P',
       walletId: selectedSourceWallet.id,
       destinationWalletId: selectedDestWallet.id,
       feeAmount,
+      feeRefundAmount,
+      withdrawalFeeCovered: 0,
       categoryId: TRANSFER_CATEGORY_ID,
       budgetId: null,
     };
@@ -371,10 +431,13 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
         if (!selectedCategory) return;
         await addTransaction({
           flow: 'DEBIT',
-          operationType: 'EXPENSE_GENERAL',
+          operationType: operationTypeForPayment(paymentType, Boolean(sourceOperator)),
           walletId: selectedSourceWallet.id,
           amount: numericAmount,
           feeAmount,
+          feeRefundAmount,
+          withdrawalFeeCovered,
+          counterpartyOperator: paymentType === 'SEND' && sourceOperator ? recipientOperator : undefined,
           title: title.trim() || selectedCategory.name,
           categoryId: selectedCategory.id,
           budgetId: selectedBudgetId,
@@ -405,8 +468,9 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
           operationType: isWithdrawal ? 'WITHDRAWAL_CASH' : 'TRANSFER_P2P',
           walletId: selectedSourceWallet.id,
           destinationWalletId: selectedDestWallet.id,
-          amount: numericAmount,
+          amount: recordedAmount,
           feeAmount,
+          feeRefundAmount,
           title: title.trim() || defaultTitle,
           categoryId: TRANSFER_CATEGORY_ID,
           date: dateIso,
@@ -414,7 +478,12 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
         });
       }
 
-      const nextPrefs: EntryPrefs = { ...prefs, lastMode: mode };
+      let nextPrefs: EntryPrefs = { ...prefs, lastMode: mode };
+      if (sourceOperator && mode !== 'INCOME') {
+        nextPrefs = withSendPrefs(nextPrefs, selectedSourceWallet.id, mode === 'EXPENSE'
+          ? { paymentType, recipientOperator, channel }
+          : { channel });
+      }
       if (mode === 'EXPENSE') {
         nextPrefs.expenseWalletId = selectedSourceWallet.id;
         nextPrefs.expenseCategoryId = activeCategoryId;
@@ -617,34 +686,21 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                   </div>
                 </div>
 
-                {/* Frais (saisie rapide) : proposés selon la grille, un toucher les exclut */}
-                <AnimatePresence>
-                  {!isEdit && rawFee > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, y: -6, height: 0 }}
-                      transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIncludeFees(!includeFees);
-                        }}
-                        className={`mt-2 text-xs font-semibold tabular-nums transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                          includeFees
-                            ? 'text-amber-600 hover:text-amber-700'
-                            : 'text-zinc-400 line-through hover:text-zinc-500'
-                        }`}
-                      >
-                        <span>+{formatAmount(rawFee)} Ar frais {feeLabel}</span>
-                        <span className="text-zinc-400 font-normal">• Total débité : {formatCurrency(totalImpact)}</span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* Frais : résumé (montant envoyé, frais, remboursement, total débité) */}
+                {isDebitMode && numericAmount > 0 && (feeAmount > 0 || entryFees.withdrawalAdded > 0) && (
+                  <p data-testid="fee-summary" className="mt-2 text-xs font-semibold tabular-nums text-center text-amber-600 leading-relaxed">
+                    {entryFees.withdrawalAdded > 0 && (
+                      <span className="block text-zinc-500">
+                        Montant envoyé {formatCurrency(recordedAmount)}, dont {formatCurrency(entryFees.withdrawalAdded)} pour le retrait
+                      </span>
+                    )}
+                    <span>
+                      Frais {formatCurrency(feeAmount)}
+                      {feeRefundAmount > 0 && `, dont ${formatCurrency(feeRefundAmount)} remboursés par l'App MVola`}
+                    </span>
+                    <span className="text-zinc-400 font-normal"> · Total débité : {formatCurrency(totalImpact)}</span>
+                  </p>
+                )}
               </div>
 
               {/* Inset Grouped Rows */}
@@ -715,27 +771,118 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                   </button>
                 )}
 
-                {/* 3.1 Frais (modification) : saisis directement, avec la grille en suggestion */}
-                {isEdit && !isSavingsEdit && mode !== 'INCOME' && (
+                {/* 3.1 Envoi Mobile Money : type de paiement, opérateur du destinataire, canal, retrait */}
+                {mode === 'EXPENSE' && !isSavingsEdit && sourceOperator && (
+                  <PillGroup<PaymentType>
+                    label="Type de paiement"
+                    value={paymentType}
+                    onChange={changePaymentType}
+                    options={[
+                      { value: 'MERCHANT', label: 'Paiement marchand' },
+                      { value: 'SEND', label: 'Envoi vers un numéro' },
+                      { value: 'AIRTIME', label: 'Achat de crédit' },
+                    ]}
+                  />
+                )}
+
+                {mode === 'EXPENSE' && !isSavingsEdit && sourceOperator && paymentType === 'SEND' && (
+                  <PillGroup<MobileMoneyOperator>
+                    label="Opérateur du destinataire"
+                    value={recipientOperator}
+                    onChange={(next) => { setRecipientOperator(next); resetFees(); }}
+                    options={MOBILE_MONEY_OPERATORS.map(op => ({ value: op, label: OPERATOR_LABELS[op] }))}
+                  />
+                )}
+
+                {isDebitMode && entryFees.channelOperator && (
+                  <PillGroup<SendChannel>
+                    label="Canal d'envoi"
+                    value={channel}
+                    onChange={(next) => { setChannel(next); resetFees(); }}
+                    options={[
+                      { value: 'APP', label: CHANNEL_LABELS[entryFees.channelOperator].APP },
+                      { value: 'USSD', label: CHANNEL_LABELS[entryFees.channelOperator].USSD },
+                    ]}
+                  />
+                )}
+
+                {isDebitMode && entryFees.canIncludeWithdrawal && (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={includeWithdrawal}
+                    onClick={() => { setIncludeWithdrawal(!includeWithdrawal); resetFees(); }}
+                    className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left hover:bg-zinc-50 transition-colors cursor-pointer select-none"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-zinc-900 block">Inclure les frais de retrait</span>
+                      <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
+                        {entryFees.withdrawalUnknown
+                          ? 'Grille de retrait Airtel inconnue : ajoute ces frais à la main'
+                          : mode === 'EXPENSE'
+                            ? 'Le montant saisi est ce que la personne aura en main'
+                            : 'Le montant saisi est ce que tu auras en main après le retrait'}
+                      </span>
+                    </div>
+                    <div
+                      className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all shrink-0 ${
+                        includeWithdrawal ? 'bg-zinc-900 border-zinc-900 text-white shadow-2xs' : 'bg-white border-zinc-300'
+                      }`}
+                    >
+                      {includeWithdrawal && <CheckCircleBoldIcon size={14} className="text-white" />}
+                    </div>
+                  </button>
+                )}
+
+                {/* 3.2 Frais : proposés par la grille, modifiables (promotion, frais gratuits, nouveau tarif) */}
+                {showFeeRow && (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <label htmlFor="entry-fee" className="text-xs font-bold text-zinc-900 shrink-0">Frais</label>
+                      <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
+                        {feeTouched && entryFees.applies && entryFees.fee !== null && entryFees.fee !== feeInputValue && (
+                          <button
+                            type="button"
+                            onClick={() => setFeeTouched(false)}
+                            className="py-1 px-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-[11px] font-bold text-zinc-700 cursor-pointer shrink-0 tabular-nums"
+                          >
+                            Grille : {formatAmount(entryFees.fee)} Ar
+                          </button>
+                        )}
+                        <input
+                          id="entry-fee"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={feeTouched ? feeInput : String(entryFees.fee ?? 0)}
+                          onChange={(e) => { setFeeInput(e.target.value.replace(/\D/g, '').slice(0, 9)); setFeeTouched(true); }}
+                          className="w-20 bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-xs font-bold text-zinc-900 text-right tabular-nums focus:outline-none focus:border-zinc-900"
+                        />
+                        <span className="text-xs font-semibold text-zinc-500">Ar</span>
+                      </div>
+                    </div>
+                    {(entryFees.grid || withdrawalFeeCovered > 0 || (entryFees.applies && entryFees.fee === null)) && (
+                      <p className="text-[10px] text-zinc-400 font-medium mt-1 leading-relaxed">
+                        {withdrawalFeeCovered > 0 && <span className="block">Dont {formatCurrency(withdrawalFeeCovered)} de frais de retrait couverts</span>}
+                        {entryFees.applies && entryFees.fee === null
+                          ? 'Montant hors grille ou grille inconnue : saisis les frais'
+                          : entryFees.grid && gridDateLabel(entryFees.grid)}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {showRefundRow && (
                   <div className="px-4 py-3 flex items-center justify-between gap-3">
-                    <label htmlFor="edit-fee" className="text-xs font-bold text-zinc-900 shrink-0">Frais</label>
-                    <div className="flex items-center justify-end gap-2 min-w-0 flex-1">
-                      {rawFee > 0 && rawFee !== feeInputValue && (
-                        <button
-                          type="button"
-                          onClick={() => setFeeInput(String(rawFee))}
-                          className="py-1 px-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-[11px] font-bold text-zinc-700 cursor-pointer shrink-0 tabular-nums"
-                        >
-                          Grille : {formatAmount(rawFee)} Ar
-                        </button>
-                      )}
+                    <label htmlFor="entry-refund" className="text-xs font-bold text-zinc-900 shrink-0">Remboursé par l'App MVola</label>
+                    <div className="flex items-center justify-end gap-2">
                       <input
-                        id="edit-fee"
+                        id="entry-refund"
                         type="text"
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        value={feeInput}
-                        onChange={(e) => setFeeInput(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                        value={refundTouched ? refundInput : String(entryFees.refund)}
+                        onChange={(e) => { setRefundInput(e.target.value.replace(/\D/g, '').slice(0, 9)); setRefundTouched(true); }}
                         className="w-20 bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-xs font-bold text-zinc-900 text-right tabular-nums focus:outline-none focus:border-zinc-900"
                       />
                       <span className="text-xs font-semibold text-zinc-500">Ar</span>

@@ -13,6 +13,7 @@ import {
   AuditDomain,
   AuditPage,
   DriftSummaryEntry,
+  MobileMoneyOperator,
 } from '../types/models';
 
 export const API_BASE: string = import.meta.env.VITE_API_URL || '/api';
@@ -90,6 +91,9 @@ export interface NewTransactionInput {
   budgetId?: string;
   amount: number;
   feeAmount?: number;
+  feeRefundAmount?: number;
+  withdrawalFeeCovered?: number;
+  counterpartyOperator?: MobileMoneyOperator;
   title?: string;
   date?: string;
   note?: string;
@@ -103,6 +107,9 @@ export interface TransactionPatch {
   destinationWalletId?: string | null;
   amount?: number;
   feeAmount?: number;
+  feeRefundAmount?: number;
+  withdrawalFeeCovered?: number;
+  counterpartyOperator?: MobileMoneyOperator | null;
   categoryId?: string;
   budgetId?: string | null;
   title?: string;

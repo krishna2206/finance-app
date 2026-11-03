@@ -36,7 +36,7 @@ Un monorepo avec les workspaces Bun :
 |---|---|---|
 | `backend/` | `finance-app-backend` | API Hono, base SQLite, parser SMS, tests unitaires |
 | `web/` | `finance-app-web` | Application React (Vite, Tailwind CSS v4, Framer Motion, Zustand) |
-| `shared/` | `@finance/shared` | Code commun au backend et au web : catégories système, règles comptables |
+| `shared/` | `@finance/shared` | Code commun au backend et au web : catégories système, règles comptables, grilles tarifaires Mobile Money |
 | `e2e/` | `finance-app-e2e` | Tests end-to-end Playwright |
 
 ## Stack technique
@@ -183,8 +183,8 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 |---|---|---|
 | GET | `/transactions` | Toutes les opérations, les plus récentes d'abord. Options : `?month=YYYY-MM`, `?limit=N` |
 | GET | `/transactions/:id` | Une opération |
-| POST | `/transactions` | Saisie manuelle : `flow`, `operationType`, `walletId`, `destinationWalletId`, `categoryId`, `budgetId`, `amount`, `feeAmount`, `title`, `date`, `note`, `location`, `items` |
-| PUT | `/transactions/:id` | Modification complète : `flow`, `operationType`, `walletId`, `destinationWalletId`, `amount`, `feeAmount`, `categoryId`, `budgetId`, `title`, `date`, `note`. Les champs absents gardent leur valeur, `null` vide un champ facultatif. Pour l'épargne : `amount`, `walletId` (versement), `destinationWalletId` (déblocage), `date`, `title`, `note` |
+| POST | `/transactions` | Saisie manuelle : `flow`, `operationType`, `walletId`, `destinationWalletId`, `categoryId`, `budgetId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `title`, `date`, `note`, `location`, `items` |
+| PUT | `/transactions/:id` | Modification complète : `flow`, `operationType`, `walletId`, `destinationWalletId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `categoryId`, `budgetId`, `title`, `date`, `note`. Les champs absents gardent leur valeur, `null` vide un champ facultatif. Pour l'épargne : `amount`, `walletId` (versement), `destinationWalletId` (déblocage), `date`, `title`, `note` |
 | DELETE | `/transactions/:id` | Suppression, avec annulation des effets |
 
 ### Catégories et enveloppes
@@ -212,7 +212,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 
 | Méthode | Route | Description |
 |---|---|---|
-| POST | `/sms/webhook` | Enregistre un SMS (`message`, `sender`, `timestamp` facultatif). 201, ou 200 avec `duplicate: true` |
+| POST | `/sms/webhook` | Enregistre un SMS (`message`, `sender`, `timestamp` facultatif). 201, ou 200 avec `duplicate: true`. Un SMS de remboursement App MVola renvoie 200 avec `feeRefund: true` et le transfert complété (ou `null`) |
 | POST | `/sms/test-parse` | Analyse un SMS sans rien enregistrer |
 | GET | `/sms/events` | Flux temps réel (SSE) |
 | GET | `/stats/monthly-savings?period=YYYY-MM` | Bilan par enveloppe |

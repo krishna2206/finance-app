@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isBudgetable, isInternalTransfer, isSavingsMovement } from '@finance/shared';
+import { OPERATOR_LABELS, isBudgetable, isInternalTransfer, isSavingsMovement } from '@finance/shared';
 import { groupCategories } from '../../utils/categories';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, Category, Budget } from '../../types/models';
@@ -182,8 +182,22 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
               </div>
 
               {transaction.feeAmount > 0 && (
-                <div className="text-xs text-amber-600 font-semibold tabular-nums mt-1">
-                  +{formatAmount(transaction.feeAmount)} Ar frais inclus (Total : {formatCurrency(totalAmount)})
+                <div className="text-xs text-amber-600 font-semibold tabular-nums mt-1 space-y-0.5">
+                  <div>
+                    Frais {formatCurrency(transaction.feeAmount)}
+                    {(transaction.feeRefundAmount ?? 0) > 0 && `, dont ${formatCurrency(transaction.feeRefundAmount)} remboursés`}
+                    {' '}(Total débité : {formatCurrency(totalAmount)})
+                  </div>
+                  {(transaction.withdrawalFeeCovered ?? 0) > 0 && (
+                    <div className="text-zinc-500 font-medium">
+                      Dont {formatCurrency(transaction.withdrawalFeeCovered)} de frais de retrait couverts
+                    </div>
+                  )}
+                </div>
+              )}
+              {transaction.counterpartyOperator && (
+                <div className="text-[11px] text-zinc-400 font-medium mt-1">
+                  Envoi vers {OPERATOR_LABELS[transaction.counterpartyOperator]}
                 </div>
               )}
 

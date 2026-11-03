@@ -3,7 +3,7 @@ import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useWalletStore } from '../../stores/useWalletStore';
 import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/formatters';
 import { CategoryIcon } from '../common/CategoryIcon';
-import { isInternalTransfer, isSavingsMovement } from '@finance/shared';
+import { getNetFee, isInternalTransfer, isSavingsMovement } from '@finance/shared';
 import { Bag2LinearIcon } from '@solar-icons/react';
 
 interface TransactionRowProps {
@@ -83,9 +83,9 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
           {formatSignedAmount(transaction.amount, isDebit)}
         </div>
 
-        {transaction.feeAmount > 0 && (
+        {getNetFee(transaction) > 0 && (
           <div className="text-[10px] font-medium text-amber-600 mt-0.5 tabular-nums">
-            +{formatAmount(transaction.feeAmount)} Ar frais
+            +{formatAmount(getNetFee(transaction))} Ar frais
           </div>
         )}
       </div>

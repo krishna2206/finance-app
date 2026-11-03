@@ -80,6 +80,9 @@ erDiagram
         text budget_id FK
         integer amount
         integer fee_amount
+        integer fee_refund_amount
+        integer withdrawal_fee_covered
+        text counterparty_operator
         integer total_amount
         text date
         text source
@@ -195,8 +198,11 @@ Un index unique porte sur `(budget_id, category_id)`. Une même catégorie peut 
 | `category_id` | text | vers `categories.id`, **restreinte** | Catégorie (absente pour l'épargne) |
 | `budget_id` | text | vers `budgets.id`, **mise à null** | Enveloppe consommée |
 | `amount` | integer | non nul | Montant principal, strictement positif |
-| `fee_amount` | integer | non nul, défaut 0 | Frais (débits uniquement) |
-| `total_amount` | integer | non nul | `amount + fee_amount`, calculé par le serveur |
+| `fee_amount` | integer | non nul, défaut 0 | Frais bruts (débits uniquement) |
+| `fee_refund_amount` | integer | non nul, défaut 0 | Part des frais remboursée (App MVola), au plus `fee_amount` |
+| `withdrawal_fee_covered` | integer | non nul, défaut 0 | Envoi à un tiers : part des frais payée pour le retrait du destinataire, au plus `fee_amount` |
+| `counterparty_operator` | text | | Envoi à un tiers : opérateur du destinataire (`MVOLA`, `ORANGE_MONEY`, `AIRTEL_MONEY`) |
+| `total_amount` | integer | non nul | Débité : `amount + fee_amount - fee_refund_amount`, calculé par le serveur |
 | `title` | text | non nul | |
 | `recipient`, `sender` | text | | Tiers, par exemple « NOM (03XXXXXXXX) » |
 | `date` | text | non nul | Date de l'opération, ISO UTC |
@@ -231,6 +237,7 @@ Index : `date`, `wallet_id`, `budget_id`, et l'index unique sur `external_ref`.
 | `currency` | text | `MGA` |
 | `onboarding_completed` | integer | Premier lancement terminé |
 | `gemini_api_key` | text | Clé IA. Jamais renvoyée par l'API, qui expose seulement `hasGeminiApiKey` |
+| `mvola_app_cashback_percent` | integer | Remboursement des frais MVola vers MVola via l'App MVola, en % (20 par défaut) |
 | `sms_capture_enabled`, `push_notifications_enabled` | integer | Réservés |
 | `created_at`, `updated_at` | integer | |
 
@@ -283,8 +290,8 @@ Les soldes (`wallets.balance`, `savings.balance`, `savings_goals.current_amount`
 
 | Opération | Comptes | Pot | Objectif |
 |---|---|---|---|
-| Débit sans destination | source − (montant + frais) | | |
-| Débit avec destination (transfert interne, retrait) | source − (montant + frais), destination + montant | | |
+| Débit sans destination | source − (montant + frais − remboursement) | | |
+| Débit avec destination (transfert interne, retrait) | source − (montant + frais − remboursement), destination + montant | | |
 | Crédit | compte + montant | | |
 | Versement, pot virtuel, même compte | aucun | + montant | + montant si objectif |
 | Versement, pot virtuel, autre compte | source − montant, compte du pot + montant | + montant | + montant si objectif |
@@ -299,7 +306,8 @@ Si un effet ferait passer un pot ou un objectif en négatif, ou sous le total r�
 ## Invariants garantis
 
 - Une opération non-épargne a toujours une catégorie, dont le type correspond à son sens. Un transfert entre ses comptes a toujours `cat_fees_mobile_money`.
-- `total_amount = amount + fee_amount`. Les montants sont des entiers, et `amount > 0`.
+- `total_amount = amount + fee_amount - fee_refund_amount`, avec `fee_refund_amount ≤ fee_amount` et `withdrawal_fee_covered ≤ fee_amount`. Les montants sont des entiers, et `amount > 0`.
+- Les frais comptés comme dépense sont toujours les frais nets (`fee_amount - fee_refund_amount`).
 - `budget_id`, s'il est renseigné, désigne une enveloppe qui couvre la catégorie de l'opération : c'est vérifié à l'écriture, et réaligné quand les enveloppes du mois changent.
 - Un SMS (référence opérateur) n'est enregistré qu'une fois.
 - La somme des `current_amount` des objectifs d'un pot ne dépasse jamais le solde du pot.

@@ -16,7 +16,7 @@ Ce document décrit ce que fait l'application et les règles qu'elle applique. P
 10. [Historique](#10-historique)
 11. [Paramètres, export et sauvegardes](#11-paramètres-export-et-sauvegardes)
 12. [Journal d'activité et écarts de solde](#12-journal-dactivité-et-écarts-de-solde)
-13. [Calcul des frais Mobile Money](#13-calcul-des-frais-mobile-money)
+13. [Envois et frais Mobile Money](#13-envois-et-frais-mobile-money)
 14. [Application installable](#14-application-installable)
 15. [Feuille de route](#15-feuille-de-route)
 
@@ -97,7 +97,7 @@ La saisie se souvient de ce qui revient d'une fois sur l'autre :
 - **Mode, compte et catégorie** : le dernier mode utilisé est rouvert ; pour chaque mode, le dernier compte et la dernière catégorie sont proposés (conservés sur l'appareil). Chaque mode a sa propre catégorie : une catégorie de revenu n'est jamais proposée pour une dépense.
 - **Date** : par défaut, « Maintenant », c'est-à-dire l'heure réelle de l'enregistrement. Une date choisie à la main (par exemple « Hier, 19:30 ») est reprise pour les saisies suivantes, ce qui permet d'enchaîner les dépenses d'une même journée. Le bouton « Maintenant » revient à l'heure actuelle, et la date redevient « Maintenant » d'elle-même après 30 minutes sans saisie.
 
-Quand les frais sont connus (voir [section 13](#13-calcul-des-frais-mobile-money)), ils sont proposés automatiquement, et un toucher permet de les exclure.
+Quand une grille tarifaire s'applique (envoi Mobile Money, transfert, retrait), les frais sont proposés automatiquement et restent modifiables (voir [section 13](#13-envois-et-frais-mobile-money)).
 
 Quand la catégorie choisie est couverte par plusieurs enveloppes, des pastilles « Financer depuis l'enveloppe » apparaissent, avec la première enveloppe présélectionnée.
 
@@ -160,6 +160,9 @@ Le téléphone transmet chaque SMS de l'opérateur au serveur (par exemple avec 
 | « Retrait réussi : … Ar auprès de … » | `WITHDRAWAL_CASH` (débit) | Retrait au Cash Point |
 | « Votre achat de … Ar chez MARCHAND a été payé … » | `MERCHANT_PAYMENT` (débit) | Paiement marchand |
 | « … Ar reçu de NOM 03XXXXXXXX le … » | `INCOME_TRANSFER` (crédit) | Argent reçu |
+| « 20 % de vos frais de transfert soit … Ar vous ont été remboursés … » | Aucune opération | Remboursement App MVola d'un transfert récent (voir [section 13](#13-envois-et-frais-mobile-money)) |
+
+Pour un envoi à un tiers, l'opérateur du destinataire est déduit du préfixe de son numéro (034 et 038 MVola, 032 et 037 Orange, 033 Airtel).
 
 Le parser tolère les variations courantes : espaces insécables, frais « gratuit » ou absents, ponctuation facultative, années sur 2 ou 4 chiffres, heures avec ou sans secondes. Un SMS non reconnu est rejeté sans rien enregistrer.
 
@@ -367,20 +370,75 @@ Les deux écrans sont dans Paramètres, section « Suivi » :
 - **Journal d'activité** : liste du plus récent au plus ancien, groupée par jour, avec filtres (Tout, Opérations, Soldes, SMS, Comptes & épargne, Budgets & catégories, Réglages) et filtre par compte. Toucher une ligne ouvre le détail : changements champ par champ, soldes des comptes avant et après, écart et motif.
 - **Écarts de solde** : pour chaque compte, le total des écarts du mois et la liste des écarts, avec la date du point de contrôle précédent (« Une dépense oubliée depuis le 12 nov. ? »).
 
-## 13. Calcul des frais Mobile Money
+## 13. Envois et frais Mobile Money
 
-Les frais proposés à la saisie viennent de grilles tarifaires par tranche (`web/src/services/mvolaFeeCalculator.ts`) :
+### Saisie d'une dépense depuis un compte Mobile Money
 
-| Situation | Grille |
+En mode Dépense, quand le moyen de paiement est un compte MVola, Orange Money ou Airtel Money, une ligne **« Type de paiement »** apparaît :
+
+| Choix | Frais | Type d'opération |
+|---|---|---|
+| Paiement marchand | Aucun | `MERCHANT_PAYMENT` |
+| Envoi vers un numéro | Selon la grille de l'opérateur | `TRANSFER_P2P`, sans compte de destination |
+| Achat de crédit | Aucun | `TOPUP_AIRTIME` |
+
+Pour un **envoi vers un numéro**, aucun numéro n'est demandé :
+
+- **Opérateur du destinataire** : trois pastilles (MVola, Orange Money, Airtel Money). Il est enregistré avec l'opération (`counterparty_operator`).
+- **Canal d'envoi** : pour MVola vers MVola (App MVola ou #111#) et Orange vers Orange (Max it ou #144#). Max it coûte la moitié de #144# ; l'App MVola rembourse une partie des frais.
+- **Catégorie** : Envois d'argent quand on choisit ce type (Factures & charges pour un achat de crédit), puis librement modifiable.
+- **Mémorisation** : le type de paiement, l'opérateur du destinataire et le canal sont retenus pour chaque compte de paiement. Un envoi répété ne demande que le montant.
+
+Un compte Espèces ou bancaire n'affiche pas ces choix : la dépense reste une dépense générale.
+
+### Frais et remboursement
+
+- **Frais** : calculés selon le couple (opérateur source, opérateur destinataire) et le canal, affichés à part du montant avec la grille utilisée et sa date. Ils restent **modifiables** (promotion, frais gratuits, nouveau tarif) ; le bouton « Grille » revient au montant de la grille.
+- **Remboursement App MVola** : pour un envoi de MVola vers MVola fait depuis l'App MVola, une part des frais est remboursée (20 % par défaut, réglable dans Paramètres), arrondie à l'ariary inférieur. Le remboursement est modifiable. Exemple : « Frais 150 Ar, dont 30 Ar remboursés par l'App MVola · Total débité : 5 270 Ar ».
+- **Comptabilité** : le compte est débité du montant, plus les frais, moins le remboursement. Le « Dépensé ce mois », les enveloppes et les statistiques utilisent toujours les frais nets ; le remboursement n'est jamais compté comme un revenu.
+
+### Inclure les frais de retrait
+
+Une case « Inclure les frais de retrait », **décochée à chaque nouvelle saisie**, est proposée pour tout envoi Mobile Money : envoi à un tiers, ou transfert entre ses comptes Mobile Money. Elle n'apparaît pas pour un retrait Cash Point, ni pour un transfert vers Espèces ou vers une banque.
+
+Le montant saisi est alors ce qui doit arriver en main après le retrait. L'app ajoute les frais de retrait selon la grille de l'opérateur du destinataire (calculés sur le montant réellement retiré), puis calcule les frais de transfert sur le montant envoyé, et enfin le remboursement App MVola s'il s'applique :
+
+| Élément | Montant |
 |---|---|
-| Transfert MVola vers Espèces (retrait Cash Point) | Grille de retrait |
-| Transfert MVola vers Orange Money ou Airtel Money | Grille interopérateur |
-| Transfert Orange Money ou Airtel Money vers Espèces ou un autre opérateur | Mêmes grilles, par analogie |
-| Transfert vers un compte bancaire ou personnalisé | Aucun frais |
-| Dépense catégorie « Envois d'argent » payée depuis un compte Mobile Money | Grille d'envoi MVola vers MVola |
-| Autres dépenses | Aucun frais |
+| À recevoir en main | 22 000 |
+| Frais de retrait MVola, tranche 20 001 à 25 000 Ar | 650 |
+| Montant envoyé | 22 650 |
+| Frais de transfert de MVola vers MVola | 250 |
+| Remboursement App MVola (20 %) | −50 |
+| **Total débité** | **22 850** |
+
+- **Envoi à un tiers** : le montant enregistré est ce que la personne reçoit en main (22 000) ; les frais regroupent transfert et retrait (900), dont la part retrait est conservée (`withdrawal_fee_covered`, 650) et affichée dans la fiche.
+- **Transfert entre ses comptes** : le montant transféré inclut les frais de retrait (22 650 arrivent sur le compte de destination) ; seuls les frais de transfert comptent comme dépense. Les frais de retrait seront comptés au retrait, sans double comptage.
+- La grille de retrait Airtel est inconnue : pour un destinataire Airtel, les frais de retrait se saisissent à la main.
+
+### Grilles tarifaires
+
+Les grilles sont dans `shared/src/fees.ts`, avec leur source et leur date, et sont utilisées par l'application et le serveur.
+
+| Opérateur | Source | Date | Grilles |
+|---|---|---|---|
+| MVola | mvola.mg/tarifs | 17/02/2025 | Vers MVola, vers un autre opérateur, vers un non-abonné, retrait |
+| Orange Money | PDF officiel orange.mg | 01/02/2025 | Vers Orange par #144#, par Max it (moitié prix), vers un autre opérateur, IzyCash, retrait |
+| Airtel Money | airtel.mg, « Les Tarifs Airtel Money » | Non indiquée | Vers Airtel, vers un autre opérateur. Retrait inconnu |
+
+Règles :
+- un envoi vers un autre réseau est facturé selon la grille « vers un autre réseau » de l'opérateur **émetteur** ;
+- un retrait Cash Point (transfert vers Espèces) utilise la grille de retrait de l'opérateur du compte ;
+- un transfert vers un compte bancaire ou personnalisé n'a pas de frais ;
+- au-delà du dernier palier d'une grille, ou sans grille, aucun frais n'est proposé : on les saisit à la main.
 
 Pour les SMS, les frais ne sont pas calculés : ce sont ceux annoncés par l'opérateur.
+
+### SMS de remboursement App MVola
+
+« 20 % de vos frais de transfert soit 30 Ar vous ont ete rembourses grace a votre derniere utilisation de l'App MVola. Ref : … »
+
+Ce SMS ne crée pas d'opération. Il renseigne le remboursement du dernier transfert MVola vers MVola des trois derniers jours, avec frais et sans remboursement, dont le pourcentage annoncé des frais donne exactement le montant annoncé. Le même SMS (même référence) n'est appliqué qu'une fois. Sans transfert correspondant, il est seulement noté dans le journal d'activité.
 
 ## 14. Application installable
 

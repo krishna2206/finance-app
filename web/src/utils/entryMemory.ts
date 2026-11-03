@@ -5,7 +5,20 @@
  *   suivantes, jusqu'au retour à « maintenant » ou après un délai sans saisie.
  */
 
+import type { MobileMoneyOperator, SendChannel } from '@finance/shared';
+
 export type EntryMode = 'EXPENSE' | 'INCOME' | 'TRANSFER';
+
+/** Type de paiement d'une dépense depuis un compte Mobile Money. */
+export type PaymentType = 'MERCHANT' | 'SEND' | 'AIRTIME';
+
+/** Choix mémorisés par compte de paiement (envois Mobile Money). */
+export interface WalletSendPrefs {
+  paymentType?: PaymentType;
+  recipientOperator?: MobileMoneyOperator;
+  /** Canal par opérateur de destination : App MVola / #111#, Max it / #144#. */
+  channel?: SendChannel;
+}
 
 export interface EntryPrefs {
   lastMode: EntryMode;
@@ -15,6 +28,7 @@ export interface EntryPrefs {
   transferDestinationWalletId?: string;
   expenseCategoryId?: string;
   incomeCategoryId?: string;
+  walletSend?: Record<string, WalletSendPrefs>;
 }
 
 const PREFS_KEY = 'finance_entry_prefs';
@@ -32,6 +46,20 @@ export function loadEntryPrefs(storage: Pick<Storage, 'getItem'> = localStorage)
   } catch {
     return { ...DEFAULT_PREFS };
   }
+}
+
+/** Préférences d'envoi d'un compte, avec ses valeurs par défaut (paiement marchand, même opérateur, #111# / #144#). */
+export function sendPrefsFor(prefs: EntryPrefs, walletId: string, walletOperator: MobileMoneyOperator | null): Required<WalletSendPrefs> {
+  const saved = prefs.walletSend?.[walletId] ?? {};
+  return {
+    paymentType: saved.paymentType ?? 'MERCHANT',
+    recipientOperator: saved.recipientOperator ?? walletOperator ?? 'MVOLA',
+    channel: saved.channel ?? 'USSD',
+  };
+}
+
+export function withSendPrefs(prefs: EntryPrefs, walletId: string, next: WalletSendPrefs): EntryPrefs {
+  return { ...prefs, walletSend: { ...prefs.walletSend, [walletId]: { ...prefs.walletSend?.[walletId], ...next } } };
 }
 
 export function saveEntryPrefs(prefs: EntryPrefs, storage: Pick<Storage, 'setItem'> = localStorage) {

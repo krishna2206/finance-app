@@ -22,6 +22,9 @@ export interface Transaction {
   budgetId?: string;
   amount: number;
   feeAmount: number;
+  feeRefundAmount: number;
+  withdrawalFeeCovered: number;
+  counterpartyOperator?: string;
   totalAmount: number;
   date: string;
 }

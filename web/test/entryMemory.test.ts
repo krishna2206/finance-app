@@ -87,3 +87,15 @@ describe('Date reprise d’une saisie à l’autre', () => {
     expect(getDefaultEntryDate(now).isSticky).toBe(false);
   });
 });
+
+describe('Préférences d’envoi par compte', () => {
+  it('donnent des valeurs par défaut puis retiennent les choix d’un compte', async () => {
+    const { sendPrefsFor, withSendPrefs } = await import('../src/utils/entryMemory');
+    const empty = { lastMode: 'EXPENSE' as const };
+    expect(sendPrefsFor(empty, 'w1', 'ORANGE_MONEY')).toEqual({ paymentType: 'MERCHANT', recipientOperator: 'ORANGE_MONEY', channel: 'USSD' });
+
+    const prefs = withSendPrefs(empty, 'w1', { paymentType: 'SEND', recipientOperator: 'MVOLA' });
+    expect(sendPrefsFor(prefs, 'w1', 'ORANGE_MONEY')).toMatchObject({ paymentType: 'SEND', recipientOperator: 'MVOLA' });
+    expect(sendPrefsFor(prefs, 'w2', 'MVOLA').paymentType).toBe('MERCHANT');
+  });
+});
