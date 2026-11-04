@@ -13,7 +13,7 @@ test('les bilans résument le mois et détaillent chaque enveloppe', async ({ pa
   await expect(page.getByRole('heading', { name: 'Bilans' })).toBeVisible();
 
   const card = page.getByTestId(`report-${period}`);
-  await expect(card).toContainText('en cours');
+  await expect(card).toContainText('En cours');
   await expect(card).toContainText('Dépenses');
   await card.click();
 
@@ -31,8 +31,14 @@ test('un mois écoulé affiche l’économie nette et propose de la mettre de c�
   const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15, 9, 0, 0));
   const prevPeriod = prevMonth.toISOString().slice(0, 7);
 
-  const budget = await api.createBudget('Epargne E2E', ['cat_health'], 30_000);
   const cashId = await api.walletIdByType('CASH');
+  const pot = await api.post<{ id: string }>('/savings', {
+    walletId: cashId,
+    name: 'Coffre E2E',
+    mode: 'VIRTUAL_LOCK',
+  });
+
+  const budget = await api.createBudget('Epargne E2E', ['cat_health'], 30_000);
   const pastTx = await api.post<{ id: string }>('/transactions', {
     flow: 'DEBIT', walletId: cashId, amount: 10_000, categoryId: 'cat_health', title: 'Pharmacie Passée', date: prevMonth.toISOString(),
   });
@@ -56,4 +62,5 @@ test('un mois écoulé affiche l’économie nette et propose de la mettre de c�
 
   await api.delete(`/transactions/${pastTx.id}`);
   await api.delete(`/budgets/${budget.id}`);
+  await api.delete(`/savings/${pot.id}`);
 });

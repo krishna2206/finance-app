@@ -4,6 +4,8 @@ import { useTransactionStore } from './stores/useTransactionStore';
 import { useWalletStore } from './stores/useWalletStore';
 import { useSettingsStore } from './stores/useSettingsStore';
 import { useAuthStore } from './stores/useAuthStore';
+import { useSavingsStore } from './stores/useSavingsStore';
+import { useToastStore } from './stores/useToastStore';
 import { startSmsListener } from './services/smsListener';
 import { syncAllStores } from './stores/sync';
 import { ToastContainer } from './components/common/ToastContainer';
@@ -244,6 +246,15 @@ export function App() {
                     <ReportsView
                       onBack={closeReports}
                       onPutAside={(amount) => {
+                        const pots = useSavingsStore.getState().savings;
+                        if (pots.length === 0) {
+                          useToastStore.getState().showToast({
+                            title: 'Aucun pot d’épargne',
+                            description: 'Créez d’abord un pot d’épargne dans l’onglet Budgets pour y verser vos économies.',
+                            type: 'info',
+                          });
+                          return;
+                        }
                         setSavingsDefaultAmount(amount);
                         setSavingsDefaultAction('DEPOSIT');
                         setIsSavingsActionOpen(true);

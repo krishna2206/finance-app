@@ -182,6 +182,7 @@ export function SavingsActionBottomSheet({
                   <input
                     ref={inputRef}
                     autoFocus
+                    aria-label="Montant"
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
