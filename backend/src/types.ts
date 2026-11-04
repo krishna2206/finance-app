@@ -92,6 +92,8 @@ export interface Budget {
   isFixed: boolean;
   categoryIds: string[];
   categories?: Category[];
+  /** Horodatage d'archivage, absent pour une enveloppe active. */
+  archivedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

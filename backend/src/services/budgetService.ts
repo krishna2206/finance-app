@@ -1,13 +1,34 @@
 import { isBudgetable } from '@finance/shared';
-import { budgetRepository } from '../db/repositories/budgetRepository';
+import { BudgetLimitEntry, budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { badRequest } from '../lib/errors';
-import { currentPeriod } from '../lib/time';
+import { currentPeriod, periodOf } from '../lib/time';
 import { Budget, Transaction } from '../types';
 
 type BudgetableEntry = Pick<Transaction, 'flow' | 'operationType' | 'categoryId'>;
 
 export const budgetService = {
+  /**
+   * Plafond d'une enveloppe pour un mois : le dernier plafond fixé à ce mois ou avant.
+   * Pour un mois antérieur au premier plafond connu, le premier plafond.
+   */
+  limitFor(budget: Budget, period: string, history: Map<string, BudgetLimitEntry[]>): number {
+    const entries = history.get(budget.id);
+    if (!entries?.length) return budget.monthlyLimit;
+    let limit = entries[0].monthlyLimit;
+    for (const e of entries) {
+      if (e.period > period) break;
+      limit = e.monthlyLimit;
+    }
+    return limit;
+  },
+
+  /** Une enveloppe compte pour un mois si elle existait à la fin de ce mois et n'a pas été archivée pendant ou avant. */
+  isActiveIn(budget: Budget, period: string): boolean {
+    if (periodOf(new Date(budget.createdAt)) > period) return false;
+    return !budget.archivedAt || periodOf(new Date(budget.archivedAt)) > period;
+  },
+
   /** Enveloppes qui couvrent une catégorie, dans l'ordre de création (la première est l'enveloppe par défaut). */
   getMatchingBudgets(categoryId: string | undefined): Budget[] {
     if (!categoryId) return [];

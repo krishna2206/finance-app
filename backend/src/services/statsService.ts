@@ -1,6 +1,7 @@
 import { getIncomeAmount, getSpendingAmount } from '@finance/shared';
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
+import { budgetService } from './budgetService';
 import { currentPeriod, shiftPeriod } from '../lib/time';
 import { MonthlySavingsReport, MonthlyHistoricalStats, BudgetSavingsBreakdown } from '../types';
 
@@ -10,7 +11,6 @@ export const statsService = {
    * Le dépensé d'une enveloppe est la somme des opérations qui lui sont affectées (budgetId).
    */
   getMonthlySavingsReport(period: string = currentPeriod()): MonthlySavingsReport {
-    const activeBudgets = budgetRepository.getAllBudgets().filter(b => b.monthlyLimit > 0);
     const monthTransactions = transactionRepository.getTransactionsForPeriod(period);
 
     const spentByBudget = new Map<string, number>();
@@ -18,6 +18,13 @@ export const statsService = {
       if (!t.budgetId) continue;
       spentByBudget.set(t.budgetId, (spentByBudget.get(t.budgetId) || 0) + getSpendingAmount(t));
     }
+
+    // Enveloppes du mois (archivées comprises si elles existaient alors), avec le plafond de ce mois-là.
+    const history = budgetRepository.getLimitHistory();
+    const activeBudgets = budgetRepository.getAllBudgets({ includeArchived: true })
+      .filter(b => budgetService.isActiveIn(b, period) || spentByBudget.has(b.id))
+      .map(b => ({ ...b, monthlyLimit: budgetService.limitFor(b, period, history) }))
+      .filter(b => b.monthlyLimit > 0 || spentByBudget.has(b.id));
 
     // Sans aucune opération sur la période, aucun surplus n'est considéré comme « économisé ».
     const hasActivity = monthTransactions.length > 0;

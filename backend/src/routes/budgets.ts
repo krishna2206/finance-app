@@ -6,7 +6,9 @@ import { auditService } from '../services/auditService';
 import { formatAriary } from '../lib/format';
 import { AuditInput } from '../db/repositories/auditRepository';
 import { Budget } from '../types';
-import { badRequest, notFound } from '../lib/errors';
+import { badRequest, conflict, notFound } from '../lib/errors';
+import { transactionRepository } from '../db/repositories/transactionRepository';
+import { currentPeriod } from '../lib/time';
 import {
   asObject,
   optionalBoolean,
@@ -68,7 +70,9 @@ budgetsRouter.post('/', async (c) => {
   };
 
   const { budget: created } = auditService.track(() => {
-    const budget = budgetRepository.createBudget(input);
+    const created = budgetRepository.createBudget(input);
+    budgetRepository.setLimitFrom(created.id, currentPeriod(), input.monthlyLimit);
+    const budget = budgetRepository.getBudgetById(created.id)!;
     const reassigned = budgetService.reassignCurrentPeriod();
     return { budget, reassigned };
   }, ({ budget, reassigned }) => budgetEvents(
@@ -93,7 +97,12 @@ budgetsRouter.put('/:id', async (c) => {
   const { after: updated } = auditService.track(() => {
     const before = budgetRepository.getBudgetById(id);
     if (!before) throw notFound('Enveloppe introuvable');
-    budgetRepository.updateBudget(id, input);
+    if (before.archivedAt) throw conflict('Cette enveloppe est archivée');
+    budgetRepository.updateBudget(id, { ...input, monthlyLimit: undefined });
+    // Un nouveau plafond vaut pour le mois en cours et les suivants ; les bilans passés gardent l'ancien.
+    if (input.monthlyLimit !== undefined && input.monthlyLimit !== before.monthlyLimit) {
+      budgetRepository.setLimitFrom(id, currentPeriod(), input.monthlyLimit);
+    }
     const reassigned = budgetService.reassignCurrentPeriod();
     return { before, after: budgetRepository.getBudgetById(id)!, reassigned };
   }, ({ before, after, reassigned }) => budgetEvents(
@@ -108,10 +117,18 @@ budgetsRouter.put('/:id', async (c) => {
 
 budgetsRouter.delete('/:id', (c) => {
   const id = c.req.param('id');
-  auditService.track(() => {
+  const { archived } = auditService.track(() => {
     const before = budgetRepository.getBudgetById(id);
-    if (!before || !budgetRepository.deleteBudget(id)) throw notFound('Enveloppe introuvable');
-    return { before, reassigned: budgetService.reassignCurrentPeriod() };
-  }, ({ before, reassigned }) => budgetEvents('BUDGET_DELETED', `Enveloppe supprimée : ${before.name}`, before, null, reassigned));
-  return c.json({ success: true, deletedId: id });
+    if (!before || before.archivedAt) throw notFound('Enveloppe introuvable');
+    // Avec un historique, l'enveloppe est archivée : elle reste dans les bilans des mois passés.
+    const archived = transactionRepository.countByBudget(id) > 0;
+    if (archived) budgetRepository.archiveBudget(id);
+    else budgetRepository.deleteBudget(id);
+    return { before, archived, after: archived ? budgetRepository.getBudgetById(id) : null, reassigned: budgetService.reassignCurrentPeriod() };
+  }, ({ before, archived, after, reassigned }) => budgetEvents(
+    archived ? 'BUDGET_ARCHIVED' : 'BUDGET_DELETED',
+    archived ? `Enveloppe archivée : ${before.name} (conservée dans les bilans passés)` : `Enveloppe supprimée : ${before.name}`,
+    before, after, reassigned,
+  ));
+  return c.json({ success: true, deletedId: id, archived });
 });

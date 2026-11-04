@@ -1,12 +1,20 @@
 import { getDatabase } from '../index';
-import { budgets, budgetCategories, categories } from '../schema';
+import { budgetLimits, budgets, budgetCategories, categories } from '../schema';
 import { Budget, Category, CategoryGroup, CategoryType } from '../../types';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull } from 'drizzle-orm';
+
+export interface BudgetLimitEntry {
+  period: string;
+  monthlyLimit: number;
+}
 
 export const budgetRepository = {
-  getAllBudgets(): Budget[] {
+  /** Enveloppes actives ; avec `includeArchived`, aussi les enveloppes archivées (bilans passés). */
+  getAllBudgets(options: { includeArchived?: boolean } = {}): Budget[] {
     const db = getDatabase();
-    const allBudgets = db.select().from(budgets).orderBy(asc(budgets.createdAt)).all();
+    const allBudgets = db.select().from(budgets)
+      .where(options.includeArchived ? undefined : isNull(budgets.archivedAt))
+      .orderBy(asc(budgets.createdAt)).all();
     const allLinks = db.select({
       budgetId: budgetCategories.budgetId,
       categoryId: budgetCategories.categoryId,
@@ -44,6 +52,7 @@ export const budgetRepository = {
         isFixed: Boolean(b.isFixed),
         categoryIds,
         categories: categoryList,
+        archivedAt: b.archivedAt ?? undefined,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
       };
@@ -90,6 +99,7 @@ export const budgetRepository = {
       isFixed: Boolean(b.isFixed),
       categoryIds,
       categories: categoryList,
+      archivedAt: b.archivedAt ?? undefined,
       createdAt: b.createdAt,
       updatedAt: b.updatedAt,
     };
@@ -176,6 +186,31 @@ export const budgetRepository = {
     }
 
     return this.getBudgetById(id);
+  },
+
+  archiveBudget(id: string): void {
+    const now = Date.now();
+    getDatabase().update(budgets).set({ archivedAt: now, updatedAt: now }).where(eq(budgets.id, id)).run();
+  },
+
+  /** Historique des plafonds par enveloppe, du plus ancien au plus récent. */
+  getLimitHistory(): Map<string, BudgetLimitEntry[]> {
+    const rows = getDatabase().select().from(budgetLimits).orderBy(asc(budgetLimits.period)).all();
+    const map = new Map<string, BudgetLimitEntry[]>();
+    for (const r of rows) {
+      const list = map.get(r.budgetId) ?? [];
+      list.push({ period: r.period, monthlyLimit: r.monthlyLimit });
+      map.set(r.budgetId, list);
+    }
+    return map;
+  },
+
+  /** Fixe le plafond à partir d'un mois : il remplace celui de ce mois et des mois suivants. */
+  setLimitFrom(budgetId: string, period: string, monthlyLimit: number): void {
+    const db = getDatabase();
+    db.delete(budgetLimits).where(and(eq(budgetLimits.budgetId, budgetId), gte(budgetLimits.period, period))).run();
+    db.insert(budgetLimits).values({ id: crypto.randomUUID(), budgetId, period, monthlyLimit, createdAt: Date.now() }).run();
+    db.update(budgets).set({ monthlyLimit }).where(eq(budgets.id, budgetId)).run();
   },
 
   deleteBudget(id: string): boolean {

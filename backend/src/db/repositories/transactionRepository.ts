@@ -151,6 +151,12 @@ export const transactionRepository = {
     return row?.n ?? 0;
   },
 
+  countByBudget(budgetId: string): number {
+    const db = getDatabase();
+    const row = db.select({ n: count() }).from(transactions).where(eq(transactions.budgetId, budgetId)).get();
+    return row?.n ?? 0;
+  },
+
   countByCategory(categoryId: string): number {
     const db = getDatabase();
     const row = db.select({ n: count() }).from(transactions).where(eq(transactions.categoryId, categoryId)).get();

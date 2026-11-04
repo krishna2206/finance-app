@@ -23,7 +23,7 @@ export async function api<T = any>(method: string, path: string, body?: unknown,
 /** Remet la base à zéro (hors primitives système) et crée des comptes de test. */
 export async function resetWithWallets(overrides: Partial<Record<'MVOLA' | 'CASH' | 'AIRTEL', number>> = {}) {
   const sqlite = getSqlite();
-  for (const table of ['audit_events', 'transaction_items', 'transactions', 'budget_categories', 'budgets', 'savings_goals', 'savings', 'wallets']) {
+  for (const table of ['audit_events', 'transaction_items', 'transactions', 'budget_categories', 'budget_limits', 'budgets', 'savings_goals', 'savings', 'wallets']) {
     sqlite.exec(`DELETE FROM ${table}`);
   }
   const { status } = await api('POST', '/wallets/batch-init', {

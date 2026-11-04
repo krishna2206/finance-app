@@ -65,9 +65,22 @@ export const budgets = sqliteTable('budgets', {
   icon: text('icon').notNull().default('PieChartBoldIcon'),
   isEssential: integer('is_essential').notNull().default(0),
   isFixed: integer('is_fixed').notNull().default(0),
+  // Enveloppe archivée : absente du mois de l'archivage et des suivants, conservée dans les bilans passés.
+  archivedAt: integer('archived_at'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });
+
+// 5.0 BUDGET_LIMITS (Plafond d'une enveloppe à partir d'un mois : il vaut jusqu'au changement suivant)
+export const budgetLimits = sqliteTable('budget_limits', {
+  id: text('id').primaryKey(),
+  budgetId: text('budget_id').notNull().references(() => budgets.id, { onDelete: 'cascade' }),
+  period: text('period').notNull(), // 'YYYY-MM', heure locale
+  monthlyLimit: integer('monthly_limit').notNull(),
+  createdAt: integer('created_at').notNull(),
+}, (t) => [
+  uniqueIndex('budget_limits_budget_period_unique').on(t.budgetId, t.period),
+]);
 
 // 5.1 BUDGET_CATEGORIES (Liaison enveloppes <-> catégories)
 export const budgetCategories = sqliteTable('budget_categories', {
