@@ -61,6 +61,15 @@ describe('Envoi à un tiers : frais, frais de retrait couverts, remboursement', 
     expect((await balances()).MVOLA).toBe(100_000);
   });
 
+  it('accepte un paiement par carte Visa avec ses frais fixes', async () => {
+    const { status, body } = await api('POST', '/transactions', {
+      flow: 'DEBIT', operationType: 'CARD_PAYMENT', walletId: 'MVOLA', amount: 6_310, feeAmount: 1_000, categoryId: 'cat_subscriptions',
+    });
+    expect(status).toBe(201);
+    expect(body).toMatchObject({ operationType: 'CARD_PAYMENT', totalAmount: 7_310 });
+    expect(getSpendingAmount(body)).toBe(7_310);
+  });
+
   it('une entrée n’a ni frais ni remboursement ; l’opérateur n’est gardé que pour un envoi', async () => {
     const income = await api('POST', '/transactions', { flow: 'CREDIT', walletId: 'MVOLA', amount: 1_000, feeRefundAmount: 50, categoryId: 'cat_salary' });
     expect(income.body).toMatchObject({ feeAmount: 0, feeRefundAmount: 0 });

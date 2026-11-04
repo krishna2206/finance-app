@@ -92,6 +92,18 @@ test.describe('Envois Mobile Money', () => {
     await api.delete(`/transactions/${txn.id}`);
   });
 
+  test('un paiement par carte Visa propose 1 000 Ar de frais fixes', async ({ page }) => {
+    await page.goto('/');
+    await openQuickAdd(page);
+    await page.getByRole('button', { name: 'Dépense', exact: true }).click();
+    await pick(page, /Moyen de paiement/, /MVola/);
+    await pill(page, 'Type de paiement', 'Carte Visa').click();
+    await page.getByLabel('Montant').fill('6310');
+    await expect(page.getByLabel('Frais', { exact: true })).toHaveValue('1000');
+    await expect(page.getByTestId('fee-summary')).toContainText(`Total débité : ${ariary(7_310)} Ar`);
+    await expect(page.getByRole('switch', { name: /Inclure les frais de retrait/ })).toHaveCount(0);
+  });
+
   test('pas d’interrupteur de retrait pour un transfert vers Espèces', async ({ page }) => {
     await page.goto('/');
     await openQuickAdd(page);

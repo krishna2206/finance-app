@@ -20,6 +20,7 @@ export type OperationType =
   | 'WITHDRAWAL_CASH'     // Retrait d'espèces au Cash Point (ex: MVola -> Cash)
   | 'TOPUP_AIRTIME'       // Achat de crédit téléphonique ou forfait data
   | 'MERCHANT_PAYMENT'    // Paiement commerçant (QR code / code marchand)
+  | 'CARD_PAYMENT'        // Paiement par la carte Visa d'un compte Mobile Money (Akory, MVola Visa)
   | 'BILL_PAYMENT'        // Paiement de facture (Jirama, Canal+, etc.)
   | 'SALARY'              // Virement de salaire
   | 'INCOME_TRANSFER'     // Transfert reçu d'un tiers

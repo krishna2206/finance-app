@@ -54,3 +54,13 @@ describe('Type d’opération selon le type de paiement', () => {
     expect(paymentTypeOfOperation('EXPENSE_GENERAL')).toBe('MERCHANT');
   });
 });
+
+describe('Paiement par carte Visa', () => {
+  it('1 000 Ar fixes pour Orange (Akory) et MVola, à saisir pour Airtel', () => {
+    expect(computeEntryFees({ ...base, paymentType: 'CARD', sourceType: 'ORANGE_MONEY', amount: 6_310 })).toMatchObject({ applies: true, fee: 1_000, refund: 0 });
+    expect(computeEntryFees({ ...base, paymentType: 'CARD', amount: 250_000 }).fee).toBe(1_000);
+    expect(computeEntryFees({ ...base, paymentType: 'CARD', sourceType: 'AIRTEL_MONEY' }).fee).toBeNull();
+    expect(operationTypeForPayment('CARD', true)).toBe('CARD_PAYMENT');
+    expect(paymentTypeOfOperation('CARD_PAYMENT')).toBe('CARD');
+  });
+});

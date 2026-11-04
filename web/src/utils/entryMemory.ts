@@ -10,7 +10,7 @@ import type { MobileMoneyOperator, SendChannel } from '@finance/shared';
 export type EntryMode = 'EXPENSE' | 'INCOME' | 'TRANSFER';
 
 /** Type de paiement d'une dépense depuis un compte Mobile Money. */
-export type PaymentType = 'MERCHANT' | 'SEND' | 'AIRTIME';
+export type PaymentType = 'MERCHANT' | 'SEND' | 'AIRTIME' | 'CARD';
 
 /** Choix mémorisés par compte de paiement (envois Mobile Money). */
 export interface WalletSendPrefs {
@@ -48,13 +48,13 @@ export function loadEntryPrefs(storage: Pick<Storage, 'getItem'> = localStorage)
   }
 }
 
-/** Préférences d'envoi d'un compte, avec ses valeurs par défaut (paiement marchand, même opérateur, #111# / #144#). */
+/** Préférences d'envoi d'un compte, avec ses valeurs par défaut (paiement marchand, même opérateur, #111# pour MVola, Max it pour Orange). */
 export function sendPrefsFor(prefs: EntryPrefs, walletId: string, walletOperator: MobileMoneyOperator | null): Required<WalletSendPrefs> {
   const saved = prefs.walletSend?.[walletId] ?? {};
   return {
     paymentType: saved.paymentType ?? 'MERCHANT',
     recipientOperator: saved.recipientOperator ?? walletOperator ?? 'MVOLA',
-    channel: saved.channel ?? 'USSD',
+    channel: saved.channel ?? (walletOperator === 'ORANGE_MONEY' ? 'APP' : 'USSD'),
   };
 }
 

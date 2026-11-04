@@ -1,5 +1,6 @@
 import {
   FeeGrid,
+  cardFeeGrid,
   MobileMoneyOperator,
   SendChannel,
   channelApplies,
@@ -54,6 +55,11 @@ export function computeEntryFees(input: EntryFeeInput): EntryFees {
   if (!from || mode === 'INCOME') return NONE(amount);
 
   if (mode === 'EXPENSE') {
+    if (input.paymentType === 'CARD') {
+      // Carte Visa du compte : frais fixes par transaction (inconnus pour Airtel : à saisir).
+      const grid = cardFeeGrid(from);
+      return { ...NONE(amount), applies: true, fee: grid ? feeFromGrid(amount, grid) : null, grid };
+    }
     if (input.paymentType !== 'SEND') return NONE(amount);
     const to = input.recipientOperator;
     const q = quoteSend({
@@ -101,12 +107,16 @@ export function computeEntryFees(input: EntryFeeInput): EntryFees {
 /** Type d'opération d'une dépense selon le type de paiement (un compte non Mobile Money reste une dépense générale). */
 export function operationTypeForPayment(paymentType: PaymentType, isMobileMoneySource: boolean) {
   if (!isMobileMoneySource) return 'EXPENSE_GENERAL' as const;
-  return paymentType === 'SEND' ? 'TRANSFER_P2P' as const : paymentType === 'AIRTIME' ? 'TOPUP_AIRTIME' as const : 'MERCHANT_PAYMENT' as const;
+  if (paymentType === 'SEND') return 'TRANSFER_P2P' as const;
+  if (paymentType === 'AIRTIME') return 'TOPUP_AIRTIME' as const;
+  if (paymentType === 'CARD') return 'CARD_PAYMENT' as const;
+  return 'MERCHANT_PAYMENT' as const;
 }
 
 export function paymentTypeOfOperation(operationType: string): PaymentType {
   if (operationType === 'TRANSFER_P2P') return 'SEND';
   if (operationType === 'TOPUP_AIRTIME') return 'AIRTIME';
+  if (operationType === 'CARD_PAYMENT') return 'CARD';
   return 'MERCHANT';
 }
 

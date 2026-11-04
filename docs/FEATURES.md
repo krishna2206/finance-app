@@ -414,11 +414,12 @@ En mode Dépense, quand le moyen de paiement est un compte MVola, Orange Money o
 | Paiement marchand | Aucun | `MERCHANT_PAYMENT` |
 | Envoi vers un numéro | Selon la grille de l'opérateur | `TRANSFER_P2P`, sans compte de destination |
 | Achat de crédit | Aucun | `TOPUP_AIRTIME` |
+| Carte Visa | 1 000 Ar fixes par transaction pour Orange (carte Akory) et MVola ; à saisir pour Airtel | `CARD_PAYMENT` |
 
 Pour un **envoi vers un numéro**, aucun numéro n'est demandé :
 
 - **Opérateur du destinataire** : trois pastilles (MVola, Orange Money, Airtel Money). Il est enregistré avec l'opération (`counterparty_operator`).
-- **Canal d'envoi** : pour MVola vers MVola (App MVola ou #111#) et Orange vers Orange (Max it ou #144#). Max it coûte la moitié de #144# ; l'App MVola rembourse une partie des frais.
+- **Canal d'envoi** : pour MVola vers MVola (App MVola ou #111#) et Orange vers Orange (Max it ou #144#). Max it coûte la moitié de #144# ; l'App MVola rembourse une partie des frais. Par défaut : #111# pour MVola, Max it pour Orange, puis le dernier canal choisi pour le compte.
 - **Catégorie** : Envois d'argent quand on choisit ce type (Factures & charges pour un achat de crédit), puis librement modifiable.
 - **Mémorisation** : le type de paiement, l'opérateur du destinataire et le canal sont retenus pour chaque compte de paiement. Un envoi répété ne demande que le montant.
 
@@ -457,7 +458,8 @@ Les grilles sont dans `shared/src/fees.ts`, avec leur source et leur date, et so
 |---|---|---|---|
 | MVola | mvola.mg/tarifs | 17/02/2025 | Vers MVola, vers un autre opérateur, vers un non-abonné, retrait |
 | Orange Money | PDF officiel orange.mg | 01/02/2025 | Vers Orange par #144#, par Max it (moitié prix), vers un autre opérateur, IzyCash, retrait |
-| Airtel Money | airtel.mg, « Les Tarifs Airtel Money » | Non indiquée | Vers Airtel, vers un autre opérateur. Retrait inconnu |
+| Airtel Money | airtel.mg, « Les Tarifs Airtel Money » | Non indiquée | Vers Airtel, vers un autre opérateur. Retrait et carte inconnus |
+| Cartes Visa (Akory, MVola) | Frais constatés par l'utilisateur | Novembre 2026 | 1 000 Ar fixes par transaction |
 
 Règles :
 - un envoi vers un autre réseau est facturé selon la grille « vers un autre réseau » de l'opérateur **émetteur** ;

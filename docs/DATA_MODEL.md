@@ -283,6 +283,7 @@ Index : `occurred_at`, (`entity_type`, `entity_id`), `domain`.
 | `WITHDRAWAL_CASH` | débit | SMS, saisie | Retrait vers le compte Espèces (toujours un transfert interne) |
 | `TOPUP_AIRTIME` | débit | SMS, API | Achat de crédit |
 | `MERCHANT_PAYMENT` | débit | SMS, API | Paiement marchand |
+| `CARD_PAYMENT` | débit | API | Paiement par la carte Visa d'un compte Mobile Money (Akory, MVola) |
 | `BILL_PAYMENT` | débit | API | Paiement de facture |
 | `INCOME_TRANSFER` | crédit | SMS, saisie | Argent reçu |
 | `SALARY` | crédit | API | Salaire |

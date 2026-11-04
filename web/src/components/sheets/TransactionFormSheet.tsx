@@ -781,6 +781,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                       { value: 'MERCHANT', label: 'Paiement marchand' },
                       { value: 'SEND', label: 'Envoi vers un numéro' },
                       { value: 'AIRTIME', label: 'Achat de crédit' },
+                      { value: 'CARD', label: 'Carte Visa' },
                     ]}
                   />
                 )}

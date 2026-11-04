@@ -92,7 +92,8 @@ describe('Préférences d’envoi par compte', () => {
   it('donnent des valeurs par défaut puis retiennent les choix d’un compte', async () => {
     const { sendPrefsFor, withSendPrefs } = await import('../src/utils/entryMemory');
     const empty = { lastMode: 'EXPENSE' as const };
-    expect(sendPrefsFor(empty, 'w1', 'ORANGE_MONEY')).toEqual({ paymentType: 'MERCHANT', recipientOperator: 'ORANGE_MONEY', channel: 'USSD' });
+    expect(sendPrefsFor(empty, 'w1', 'ORANGE_MONEY')).toEqual({ paymentType: 'MERCHANT', recipientOperator: 'ORANGE_MONEY', channel: 'APP' });
+    expect(sendPrefsFor(empty, 'w3', 'MVOLA').channel).toBe('USSD');
 
     const prefs = withSendPrefs(empty, 'w1', { paymentType: 'SEND', recipientOperator: 'MVOLA' });
     expect(sendPrefsFor(prefs, 'w1', 'ORANGE_MONEY')).toMatchObject({ paymentType: 'SEND', recipientOperator: 'MVOLA' });

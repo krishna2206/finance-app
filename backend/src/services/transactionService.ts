@@ -27,6 +27,7 @@ const DEBIT_OPERATIONS = [
   'WITHDRAWAL_CASH',
   'TOPUP_AIRTIME',
   'MERCHANT_PAYMENT',
+  'CARD_PAYMENT',
   'BILL_PAYMENT',
 ] as const satisfies readonly OperationType[];
 

@@ -60,6 +60,9 @@ const zip = (bounds: number[], fees: number[]): FeeTier[] => fees.map((fee, i) =
 const MVOLA_SOURCE = 'mvola.mg/tarifs';
 const ORANGE_SOURCE = 'orange.mg, plan tarifaire Orange Money';
 const AIRTEL_SOURCE = 'airtel.mg, « Les Tarifs Airtel Money »';
+const CARD_SOURCE = 'frais constatés par l’utilisateur (novembre 2026)';
+/** Palier unique : les frais de carte sont fixes, quel que soit le montant. */
+const FLAT = (fee: number): FeeTier[] => [{ max: Number.MAX_SAFE_INTEGER, fee }];
 
 export const FEE_GRIDS = {
   MVOLA_P2P: {
@@ -149,6 +152,12 @@ export const FEE_GRIDS = {
       { max: 5_000_000, fee: 10_000 },
     ],
   },
+  ORANGE_VISA_CARD: {
+    id: 'ORANGE_VISA_CARD', label: 'Carte Visa Akory (Orange Money)', validFrom: null, source: CARD_SOURCE, tiers: FLAT(1_000),
+  },
+  MVOLA_VISA_CARD: {
+    id: 'MVOLA_VISA_CARD', label: 'Carte Visa MVola', validFrom: null, source: CARD_SOURCE, tiers: FLAT(1_000),
+  },
 } satisfies Record<string, FeeGrid>;
 
 /**
@@ -183,6 +192,13 @@ export function transferGrid(from: MobileMoneyOperator, to: MobileMoneyOperator,
 export function withdrawalGrid(operator: MobileMoneyOperator): FeeGrid | null {
   if (operator === 'MVOLA') return FEE_GRIDS.MVOLA_WITHDRAWAL;
   if (operator === 'ORANGE_MONEY') return FEE_GRIDS.ORANGE_WITHDRAWAL;
+  return null;
+}
+
+/** Frais d'un paiement par la carte Visa d'un compte Mobile Money (fixes), ou null si inconnus (Airtel). */
+export function cardFeeGrid(operator: MobileMoneyOperator): FeeGrid | null {
+  if (operator === 'ORANGE_MONEY') return FEE_GRIDS.ORANGE_VISA_CARD;
+  if (operator === 'MVOLA') return FEE_GRIDS.MVOLA_VISA_CARD;
   return null;
 }
 
