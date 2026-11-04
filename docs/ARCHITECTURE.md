@@ -215,8 +215,9 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | POST | `/sms/webhook` | Enregistre un SMS (`message`, `sender`, `timestamp` facultatif). 201, ou 200 avec `duplicate: true`. Un SMS de remboursement App MVola renvoie 200 avec `feeRefund: true` et le transfert complété (ou `null`) |
 | POST | `/sms/test-parse` | Analyse un SMS sans rien enregistrer |
 | GET | `/sms/events` | Flux temps réel (SSE) |
-| GET | `/stats/history?months=N` | Pour chacun des N derniers mois : revenus, dépenses, épargne versée, flux net, enveloppes respectées et dépassées, écarts de solde (`balanceDrift`, `balanceDriftCount`), `hasActivity` |
+| GET | `/stats/history?months=N` | Pour chacun des N derniers mois : revenus, dépenses, épargne versée, flux net, enveloppes respectées et dépassées, écarts de solde (`balanceDrift`, `balanceDriftCount`), `hasActivity`, et état de clôture (`closure`) |
 | GET | `/stats/monthly-savings?period=YYYY-MM` | Bilan d'un mois par enveloppe, avec le plafond de ce mois-là |
+| GET | `/stats/savings` | Cumul des économies sur enveloppes des mois écoulés, au global et par enveloppe |
 | GET | `/data/export` | Export JSON complet (journal compris), sans secret |
 | GET | `/audit` | Journal, du plus récent au plus ancien. Paramètres : `limit` (50, max 200), `cursor` (renvoyé dans `nextCursor`), `domains` (liste séparée par des virgules), `walletId`, `driftOnly=1` |
 | GET | `/audit/drift-summary` | Total et nombre d'écarts par compte et par mois |

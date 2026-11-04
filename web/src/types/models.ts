@@ -210,6 +210,36 @@ export interface MonthlySavingsReport {
   budgets: BudgetSavingsBreakdown[];
 }
 
+export interface MonthClosure {
+  period: string;
+  closedAt: number;
+  net: number;
+  changedBy: number;
+}
+
+export interface MonthSavingsItem {
+  period: string;
+  saved: number;
+  overspent: number;
+  net: number;
+}
+
+export interface BudgetSavingsHistoryItem {
+  budgetId: string;
+  name: string;
+  color: string;
+  icon: string;
+  total: number;
+  months: Array<{ period: string; net: number }>;
+}
+
+export interface SavingsSummary {
+  since: string | null;
+  total: number;
+  months: MonthSavingsItem[];
+  byBudget: BudgetSavingsHistoryItem[];
+}
+
 export interface MonthlyHistoricalStats {
   period: string;
   totalIncome: number;
@@ -217,6 +247,7 @@ export interface MonthlyHistoricalStats {
   totalBudgetAllocated: number;
   totalBudgetSpent: number;
   totalSurplus: number;
+  totalOverspent: number;
   totalSavingsDeposited: number;
   netCashflow: number;
   budgetsRespected: number;
@@ -225,6 +256,7 @@ export interface MonthlyHistoricalStats {
   balanceDrift: number;
   balanceDriftCount: number;
   hasActivity: boolean;
+  closure?: MonthClosure | null;
 }
 
 export type AuditActor = 'APP' | 'SMS' | 'SYSTEM';

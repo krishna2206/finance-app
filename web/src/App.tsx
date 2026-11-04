@@ -241,7 +241,14 @@ export function App() {
                   className="w-full"
                 >
                   {isReportsViewOpen ? (
-                    <ReportsView onBack={closeReports} />
+                    <ReportsView
+                      onBack={closeReports}
+                      onPutAside={(amount) => {
+                        setSavingsDefaultAmount(amount);
+                        setSavingsDefaultAction('DEPOSIT');
+                        setIsSavingsActionOpen(true);
+                      }}
+                    />
                   ) : isSettingsViewOpen && settingsPage === 'activity' ? (
                     <ActivityView onBack={closeSettingsPage} />
                   ) : isSettingsViewOpen && settingsPage === 'drift' ? (

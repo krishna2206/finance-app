@@ -25,3 +25,35 @@ test('les bilans résument le mois et détaillent chaque enveloppe', async ({ pa
   await api.delete(`/transactions/${expense.id}`);
   await api.delete(`/budgets/${budget.id}`);
 });
+
+test('un mois écoulé affiche l’économie nette et propose de la mettre de côté', async ({ page, api }) => {
+  const now = new Date(Date.now() + 3 * 3600e3);
+  const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15, 9, 0, 0));
+  const prevPeriod = prevMonth.toISOString().slice(0, 7);
+
+  const budget = await api.createBudget('Epargne E2E', ['cat_health'], 30_000);
+  const cashId = await api.walletIdByType('CASH');
+  const pastTx = await api.post<{ id: string }>('/transactions', {
+    flow: 'DEBIT', walletId: cashId, amount: 10_000, categoryId: 'cat_health', title: 'Pharmacie Passée', date: prevMonth.toISOString(),
+  });
+
+  await page.goto('/');
+  await page.getByTitle('Bilans des mois').click();
+  await expect(page.getByRole('heading', { name: 'Bilans' })).toBeVisible();
+
+  const pastCard = page.getByTestId(`report-${prevPeriod}`);
+  await expect(pastCard).toContainText('Clôturé');
+  await expect(pastCard).toContainText(`Économie nette : +${ariary(20_000)} Ar`);
+  await pastCard.click();
+
+  await expect(page.getByRole('heading', { name: /^Bilan de / })).toBeVisible();
+  const putAsideBtn = page.getByRole('button', { name: /Mettre l'économie de côté/ });
+  await expect(putAsideBtn).toContainText(ariary(20_000));
+  await putAsideBtn.click();
+
+  // Ouvre le bottom sheet de versement prérempli avec 20 000 Ar
+  await expect(page.getByLabel('Montant')).toHaveValue('20000');
+
+  await api.delete(`/transactions/${pastTx.id}`);
+  await api.delete(`/budgets/${budget.id}`);
+});

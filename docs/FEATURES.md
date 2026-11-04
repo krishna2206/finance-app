@@ -338,15 +338,14 @@ L'historique liste toutes les opérations, regroupées par jour local (« Aujour
 | Entrées | Revenus (hors transferts internes et déblocages d'épargne) |
 | Transferts | Transferts entre ses comptes, retraits Cash Point, versements et déblocages d'épargne |
 
-### Bilans des mois
+### Bilans des mois et suivi des économies
 
 Le bouton graphique de l'en-tête du tableau de bord ouvre « Bilans » : un résumé par mois, du plus récent au plus ancien (les 12 derniers mois qui ont des opérations, et le mois en cours) :
 
-- revenus, dépenses, épargne versée et flux net (revenus moins dépenses) ;
-- nombre d'enveloppes respectées et dépassées ;
-- total des écarts de solde du mois (voir [section 12](#12-journal-dactivité-et-écarts-de-solde)), s'il y en a.
-
-Toucher un mois ouvre son détail : chaque enveloppe avec le plafond de ce mois-là, son dépensé, et l'économie (« restants » pour le mois en cours) ou le dépassement. Les enveloppes archivées apparaissent dans les mois où elles existaient.
+- **Cumul des économies** : en tête d'écran, le total net économisé sur les enveloppes depuis le premier mois clôturé (somme des restes sous plafond moins les dépassements), au global et par enveloppe.
+- **Synthèse par mois** : revenus, dépenses, épargne versée, flux net (revenus moins dépenses), nombre d'enveloppes respectées et dépassées, économie nette, et total des écarts de solde du mois (voir [section 12](#12-journal-dactivité-et-écarts-de-solde)).
+- **Clôture automatique tracée** : chaque mois écoulé est automatiquement clôturé dans le journal d'activité (`MONTH_CLOSED`), avec le bilan figé de chaque enveloppe. Si une opération d'un mois passé est modifiée ultérieurement, l'écart avec la clôture (`changedBy`) est signalé explicitement.
+- **Détail d'un mois** : toucher un mois affiche chaque enveloppe avec son plafond de ce mois-là, son dépensé, et l'économie (« restants » pour le mois en cours) ou le dépassement. Pour un mois écoulé ayant une économie nette positive, un bouton permet de **« Mettre l'économie de côté »** : il ouvre directement l'enregistrement d'un versement vers un pot d'épargne (par exemple le Fonds d'urgence) prérempli avec le montant économisé. Les enveloppes archivées apparaissent dans les mois où elles existaient.
 
 ## 11. Paramètres, export et sauvegardes
 

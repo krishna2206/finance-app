@@ -14,6 +14,7 @@ import {
   AuditPage,
   DriftSummaryEntry,
   MobileMoneyOperator,
+  SavingsSummary,
 } from '../types/models';
 
 export const API_BASE: string = import.meta.env.VITE_API_URL || '/api';
@@ -213,6 +214,7 @@ export const api = {
   getMonthlySavingsStats: (period?: string) =>
     request<MonthlySavingsReport>('GET', period ? `/stats/monthly-savings?period=${period}` : '/stats/monthly-savings'),
   getStatsHistory: (monthsCount = 6) => request<MonthlyHistoricalStats[]>('GET', `/stats/history?months=${monthsCount}`),
+  getSavingsSummary: () => request<SavingsSummary>('GET', '/stats/savings'),
 
   // Journal d'activité
   getAudit: (query: { cursor?: string | null; domains?: AuditDomain[]; walletId?: string; driftOnly?: boolean; limit?: number } = {}) => {
