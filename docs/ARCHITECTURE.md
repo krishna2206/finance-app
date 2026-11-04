@@ -194,7 +194,7 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET, POST | `/categories` | Liste, création (`name`, `type`, `group`, `color`, `icon`). Le groupe doit correspondre au type |
 | GET, PUT, DELETE | `/categories/:id` | Détail, modification, suppression. Les catégories système ne se modifient ni ne se suppriment ; une catégorie utilisée ne se supprime pas et ne change pas de type |
 | GET, POST | `/budgets` | Liste, création (`name`, `monthlyLimit`, `categoryIds`, `isEssential`, `isFixed`, `color`, `icon`) |
-| GET, PUT, DELETE | `/budgets/:id` | Détail, modification, suppression. Réaffecte les opérations du mois en cours |
+| GET, PUT, DELETE | `/budgets/:id` | Détail, modification (un nouveau plafond vaut à partir du mois en cours), suppression. Une enveloppe qui a des opérations est archivée (`archived: true`). Réaffecte les opérations du mois en cours |
 
 ### Épargne
 
@@ -236,8 +236,8 @@ web/src/
 │   ├── common/        Composants génériques (cartes groupées, icônes, confirmation, notifications)
 │   ├── dashboard/, transactions/
 ├── stores/            Un store Zustand par domaine, plus sync.ts (rechargement groupé)
-├── services/          Client API, écoute temps réel, calcul des frais
-├── utils/             Formatage, dates locales, erreurs
+├── services/          Client API, écoute temps réel
+├── utils/             Formatage, dates locales, erreurs, mémoire de saisie, frais d’une saisie Mobile Money
 └── types/models.ts    Types partagés avec l'API
 web/public/icons/      Icônes de l'application (générées)
 design/icon/           Icône source et script de génération des déclinaisons

@@ -421,7 +421,7 @@ export function BudgetEditBottomSheet({ budget, isOpen, onClose }: BudgetEditBot
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         title="Supprimer ce budget ?"
-        message="Cette action supprime uniquement l'enveloppe budgétaire. Vos catégories et vos transactions restent intactes."
+        message="Vos catégories et vos opérations restent intactes. Si l'enveloppe a déjà servi, elle est archivée : elle disparaît dès ce mois-ci mais reste dans les bilans des mois passés."
         confirmLabel="Supprimer"
         cancelLabel="Annuler"
         isDestructive={true}

@@ -108,6 +108,8 @@ export interface Budget {
   isFixed: boolean;
   categoryIds: string[];
   categories?: Category[];
+  /** Enveloppe archivée (absente des mois suivants, conservée dans les bilans passés). */
+  archivedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

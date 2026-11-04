@@ -167,11 +167,24 @@ La migration `0002_category_groups` a fusionné `cat_tools_business` dans `cat_s
 |---|---|---|---|
 | `id` | text | clé primaire | |
 | `name` | text | non nul | |
-| `monthly_limit` | integer | non nul, défaut 0 | Plafond mensuel (0 = enveloppe sans plafond) |
+| `monthly_limit` | integer | non nul, défaut 0 | Plafond du mois en cours (0 = enveloppe sans plafond). L'historique est dans `budget_limits` |
 | `color`, `icon` | text | non nul | |
 | `is_essential` | integer | non nul, défaut 0 | Besoin vital |
 | `is_fixed` | integer | non nul, défaut 0 | Montant fixe chaque mois |
+| `archived_at` | integer | | Archivage : l'enveloppe est absente du mois de l'archivage et des suivants, et conservée dans les bilans passés |
 | `created_at`, `updated_at` | integer | non nul | L'ordre de création détermine l'enveloppe par défaut |
+
+### `budget_limits` : plafonds mois par mois
+
+| Colonne | Type | Contraintes | Description |
+|---|---|---|---|
+| `id` | text | clé primaire | |
+| `budget_id` | text | non nul, FK `budgets` (cascade) | |
+| `period` | text | non nul, unique avec `budget_id` | Premier mois (`YYYY-MM`, heure locale) où ce plafond s'applique |
+| `monthly_limit` | integer | non nul | |
+| `created_at` | integer | non nul | |
+
+Le plafond d'un mois est celui de la ligne la plus récente dont `period` est inférieure ou égale à ce mois. Fixer un plafond pour un mois supprime les lignes de ce mois et des mois suivants. La migration `0004_budget_limits` a créé une ligne par enveloppe existante, à partir de son mois de création.
 
 ### `budget_categories` : catégories couvertes par une enveloppe
 

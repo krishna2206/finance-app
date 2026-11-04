@@ -233,6 +233,20 @@ Une enveloppe est un plafond mensuel qui couvre une ou plusieurs catégories de 
 
 Une même catégorie peut appartenir à plusieurs enveloppes, par exemple « Courses » dans « Nourriture » et dans « Sorties ».
 
+### Plafonds mois par mois
+
+Le plafond d'une enveloppe est conservé pour chaque mois :
+
+- un changement de plafond s'applique au mois en cours et aux suivants ;
+- le bilan d'un mois passé utilise le plafond de ce mois-là ;
+- changer plusieurs fois le plafond dans le même mois remplace simplement celui du mois ;
+- une enveloppe n'apparaît pas dans les bilans des mois antérieurs à sa création.
+
+### Suppression et archivage
+
+- Une enveloppe qui n'a jamais servi est supprimée.
+- Une enveloppe qui a déjà des opérations est **archivée** : elle disparaît du mois en cours et des suivants (les opérations du mois sont réaffectées selon les règles habituelles), mais reste, avec son plafond et son dépensé, dans les bilans des mois passés. Une enveloppe archivée ne se modifie plus.
+
 ### Affectation
 
 Chaque opération qui peut consommer un budget porte l'identifiant de son enveloppe. C'est la seule source du calcul : le « dépensé » d'une enveloppe est la somme, sur le mois en cours, des montants dépensés des opérations qui lui sont affectées. Une opération n'est jamais comptée deux fois.

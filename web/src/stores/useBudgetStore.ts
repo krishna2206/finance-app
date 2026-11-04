@@ -1,3 +1,4 @@
+import { useToastStore } from './useToastStore';
 import { create } from 'zustand';
 import { getSpendingAmount } from '@finance/shared';
 import { Category, Budget, Transaction } from '../types/models';
@@ -72,8 +73,11 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
 
   deleteBudget: async (id) => {
     try {
-      await api.deleteBudget(id);
+      const { archived } = await api.deleteBudget(id);
       await reloadAfterBudgetChange(get);
+      useToastStore.getState().showToast(archived
+        ? { title: 'Enveloppe archivée', description: 'Elle reste visible dans les bilans des mois passés.', type: 'success' }
+        : { title: 'Enveloppe supprimée', type: 'success' });
       return true;
     } catch (e) {
       showErrorToast(e);

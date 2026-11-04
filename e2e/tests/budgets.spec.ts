@@ -29,3 +29,26 @@ test('créer une enveloppe puis y voir ses dépenses du mois', async ({ page, ap
   const transport = report.budgets.find(b => b.name === 'Transport E2E');
   expect(transport).toMatchObject({ spent: 2_000, monthlyLimit: 50_000 });
 });
+
+test('supprimer une enveloppe qui a servi l’archive : elle quitte le mois en cours', async ({ page, api }) => {
+  const budget = await api.createBudget('Archive E2E', ['cat_health'], 20_000);
+  const cashId = await api.walletIdByType('CASH');
+  const expense = await api.post<{ id: string; budgetId?: string }>('/transactions', {
+    flow: 'DEBIT', walletId: cashId, amount: 1_000, categoryId: 'cat_health', title: 'Pharmacie E2E',
+  });
+  expect(expense.budgetId).toBe(budget.id);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Budgets', exact: true }).click();
+  await page.getByText('Archive E2E').first().click();
+  await page.getByTitle('Supprimer ce budget').click();
+  await page.getByRole('button', { name: 'Supprimer', exact: true }).click();
+  await expectToast(page, 'Enveloppe archivée');
+
+  const budgets = await api.get<Array<{ id: string }>>('/budgets');
+  expect(budgets.some(b => b.id === budget.id)).toBe(false);
+  const after = (await api.transactions()).find(t => t.id === expense.id);
+  expect(after?.budgetId).toBeUndefined();
+
+  await api.delete(`/transactions/${expense.id}`);
+});

@@ -200,7 +200,8 @@ export const api = {
   getBudgets: () => request<Budget[]>('GET', '/budgets'),
   createBudget: (data: BudgetInput & { name: string; monthlyLimit: number }) => request<Budget>('POST', '/budgets', data),
   updateBudget: (id: string, data: BudgetInput) => request<Budget>('PUT', `/budgets/${id}`, data),
-  deleteBudget: (id: string) => request<{ success: boolean }>('DELETE', `/budgets/${id}`),
+  /** Une enveloppe avec un historique est archivée (`archived: true`) au lieu d'être supprimée. */
+  deleteBudget: (id: string) => request<{ success: boolean; archived: boolean }>('DELETE', `/budgets/${id}`),
 
   // Opérations
   getTransactions: (month?: string) => request<Transaction[]>('GET', month ? `/transactions?month=${month}` : '/transactions'),
