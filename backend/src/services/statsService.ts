@@ -2,6 +2,7 @@ import { getIncomeAmount, getSpendingAmount } from '@finance/shared';
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { budgetService } from './budgetService';
+import { auditService } from './auditService';
 import { currentPeriod, shiftPeriod } from '../lib/time';
 import { MonthlySavingsReport, MonthlyHistoricalStats, BudgetSavingsBreakdown } from '../types';
 
@@ -82,6 +83,7 @@ export const statsService = {
   getHistoricalStats(monthsCount = 6): MonthlyHistoricalStats[] {
     const now = currentPeriod();
     const results: MonthlyHistoricalStats[] = [];
+    const drifts = auditService.driftSummary();
 
     for (let i = monthsCount - 1; i >= 0; i--) {
       const period = shiftPeriod(now, -i);
@@ -106,6 +108,11 @@ export const statsService = {
         totalSurplus: report.totalSurplus,
         totalSavingsDeposited,
         netCashflow: totalIncome - totalExpenses,
+        budgetsRespected: report.budgets.filter(b => b.monthlyLimit > 0 && !b.isOverspent).length,
+        budgetsOverspent: report.budgets.filter(b => b.isOverspent).length,
+        balanceDrift: drifts.filter(d => d.period === period).reduce((sum, d) => sum + d.total, 0),
+        balanceDriftCount: drifts.filter(d => d.period === period).reduce((sum, d) => sum + d.count, 0),
+        hasActivity: txns.length > 0,
       });
     }
     return results;

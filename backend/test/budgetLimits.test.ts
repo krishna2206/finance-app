@@ -79,3 +79,23 @@ describe('Enveloppes archivées', () => {
     expect((await api('GET', `/budgets/${budget.id}`)).status).toBe(404);
   });
 });
+
+describe('Historique des mois (bilans)', () => {
+  beforeEach(() => resetWithWallets({ MVOLA: 1_000_000 }));
+
+  it('résume chaque mois : enveloppes respectées ou dépassées, écarts de solde', async () => {
+    const courses = (await api('POST', '/budgets', { name: 'Courses', monthlyLimit: 10_000, categoryIds: ['cat_food_groceries'] })).body;
+    await api('POST', '/budgets', { name: 'Transport', monthlyLimit: 10_000, categoryIds: ['cat_transport'] });
+    await expense(12_000);
+    await api('POST', '/wallets/CASH/adjust', { newBalance: 9_000 });
+
+    const history = (await api('GET', '/stats/history?months=2')).body;
+    const [past, now] = history;
+    expect(past).toMatchObject({ period: previous, hasActivity: false, budgetsRespected: 0, balanceDrift: 0 });
+    expect(now).toMatchObject({
+      period: currentPeriod(), hasActivity: true, totalExpenses: 12_000,
+      budgetsRespected: 1, budgetsOverspent: 1, balanceDrift: -1_000, balanceDriftCount: 1,
+    });
+    expect(courses.id).toBeTruthy();
+  });
+});

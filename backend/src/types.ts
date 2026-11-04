@@ -203,5 +203,14 @@ export interface MonthlyHistoricalStats {
   totalSurplus: number;
   totalSavingsDeposited: number;
   netCashflow: number;
+  /** Enveloppes avec plafond restées sous leur plafond, et dépassées. */
+  budgetsRespected: number;
+  budgetsOverspent: number;
+  /** Somme des écarts de solde du mois (recalages SMS et corrections), tous comptes. */
+  balanceDrift: number;
+  /** Nombre d'écarts de solde du mois. */
+  balanceDriftCount: number;
+  /** Au moins une opération dans le mois. */
+  hasActivity: boolean;
 }
 
