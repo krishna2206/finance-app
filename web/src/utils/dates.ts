@@ -31,3 +31,9 @@ export function dateFromDayKey(dayKey: string): Date {
   const [y, m, d] = dayKey.split('-').map(Number);
   return new Date(y, m - 1, d);
 }
+
+/** Mois et jour en heure locale de l'appareil, pour les comparaisons à date égale. */
+export function toLocalDay(date: string | Date): { period: string; day: number } {
+  const d = new Date(date);
+  return { period: monthKeyOf(d), day: d.getDate() };
+}

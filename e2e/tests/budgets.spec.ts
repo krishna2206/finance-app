@@ -1,4 +1,4 @@
-import { test, expect, expectToast } from './fixtures';
+import { test, expect, expectToast, ariary } from './fixtures';
 
 interface Report {
   budgets: Array<{ name: string; spent: number; monthlyLimit: number }>;
@@ -51,4 +51,29 @@ test('supprimer une enveloppe qui a servi l’archive : elle quitte le mois en c
   expect(after?.budgetId).toBeUndefined();
 
   await api.delete(`/transactions/${expense.id}`);
+});
+
+test('l’écran Budgets compare le dépensé au mois précédent à date égale', async ({ page, api }) => {
+  // Le 1er du mois précédent, à midi heure de Madagascar : toujours dans la période comparée.
+  const now = new Date(Date.now() + 3 * 3600e3);
+  const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 9, 0, 0));
+  const cashId = await api.walletIdByType('CASH');
+  const past = await api.post<{ id: string }>('/transactions', {
+    flow: 'DEBIT', walletId: cashId, amount: 3_333, categoryId: 'cat_shopping', title: 'Mois dernier E2E', date: prev.toISOString(),
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Budgets', exact: true }).click();
+  const line = page.getByTestId('month-comparison');
+  await expect(line).toContainText(`contre ${ariary(3_333)} Ar au`);
+
+  // Une enveloppe créée ce mois-ci n'a pas de comparaison par enveloppe.
+  const budget = await api.createBudget('Récente E2E', ['cat_leisure_outings'], 10_000);
+  await page.reload();
+  await page.getByRole('button', { name: 'Budgets', exact: true }).click();
+  await expect(page.getByText('Récente E2E').first()).toBeVisible();
+  await expect(page.getByTestId(`budget-comparison-${budget.id}`)).toHaveCount(0);
+
+  await api.delete(`/transactions/${past.id}`);
+  await api.delete(`/budgets/${budget.id}`);
 });

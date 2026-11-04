@@ -7,6 +7,13 @@ import { ConfirmationModal } from '../common/ConfirmationModal';
 import { SavingsActionType } from '../sheets/SavingsActionBottomSheet';
 import { Budget, Category, Savings, SavingsGoal } from '../../types/models';
 import { formatAmount, formatCurrency } from '../../utils/formatters';
+import { compareWithPreviousMonth, isComparableBudget } from '@finance/shared';
+import { toLocalDay } from '../../utils/dates';
+
+/** Écart signé, ex. « +3 000 Ar » ou « -1 500 Ar ». */
+function formatDelta(delta: number): string {
+  return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${formatAmount(Math.abs(delta))} Ar`;
+}
 import {
   ShieldCheckBoldIcon,
   TargetBoldIcon,
@@ -92,6 +99,16 @@ export function BudgetsView({
   const budgetSpendingMap = useMemo(() => {
     return useBudgetStore.getState().getBudgetSpendingMap(transactions);
   }, [transactions, budgets]);
+
+  // Mois en cours jusqu'à aujourd'hui, comparé au mois précédent jusqu'au même jour.
+  const comparison = useMemo(
+    () => compareWithPreviousMonth(transactions, toLocalDay(new Date()), toLocalDay),
+    [transactions],
+  );
+  const comparedDayLabel = useMemo(() => {
+    const [y, m] = comparison.previousPeriod.split('-').map(Number);
+    return new Date(y, m - 1, comparison.comparedDay).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }, [comparison]);
 
   // Active budgets with limits > 0
   const activeBudgets = useMemo(() => budgets.filter(b => b.monthlyLimit > 0), [budgets]);
@@ -235,6 +252,14 @@ export function BudgetsView({
           </div>
         )}
 
+        {/* Comparaison avec le mois précédent à date égale (enveloppe existant depuis tout le mois précédent) */}
+        {isComparableBudget(b.createdAt, comparison.previousPeriod, toLocalDay) && (
+          <div data-testid={`budget-comparison-${b.id}`} className="text-[11px] text-zinc-500 font-medium tabular-nums">
+            Au {comparedDayLabel} : {formatCurrency(comparison.previous.byBudget[b.id] ?? 0)}
+            <span className="text-zinc-400"> · {formatDelta(spent - (comparison.previous.byBudget[b.id] ?? 0))} ce mois-ci</span>
+          </div>
+        )}
+
         {/* Category Tags Chips */}
         {linkedCategories.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -313,6 +338,11 @@ export function BudgetsView({
               ) : (
                 `${formatAmount(totalEnvelopesSpent)} dépensés au total`
               )}
+            </div>
+
+            <div data-testid="month-comparison" className="text-xs text-zinc-500 font-medium tabular-nums">
+              Dépensé au total ce mois : {formatCurrency(comparison.current.total)}, contre {formatCurrency(comparison.previous.total)} au {comparedDayLabel}
+              <span className="text-zinc-400"> ({formatDelta(comparison.current.total - comparison.previous.total)})</span>
             </div>
 
             {totalEnvelopesBudget > 0 && (

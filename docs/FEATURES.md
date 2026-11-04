@@ -276,6 +276,15 @@ L'onglet Enveloppes affiche :
 - chaque enveloppe avec sa progression ;
 - les enveloppes sans plafond, à part.
 
+### Comparaison avec le mois précédent
+
+À date égale, c'est-à-dire du 1er au même jour du mois (ou au dernier jour d'un mois précédent plus court), en heure locale :
+
+- **Total** : sous le disponible, « Dépensé au total ce mois : A Ar, contre B Ar au 4 oct. (+C Ar) ». Il compte toutes les dépenses (frais nets, seuls les frais des transferts), avec ou sans enveloppe : il fonctionne dès le premier mois.
+- **Par enveloppe** : « Au 4 oct. : B Ar · +C Ar ce mois-ci ». Affiché seulement pour une enveloppe qui existait pendant tout le mois précédent (créée avant lui, ou le 1er de ce mois) : la première comparaison d'une nouvelle enveloppe arrive donc au deuxième mois complet.
+
+Le calcul est dans `shared/src/comparison.ts`.
+
 ### Alerte
 
 Le tableau de bord affiche un bandeau pour l'enveloppe la plus consommée dès qu'elle atteint 65 % de son plafond.
