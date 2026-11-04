@@ -4,7 +4,6 @@ import { useWalletStore } from '../../stores/useWalletStore';
 import { useBudgetStore } from '../../stores/useBudgetStore';
 import { useTransactionStore } from '../../stores/useTransactionStore';
 import { useSettingsStore } from '../../stores/useSettingsStore';
-import { useNotificationStore } from '../../stores/useNotificationStore';
 import { DashboardHeader } from '../dashboard/DashboardHeader';
 import { TransactionRow } from '../transactions/TransactionRow';
 import { InsetGroupedCard } from '../common/InsetGroupedCard';
@@ -27,7 +26,7 @@ interface DashboardViewProps {
   onOpenAddWallet?: () => void;
   onAdjustWallet: (walletId: string) => void;
   onOpenSavingsAction?: () => void;
-  onOpenNotifications?: () => void;
+  onOpenReports?: () => void;
   onOpenSettings?: () => void;
 }
 
@@ -38,7 +37,7 @@ export function DashboardView({
   onOpenAddWallet,
   onAdjustWallet,
   onOpenSavingsAction,
-  onOpenNotifications,
+  onOpenReports,
   onOpenSettings,
 }: DashboardViewProps) {
   const settings = useSettingsStore(state => state.settings);
@@ -46,7 +45,6 @@ export function DashboardView({
   const transactions = useTransactionStore(state => state.transactions);
   const budgets = useBudgetStore(state => state.budgets);
   const monthlySavingsTarget = settings?.monthlySavingsTarget ?? 0;
-  const unreadNotificationsCount = useNotificationStore(state => state.getUnreadCount());
 
   const spendableWallets = useMemo(() => {
     return Object.values(wallets).filter(w => w.isSpendable);
@@ -164,8 +162,7 @@ export function DashboardView({
       <DashboardHeader
         userName={settings?.userName || 'Utilisateur'}
         onOpenSettings={onOpenSettings}
-        onOpenNotifications={onOpenNotifications}
-        unreadNotificationsCount={unreadNotificationsCount}
+        onOpenReports={onOpenReports}
       />
 
       {/* 2. Hero Section: DISPONIBLE */}

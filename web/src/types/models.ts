@@ -218,23 +218,13 @@ export interface MonthlyHistoricalStats {
   totalSurplus: number;
   totalSavingsDeposited: number;
   netCashflow: number;
+  budgetsRespected: number;
+  budgetsOverspent: number;
+  /** Somme des écarts de solde du mois, tous comptes. */
+  balanceDrift: number;
+  balanceDriftCount: number;
+  hasActivity: boolean;
 }
-
-export type NotificationType = 'MONTHLY_SETTLEMENT' | 'BUDGET_ALERT' | 'SAVINGS_MILESTONE' | 'AI_INSIGHT';
-
-export interface AppNotification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  timestamp: number;
-  isRead: boolean;
-  period?: string;
-  savingsAmount?: number;
-  categoryId?: string;
-  metadata?: Record<string, any>;
-}
-
 
 export type AuditActor = 'APP' | 'SMS' | 'SYSTEM';
 export type AuditDomain = 'TRANSACTION' | 'BALANCE' | 'SMS' | 'WALLET' | 'SAVINGS' | 'BUDGET' | 'CATEGORY' | 'SETTINGS' | 'SYSTEM';

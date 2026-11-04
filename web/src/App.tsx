@@ -12,7 +12,7 @@ import { UnlockView } from './components/onboarding/UnlockView';
 import { DashboardView } from './components/views/DashboardView';
 import { TransactionsView } from './components/views/TransactionsView';
 import { BudgetsView } from './components/views/BudgetsView';
-import { NotificationsView } from './components/views/NotificationsView';
+import { ReportsView } from './components/views/ReportsView';
 import { ActivityView } from './components/views/ActivityView';
 import { DriftView } from './components/views/DriftView';
 import { SettingsView } from './components/views/SettingsView';
@@ -107,7 +107,7 @@ export function App() {
   const [savingsDefaultAction, setSavingsDefaultAction] = useState<SavingsActionType>('DEPOSIT');
   const [savingsDefaultAmount, setSavingsDefaultAmount] = useState<number | undefined>(undefined);
 
-  const [isNotificationsViewOpen, setIsNotificationsViewOpen] = useState(false);
+  const [isReportsViewOpen, setIsReportsViewOpen] = useState(false);
   const [isSettingsViewOpen, setIsSettingsViewOpen] = useState(false);
   const [settingsPage, setSettingsPage] = useState<'activity' | 'drift' | null>(null);
 
@@ -134,7 +134,7 @@ export function App() {
   }, [authStatus]);
 
   const handleTabChange = (newTab: ActiveTab) => {
-    setIsNotificationsViewOpen(false);
+    setIsReportsViewOpen(false);
     setIsSettingsViewOpen(false);
     setSettingsPage(null);
     if (newTab === activeTab) return;
@@ -143,20 +143,20 @@ export function App() {
     setTabState([newTab, newIndex > oldIndex ? 1 : -1]);
   };
 
-  const openNotifications = () => {
+  const openReports = () => {
     setTabState([activeTab, 'push-right']);
     setIsSettingsViewOpen(false);
-    setIsNotificationsViewOpen(true);
+    setIsReportsViewOpen(true);
   };
 
-  const closeNotifications = () => {
+  const closeReports = () => {
     setTabState([activeTab, 'pop-right']);
-    setIsNotificationsViewOpen(false);
+    setIsReportsViewOpen(false);
   };
 
   const openSettings = () => {
     setTabState([activeTab, 'push-left']);
-    setIsNotificationsViewOpen(false);
+    setIsReportsViewOpen(false);
     setIsSettingsViewOpen(true);
   };
 
@@ -195,8 +195,8 @@ export function App() {
   }
 
   const showOnboarding = Boolean(settings && !settings.onboardingCompleted);
-  const currentViewKey = isNotificationsViewOpen
-    ? 'notifications'
+  const currentViewKey = isReportsViewOpen
+    ? 'reports'
     : isSettingsViewOpen ? (settingsPage ?? 'settings') : activeTab;
 
   return (
@@ -240,8 +240,8 @@ export function App() {
                   }}
                   className="w-full"
                 >
-                  {isNotificationsViewOpen ? (
-                    <NotificationsView onBack={closeNotifications} />
+                  {isReportsViewOpen ? (
+                    <ReportsView onBack={closeReports} />
                   ) : isSettingsViewOpen && settingsPage === 'activity' ? (
                     <ActivityView onBack={closeSettingsPage} />
                   ) : isSettingsViewOpen && settingsPage === 'drift' ? (
@@ -268,7 +268,7 @@ export function App() {
                             setSavingsDefaultAmount(undefined);
                             setIsSavingsActionOpen(true);
                           }}
-                          onOpenNotifications={openNotifications}
+                          onOpenReports={openReports}
                           onOpenSettings={openSettings}
                         />
                       )}

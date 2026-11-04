@@ -317,7 +317,7 @@ Un objectif (projet, liste d'envies) appartient à un pot. Il a un montant cible
 
 De haut en bas :
 
-1. **Salutation et date**, avec accès aux paramètres (toucher le nom) et aux notifications.
+1. **Salutation et date**, avec accès aux paramètres (toucher le nom) et aux bilans des mois (bouton graphique).
 2. **Disponible**, avec le solde total et l'épargne bloquée.
 3. **Mes comptes** : carrousel des comptes avec leur solde libre. Toucher un compte ouvre la correction de solde.
 4. **Ce mois** :
@@ -337,6 +337,16 @@ L'historique liste toutes les opérations, regroupées par jour local (« Aujour
 | Dépenses | Débits vers des tiers (hors transferts internes et épargne) |
 | Entrées | Revenus (hors transferts internes et déblocages d'épargne) |
 | Transferts | Transferts entre ses comptes, retraits Cash Point, versements et déblocages d'épargne |
+
+### Bilans des mois
+
+Le bouton graphique de l'en-tête du tableau de bord ouvre « Bilans » : un résumé par mois, du plus récent au plus ancien (les 12 derniers mois qui ont des opérations, et le mois en cours) :
+
+- revenus, dépenses, épargne versée et flux net (revenus moins dépenses) ;
+- nombre d'enveloppes respectées et dépassées ;
+- total des écarts de solde du mois (voir [section 12](#12-journal-dactivité-et-écarts-de-solde)), s'il y en a.
+
+Toucher un mois ouvre son détail : chaque enveloppe avec le plafond de ce mois-là, son dépensé, et l'économie (« restants » pour le mois en cours) ou le dépassement. Les enveloppes archivées apparaissent dans les mois où elles existaient.
 
 ## 11. Paramètres, export et sauvegardes
 
@@ -477,6 +487,5 @@ Ces fonctionnalités sont prévues, mais pas encore construites :
 - **Lecture des tickets de caisse** : photo d'un ticket, extraction des articles par IA, puis rapprochement avec le paiement correspondant. Le modèle de données est prêt : table `transaction_items`.
 - **Saisie vocale** : dicter une dépense en français ou en malgache.
 - **Assistant IA** : analyses et conseils à partir de l'historique, via la clé Gemini.
-- **Notifications** : l'écran existe mais n'a encore aucune source (bilan mensuel, alertes).
 - **Modification d'un compte** : changer le nom ou le numéro d'un compte existant.
 - **Client mobile natif** avec capture des SMS intégrée, qui remplacerait MacroDroid.

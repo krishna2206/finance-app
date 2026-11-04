@@ -1,21 +1,18 @@
 import { useMemo } from 'react';
 import {
-  BellLinearIcon,
-  BellBoldIcon,
+  ChartSquareLinearIcon,
 } from '@solar-icons/react';
 
 interface DashboardHeaderProps {
   userName?: string;
   onOpenSettings?: () => void;
-  onOpenNotifications?: () => void;
-  unreadNotificationsCount?: number;
+  onOpenReports?: () => void;
 }
 
 export function DashboardHeader({
   userName = 'Utilisateur',
   onOpenSettings,
-  onOpenNotifications,
-  unreadNotificationsCount = 0,
+  onOpenReports,
 }: DashboardHeaderProps) {
   const formattedDate = useMemo(() => {
     const d = new Date();
@@ -52,23 +49,16 @@ export function DashboardHeader({
         </div>
       </div>
 
-      {/* Right action: Notifications Bell */}
+      {/* Bilans des mois */}
       <div className="flex items-center gap-2">
-        {onOpenNotifications && (
+        {onOpenReports && (
           <button
             type="button"
-            onClick={onOpenNotifications}
-            title="Notifications et Bilans"
+            onClick={onOpenReports}
+            title="Bilans des mois"
             className="w-10 h-10 rounded-full bg-white border border-zinc-200/90 shadow-xs flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all active:scale-95 cursor-pointer relative"
           >
-            {unreadNotificationsCount > 0 ? (
-              <BellBoldIcon size={19} className="text-zinc-900" />
-            ) : (
-              <BellLinearIcon size={19} />
-            )}
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
-            )}
+            <ChartSquareLinearIcon size={19} />
           </button>
         )}
       </div>
