@@ -108,6 +108,7 @@ export const statsService = {
         totalSurplus: report.totalSurplus,
         totalSavingsDeposited,
         netCashflow: totalIncome - totalExpenses,
+        totalOverspent: report.totalOverspent,
         budgetsRespected: report.budgets.filter(b => b.monthlyLimit > 0 && !b.isOverspent).length,
         budgetsOverspent: report.budgets.filter(b => b.isOverspent).length,
         balanceDrift: drifts.filter(d => d.period === period).reduce((sum, d) => sum + d.total, 0),

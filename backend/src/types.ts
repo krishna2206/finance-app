@@ -207,6 +207,8 @@ export interface MonthlyHistoricalStats {
   /** Enveloppes avec plafond restées sous leur plafond, et dépassées. */
   budgetsRespected: number;
   budgetsOverspent: number;
+  /** Total des dépassements de plafond du mois. */
+  totalOverspent: number;
   /** Somme des écarts de solde du mois (recalages SMS et corrections), tous comptes. */
   balanceDrift: number;
   /** Nombre d'écarts de solde du mois. */

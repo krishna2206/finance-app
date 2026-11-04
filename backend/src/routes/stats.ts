@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { statsService } from '../services/statsService';
+import { savingsSummaryService } from '../services/savingsSummaryService';
 import { badRequest } from '../lib/errors';
 import { isValidPeriod } from '../lib/time';
 
@@ -24,5 +25,12 @@ statsRouter.get('/history', (c) => {
   const monthsParam = c.req.query('months');
   const monthsCount = monthsParam ? parseInt(monthsParam, 10) : 6;
   const history = statsService.getHistoricalStats(isNaN(monthsCount) ? 6 : Math.min(24, Math.max(1, monthsCount)));
-  return c.json(history);
+  // Clôture de chaque mois (absente pour le mois en cours ou un mois pas encore clôturé).
+  return c.json(history.map(m => ({ ...m, closure: savingsSummaryService.closureOf(m.period) })));
 });
+
+/**
+ * GET /api/stats/savings
+ * Économies des mois écoulés (économisé - dépassé sur les enveloppes), cumulées au total et par enveloppe.
+ */
+statsRouter.get('/savings', (c) => c.json(savingsSummaryService.summary()));

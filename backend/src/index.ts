@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { getDatabase } from './db/index';
 import { getAccessToken, getAccessTokenLocation } from './lib/auth';
 import { backupService } from './services/backupService';
+import { savingsSummaryService } from './services/savingsSummaryService';
 
 getDatabase();
 
@@ -10,6 +11,7 @@ const hostname = process.env.HOST || '0.0.0.0';
 
 getAccessToken();
 backupService.startSchedule();
+savingsSummaryService.startSchedule();
 
 console.log(`Backend API : http://localhost:${port}`);
 console.log(`Jeton d'accès : ${getAccessTokenLocation()}`);

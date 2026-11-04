@@ -1,7 +1,7 @@
 import { getDatabase } from '../index';
 import { transactions, transactionItems } from '../schema';
-import { Transaction, TransactionFlow, OperationType, TransactionSource, TransactionItem, TransactionLocation , MobileMoneyOperator } from '../../types';
-import { and, count, desc, eq, gte, inArray, lt, max, or } from 'drizzle-orm';
+import { Transaction, TransactionFlow, OperationType, TransactionSource, TransactionItem, TransactionLocation, MobileMoneyOperator } from '../../types';
+import { and, count, desc, eq, gte, inArray, lt, max, or, min } from 'drizzle-orm';
 import { periodBounds } from '../../lib/time';
 
 type TransactionRow = typeof transactions.$inferSelect;
@@ -135,6 +135,12 @@ export const transactionRepository = {
   },
 
   /** Date du SMS opérateur le plus récent déjà enregistré pour ce compte. */
+  /** Date de la plus ancienne opération, ou null sans aucune opération. */
+  getOldestDate(): string | null {
+    const row = getDatabase().select({ oldest: min(transactions.date) }).from(transactions).get();
+    return row?.oldest ?? null;
+  },
+
   getLatestSmsDate(walletId: string): string | null {
     const db = getDatabase();
     const row = db.select({ latest: max(transactions.date) }).from(transactions)

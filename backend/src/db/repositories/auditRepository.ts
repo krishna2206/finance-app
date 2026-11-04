@@ -123,6 +123,14 @@ export const auditRepository = {
     return getDatabase().select().from(auditEvents).orderBy(auditEvents.occurredAt).all().map(mapRow);
   },
 
+  /** Dernier événement d'une action pour un objet (par exemple la clôture d'un mois). */
+  findLatest(action: string, entityType: string, entityId: string): AuditEvent | undefined {
+    const row = getDatabase().select().from(auditEvents)
+      .where(and(eq(auditEvents.action, action), eq(auditEvents.entityType, entityType), eq(auditEvents.entityId, entityId)))
+      .orderBy(desc(auditEvents.occurredAt)).limit(1).get();
+    return row ? mapRow(row) : undefined;
+  },
+
   existsWithNote(action: string, note: string): boolean {
     return Boolean(getDatabase().select({ id: auditEvents.id }).from(auditEvents)
       .where(and(eq(auditEvents.action, action), eq(auditEvents.note, note))).get());
