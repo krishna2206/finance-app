@@ -67,6 +67,18 @@ Trois notions de solde coexistent :
 
 Un compte ne peut être supprimé que s'il n'a aucune opération dans l'historique et aucun pot d'épargne rattaché.
 
+### Clôture d'un compte
+
+Pour arrêter de suivre un compte (par exemple un compte dont les petites dépenses ne sont pas saisies), Paramètres propose « Clôturer le compte » :
+
+- le compte disparaît du tableau de bord, du solde total et des choix de compte de la saisie ;
+- les SMS ne le reconnaissent plus : un envoi vers son numéro devient un envoi à un tiers ;
+- s'il lui reste un solde, celui-ci est remis à 0, et l'écart est noté dans le journal avec le motif « Arrêt du suivi » ;
+- son historique reste : les anciennes opérations restent modifiables, sans pouvoir en ajouter de nouvelles ni corriger son solde ;
+- impossible avec de l'épargne rattachée, ou pour le dernier compte suivi.
+
+La section « Comptes clôturés » de Paramètres permet de **rouvrir** un compte : son solde repart de 0, à corriger avec le solde réel.
+
 ### Correction de solde
 
 Toucher la tuile d'un compte sur le tableau de bord, ou son solde dans Paramètres, ouvre la fenêtre « Corriger le solde ». On y saisit le solde réel (prérempli avec le solde actuel), et l'écart avec le solde actuel s'affiche en direct.
@@ -318,8 +330,8 @@ Un objectif (projet, liste d'envies) appartient à un pot. Il a un montant cible
 De haut en bas :
 
 1. **Salutation et date**, avec accès aux paramètres (toucher le nom) et aux bilans des mois (bouton graphique).
-2. **Disponible**, avec le solde total et l'épargne bloquée.
-3. **Mes comptes** : carrousel des comptes avec leur solde libre. Toucher un compte ouvre la correction de solde.
+2. **Solde total** : le solde réel de tous les comptes suivis (celui donné par l'opérateur et le recomptage). En dessous, une jauge en deux parts : **Disponible** (zinc foncé, dépensable, enveloppes du mois comprises) et **Bloqué** (ambre, l'épargne des pots et objectifs en gel virtuel). Toucher « Bloqué » ouvre l'onglet Épargne.
+3. **Mes comptes** : carrousel des comptes avec leur solde réel, et « dont X bloqués » quand une partie est en épargne. Toucher un compte ouvre la correction de solde.
 4. **Ce mois** :
    - *Dépensé* : total dépensé du mois (voir [section 4](#ce-qui-compte-comme-une-dépense)), pourcentage du budget total, et part des frais.
    - *Rythme journalier* : ce qu'on peut encore dépenser par jour jusqu'à la fin du mois. C'est le reste du budget (sans dépasser le disponible réel), divisé par les jours restants. Sans enveloppe, c'est le disponible divisé par les jours restants.

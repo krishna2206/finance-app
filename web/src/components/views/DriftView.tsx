@@ -23,7 +23,7 @@ interface DriftRow {
 
 /** Écarts entre le solde calculé par l'app et le solde réel, compte par compte. */
 export function DriftView({ onBack }: { onBack: () => void }) {
-  const wallets = useWalletStore(state => state.wallets);
+  const wallets = useWalletStore(state => state.allWallets);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [summary, setSummary] = useState<DriftSummaryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);

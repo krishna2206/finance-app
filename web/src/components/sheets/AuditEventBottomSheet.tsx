@@ -15,7 +15,7 @@ interface AuditEventBottomSheetProps {
 
 /** Détail d'une entrée du journal : champs avant et après, soldes des comptes touchés. */
 export function AuditEventBottomSheet({ event: incoming, onClose }: AuditEventBottomSheetProps) {
-  const wallets = useWalletStore(state => state.wallets);
+  const wallets = useWalletStore(state => state.allWallets);
   const categories = useBudgetStore(state => state.categories);
   const budgets = useBudgetStore(state => state.budgets);
 

@@ -110,6 +110,7 @@ export function App() {
   const [savingsDefaultAmount, setSavingsDefaultAmount] = useState<number | undefined>(undefined);
 
   const [isReportsViewOpen, setIsReportsViewOpen] = useState(false);
+  const [budgetsInitialTab, setBudgetsInitialTab] = useState<'ENVELOPES' | 'SAVINGS'>('ENVELOPES');
   const [isSettingsViewOpen, setIsSettingsViewOpen] = useState(false);
   const [settingsPage, setSettingsPage] = useState<'activity' | 'drift' | null>(null);
 
@@ -279,7 +280,8 @@ export function App() {
                         <DashboardView
                           onSelectTransaction={setSelectedTransaction}
                           onNavigateToTransactions={() => handleTabChange('transactions')}
-                          onNavigateToBudgets={() => handleTabChange('budgets')}
+                          onNavigateToBudgets={() => { setBudgetsInitialTab('ENVELOPES'); handleTabChange('budgets'); }}
+                          onNavigateToSavings={() => { setBudgetsInitialTab('SAVINGS'); handleTabChange('budgets'); }}
                           onOpenAddWallet={() => setIsAddWalletOpen(true)}
                           onAdjustWallet={setAdjustingWalletId}
                           onOpenSavingsAction={() => {
@@ -297,6 +299,7 @@ export function App() {
 
                       {activeTab === 'budgets' && (
                         <BudgetsView
+                          initialTab={budgetsInitialTab}
                           onEditBudget={(b) => setEditingBudget(b)}
                           onOpenCreateBudget={() => setIsCreateBudgetOpen(true)}
                           onOpenCreateCategory={() => setIsCreateCategoryOpen(true)}
@@ -336,7 +339,7 @@ export function App() {
             {/* Floating Bottom Bar */}
             <div className="fixed bottom-5 left-0 right-0 max-w-[430px] mx-auto px-4 z-40 pointer-events-none flex items-center gap-2">
               <div className="flex-1 min-w-0 pointer-events-auto">
-                <FloatingTabBar activeTab={activeTab} onChangeTab={handleTabChange} />
+                <FloatingTabBar activeTab={activeTab} onChangeTab={(tab) => { setBudgetsInitialTab('ENVELOPES'); handleTabChange(tab); }} />
               </div>
               <div className="shrink-0 pointer-events-auto">
                 <FloatingActionStack onOpenQuickAdd={() => setIsQuickAddOpen(true)} />

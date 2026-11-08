@@ -45,6 +45,8 @@ export interface Wallet {
   virtualLocked?: number;          // Montant gelé virtuellement pour les épargnes VIRTUAL_LOCK
   spendableBalance?: number;       // balance - virtualLocked
   isSpendable: boolean;
+  /** Compte clôturé : plus suivi, historique conservé. */
+  closedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

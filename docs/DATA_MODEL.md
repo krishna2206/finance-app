@@ -35,6 +35,7 @@ erDiagram
         text account_number
         integer balance
         integer is_spendable
+        integer closed_at
     }
     savings {
         text id PK
@@ -116,6 +117,7 @@ erDiagram
 | `account_number` | text | | Numéro du compte. Pour le Mobile Money, sert à reconnaître les transferts vers soi-même (comparaison sur les 9 derniers chiffres) |
 | `balance` | integer | non nul, défaut 0 | Solde réel courant |
 | `is_spendable` | integer | non nul, défaut 1 | Compté dans le disponible |
+| `closed_at` | integer | | Compte clôturé : hors totaux, saisie et SMS, historique conservé (migration `0005_wallet_closed`) |
 | `created_at`, `updated_at` | integer | non nul | |
 
 ### `savings` : pots d'épargne

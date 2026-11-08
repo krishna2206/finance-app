@@ -3,8 +3,22 @@ import { Wallet } from '../types/models';
 import { api, WalletInput } from '../services/api';
 import { showErrorToast } from '../utils/errors';
 
+/** Sépare les comptes suivis des comptes clôturés. */
+function splitWallets(list: Wallet[]) {
+  const wallets: Record<string, Wallet> = {};
+  const allWallets: Record<string, Wallet> = {};
+  for (const w of list) {
+    allWallets[w.id] = w;
+    if (!w.closedAt) wallets[w.id] = w;
+  }
+  return { wallets, allWallets };
+}
+
 interface WalletState {
+  /** Comptes suivis : totaux, tableau de bord et choix de compte dans la saisie. */
   wallets: Record<string, Wallet>;
+  /** Tous les comptes, clôturés compris : noms dans l'historique et le journal. */
+  allWallets: Record<string, Wallet>;
   isLoading: boolean;
 
   loadWallets: () => Promise<void>;
@@ -13,6 +27,9 @@ interface WalletState {
   /** Corrige le solde réel sans créer d'opération. Lève une erreur en cas d'échec. */
   adjustWalletBalance: (id: string, newBalance: number, note?: string) => Promise<Wallet>;
   batchInitWallets: (wallets: WalletInput[]) => Promise<void>;
+  /** Clôture (solde remis à 0, tracé) ou rouvre un compte. Lève une erreur en cas d'échec. */
+  closeWallet: (id: string, note?: string) => Promise<void>;
+  reopenWallet: (id: string) => Promise<void>;
   getTotalRealBalance: () => number;
   getTotalSpendableBalance: () => number;
   getTotalVirtualLocked: () => number;
@@ -22,16 +39,13 @@ interface WalletState {
 
 export const useWalletStore = create<WalletState>((set, get) => ({
   wallets: {},
+  allWallets: {},
   isLoading: true,
 
   loadWallets: async () => {
     try {
       const list = await api.getWallets();
-      const map: Record<string, Wallet> = {};
-      list.forEach(w => {
-        map[w.id] = w;
-      });
-      set({ wallets: map, isLoading: false });
+      set({ ...splitWallets(list), isLoading: false });
     } catch (e) {
       showErrorToast(e, 'Chargement des comptes impossible');
       set({ isLoading: false });
@@ -42,10 +56,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     try {
       const created = await api.createWallet(walletData);
       set(state => ({
-        wallets: {
-          ...state.wallets,
-          [created.id]: created,
-        },
+        wallets: { ...state.wallets, [created.id]: created },
+        allWallets: { ...state.allWallets, [created.id]: created },
       }));
       return created;
     } catch (e) {
@@ -59,8 +71,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       await api.deleteWallet(id);
       set(state => {
         const copy = { ...state.wallets };
+        const all = { ...state.allWallets };
         delete copy[id];
-        return { wallets: copy };
+        delete all[id];
+        return { wallets: copy, allWallets: all };
       });
       return true;
     } catch (e) {
@@ -71,17 +85,23 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   adjustWalletBalance: async (id, newBalance, note) => {
     const updated = await api.adjustWalletBalance(id, newBalance, note);
-    set(state => ({ wallets: { ...state.wallets, [id]: updated } }));
+    set(state => ({ wallets: { ...state.wallets, [id]: updated }, allWallets: { ...state.allWallets, [id]: updated } }));
     return updated;
+  },
+
+  closeWallet: async (id, note) => {
+    await api.closeWallet(id, note);
+    await get().loadWallets();
+  },
+
+  reopenWallet: async (id) => {
+    await api.reopenWallet(id);
+    await get().loadWallets();
   },
 
   batchInitWallets: async (walletsList) => {
     const list = await api.batchInitWallets(walletsList);
-    const map: Record<string, Wallet> = {};
-    list.forEach(w => {
-      map[w.id] = w;
-    });
-    set({ wallets: map });
+    set(splitWallets(list));
   },
 
   getTotalRealBalance: () => {

@@ -11,6 +11,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { groupCategories } from '../../utils/categories';
 import { api } from '../../services/api';
 import { showErrorToast } from '../../utils/errors';
+import { useToastStore } from '../../stores/useToastStore';
 import {
   AltArrowLeftLinearIcon,
   TrashBinTrashLinearIcon,
@@ -18,6 +19,7 @@ import {
   KeyMinimalisticBoldIcon,
   DownloadMinimalisticBoldIcon,
   PenNewSquareLinearIcon,
+  ArchiveDownMinimalisticLinearIcon,
   ClipboardListLinearIcon,
   ScaleLinearIcon,
   AltArrowRightLinearIcon,
@@ -47,7 +49,10 @@ export function SettingsView({
   const deleteCategory = useBudgetStore(state => state.deleteCategory);
 
   const wallets = useWalletStore(state => state.wallets);
+  const allWallets = useWalletStore(state => state.allWallets);
   const deleteWallet = useWalletStore(state => state.deleteWallet);
+  const closeWallet = useWalletStore(state => state.closeWallet);
+  const reopenWallet = useWalletStore(state => state.reopenWallet);
 
   // Form states for profile
   const [userName, setUserName] = useState('');
@@ -66,6 +71,9 @@ export function SettingsView({
 
   const [walletToDelete, setWalletToDelete] = useState<Wallet | null>(null);
   const [isDeletingWallet, setIsDeletingWallet] = useState(false);
+
+  const [walletToClose, setWalletToClose] = useState<Wallet | null>(null);
+  const [isClosingWallet, setIsClosingWallet] = useState(false);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -126,6 +134,32 @@ export function SettingsView({
     }
   };
 
+  const handleConfirmCloseWallet = async () => {
+    if (!walletToClose) return;
+    setIsClosingWallet(true);
+    try {
+      const remaining = walletToClose.balance;
+      await closeWallet(walletToClose.id, remaining > 0
+        ? `Arrêt du suivi ${walletToClose.name} (${formatCurrency(remaining)} restants)`
+        : `Arrêt du suivi ${walletToClose.name}`);
+      useToastStore.getState().showToast({ title: 'Compte clôturé', description: walletToClose.name, type: 'success' });
+      setWalletToClose(null);
+    } catch (e) {
+      showErrorToast(e, 'Clôture impossible');
+    } finally {
+      setIsClosingWallet(false);
+    }
+  };
+
+  const handleReopenWallet = async (w: Wallet) => {
+    try {
+      await reopenWallet(w.id);
+      useToastStore.getState().showToast({ title: 'Compte rouvert', description: `${w.name} : corrigez son solde pour reprendre le suivi`, type: 'success' });
+    } catch (e) {
+      showErrorToast(e, 'Réouverture impossible');
+    }
+  };
+
   const handleExportData = async () => {
     setIsExporting(true);
     try {
@@ -147,6 +181,7 @@ export function SettingsView({
   };
 
   const walletList = Object.values(wallets);
+  const closedWallets = Object.values(allWallets).filter(w => w.closedAt);
 
   return (
     <div className="space-y-6 pb-24">
@@ -414,6 +449,17 @@ export function SettingsView({
                 {walletList.length > 1 && (
                   <button
                     type="button"
+                    onClick={() => setWalletToClose(w)}
+                    title={`Clôturer le compte ${w.name}`}
+                    className="w-7 h-7 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                  >
+                    <ArchiveDownMinimalisticLinearIcon size={14} />
+                  </button>
+                )}
+
+                {walletList.length > 1 && (
+                  <button
+                    type="button"
                     onClick={() => setWalletToDelete(w)}
                     title="Supprimer le portefeuille"
                     className="w-7 h-7 rounded-lg hover:bg-rose-50 text-zinc-400 hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer ml-1"
@@ -426,6 +472,38 @@ export function SettingsView({
           ))}
         </div>
       </div>
+
+      {closedWallets.length > 0 && (
+        <div>
+          <div className="px-1 mb-2">
+            <h2 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
+              Comptes clôturés
+            </h2>
+          </div>
+          <div className="bg-white border border-zinc-200/90 rounded-3xl overflow-hidden shadow-xs divide-y divide-zinc-100">
+            {closedWallets.map(w => (
+              <div key={w.id} className="p-3.5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1 opacity-60">
+                  <WalletLogo id={w.id} name={w.name} size="md" />
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold text-zinc-900 truncate block">{w.name}</span>
+                    <span className="text-[11px] text-zinc-400 font-medium block mt-0.5">
+                      Clôturé le {new Date(w.closedAt!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleReopenWallet(w)}
+                  className="px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-bold transition-all cursor-pointer shrink-0"
+                >
+                  Rouvrir
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 5. Section: Agent IA & Automatisation */}
       <div>
@@ -543,6 +621,23 @@ export function SettingsView({
         icon="trash"
         onConfirm={handleConfirmDeleteCategory}
         onCancel={() => setCategoryToDelete(null)}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(walletToClose)}
+        title={`Clôturer ${walletToClose?.name} ?`}
+        message={`Il disparaîtra du tableau de bord et de la saisie. Son historique reste conservé, et tu pourras le rouvrir plus tard.${
+          walletToClose && walletToClose.balance > 0
+            ? ` Son solde de ${formatCurrency(walletToClose.balance)} est remis à 0, et l'écart est noté dans le journal.`
+            : ''
+        }`}
+        confirmLabel="Clôturer"
+        cancelLabel="Annuler"
+        isDestructive={false}
+        isLoading={isClosingWallet}
+        icon="danger"
+        onConfirm={handleConfirmCloseWallet}
+        onCancel={() => setWalletToClose(null)}
       />
 
       <ConfirmationModal

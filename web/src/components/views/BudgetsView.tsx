@@ -68,6 +68,7 @@ interface BudgetsViewProps {
   onOpenCreateGoal: (savingsId?: string) => void;
   onOpenSavingsAction: (savings: Savings, action: SavingsActionType) => void;
   onOpenGoalAction: (goal: SavingsGoal, action: 'DEPOSIT' | 'WITHDRAW') => void;
+  initialTab?: 'ENVELOPES' | 'SAVINGS';
 }
 
 export function BudgetsView({
@@ -77,8 +78,9 @@ export function BudgetsView({
   onOpenCreateGoal,
   onOpenSavingsAction,
   onOpenGoalAction,
+  initialTab = 'ENVELOPES',
 }: BudgetsViewProps) {
-  const [activeTab, setActiveTab] = useState<'ENVELOPES' | 'SAVINGS'>('ENVELOPES');
+  const [activeTab, setActiveTab] = useState<'ENVELOPES' | 'SAVINGS'>(initialTab);
   const [goalToDelete, setGoalToDelete] = useState<SavingsGoal | null>(null);
   const [isDeletingGoal, setIsDeletingGoal] = useState(false);
 

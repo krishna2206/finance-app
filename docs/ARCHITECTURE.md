@@ -174,6 +174,8 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 | GET | `/wallets/:id` | Un compte |
 | POST | `/wallets` | Création (`name`, `type`, `accountNumber`, `balance`, `isSpendable`) |
 | POST | `/wallets/batch-init` | Initialisation à l'onboarding (refusée si un historique existe) |
+| POST | `/wallets/:id/close` | Clôture (`note` facultatif) : solde remis à 0 avec écart tracé, compte retiré des totaux, de la saisie et des SMS. Refusée avec de l'épargne ou pour le dernier compte suivi |
+| POST | `/wallets/:id/reopen` | Rouvre un compte clôturé |
 | POST | `/wallets/:id/adjust` | Correction du solde réel (`newBalance`, `note` facultatif), sans créer d'opération, notée au journal avec son écart. Refusée sous l'épargne bloquée |
 | DELETE | `/wallets/:id` | Suppression (refusée si le compte est référencé) |
 

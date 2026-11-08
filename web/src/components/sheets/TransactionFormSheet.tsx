@@ -79,6 +79,8 @@ export function modeOfTransaction(t: Pick<Transaction, 'flow' | 'destinationWall
 export function TransactionFormSheet({ isOpen, onClose, transaction }: TransactionFormSheetProps) {
   const categories = useBudgetStore(state => state.categories);
   const wallets = useWalletStore(state => state.wallets);
+  // Recherche par identifiant, comptes clôturés compris (modification d'une opération ancienne).
+  const walletsById = useWalletStore(state => state.allWallets);
   const addTransaction = useTransactionStore(state => state.addTransaction);
   const updateTransaction = useTransactionStore(state => state.updateTransaction);
 
@@ -212,7 +214,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
       setRefundInput(String(t.feeRefundAmount ?? 0));
       setRefundTouched(true);
       setPaymentType(paymentTypeOfOperation(t.operationType));
-      setRecipientOperator(t.counterpartyOperator ?? (isMobileMoney(wallets[t.walletId]?.type) ? wallets[t.walletId]!.type as MobileMoneyOperator : 'MVOLA'));
+      setRecipientOperator(t.counterpartyOperator ?? (isMobileMoney(walletsById[t.walletId]?.type) ? walletsById[t.walletId]!.type as MobileMoneyOperator : 'MVOLA'));
       setChannel((t.feeRefundAmount ?? 0) > 0 ? 'APP' : 'USSD');
       setIncludeWithdrawal((t.withdrawalFeeCovered ?? 0) > 0);
       setCategoryByMode(tMode !== 'TRANSFER' && t.categoryId ? { [tMode]: t.categoryId } : {});
@@ -267,18 +269,18 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
   }, [matchingBudgets, selectedBudgetId]);
 
   const selectedSourceWallet = useMemo(() => {
-    if (wallets[sourceWalletId] && (mode !== 'TRANSFER' || sourceWalletId !== destinationWalletId)) {
-      return wallets[sourceWalletId];
+    if (walletsById[sourceWalletId] && (mode !== 'TRANSFER' || sourceWalletId !== destinationWalletId)) {
+      return walletsById[sourceWalletId];
     }
     return spendableWallets.find(w => mode !== 'TRANSFER' || w.id !== destinationWalletId) || spendableWallets[0] || { id: 'w-source', name: 'Compte', type: 'MVOLA' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
-  }, [wallets, sourceWalletId, mode, destinationWalletId, spendableWallets]);
+  }, [walletsById, sourceWalletId, mode, destinationWalletId, spendableWallets]);
 
   const selectedDestWallet = useMemo(() => {
-    if (wallets[destinationWalletId] && (mode !== 'TRANSFER' || destinationWalletId !== sourceWalletId)) {
-      return wallets[destinationWalletId];
+    if (walletsById[destinationWalletId] && (mode !== 'TRANSFER' || destinationWalletId !== sourceWalletId)) {
+      return walletsById[destinationWalletId];
     }
     return availableDestWallets[0] || allWallets.find(w => w.id !== selectedSourceWallet.id) || { id: 'w-dest', name: 'Compte', type: 'CASH' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
-  }, [wallets, destinationWalletId, mode, sourceWalletId, availableDestWallets, allWallets, selectedSourceWallet]);
+  }, [walletsById, destinationWalletId, mode, sourceWalletId, availableDestWallets, allWallets, selectedSourceWallet]);
 
   const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
 

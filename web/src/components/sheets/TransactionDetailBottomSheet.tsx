@@ -36,7 +36,7 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
   const transaction = useTransactionStore(state => state.transactions.find(t => t.id === selected?.id)) ?? selected;
   const categories = useBudgetStore(state => state.categories);
   const budgets = useBudgetStore(state => state.budgets);
-  const wallets = useWalletStore(state => state.wallets);
+  const wallets = useWalletStore(state => state.allWallets);
   const deleteTransaction = useTransactionStore(state => state.deleteTransaction);
   const updateTransaction = useTransactionStore(state => state.updateTransaction);
 

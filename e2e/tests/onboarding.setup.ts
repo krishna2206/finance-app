@@ -27,7 +27,7 @@ test('déverrouillage puis premier lancement : profil et soldes de départ', asy
   await page.getByRole('button', { name: 'Continuer' }).click();
 
   // Étape 3 : finalisation automatique puis tableau de bord
-  await expect(page.getByTestId('available-balance')).toContainText(ariary(260_000), { timeout: 15_000 });
+  await expect(page.getByTestId('total-balance')).toContainText(ariary(260_000), { timeout: 15_000 });
   await expect(page.getByText('Bonjour E2E')).toBeVisible();
 
   const settings = await api.get<{ onboardingCompleted: boolean; userName: string }>('/settings');

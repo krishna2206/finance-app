@@ -16,13 +16,14 @@ import {
   AddLinearIcon,
   Safe2BoldIcon,
   DangerTriangleBoldIcon,
-  LockBoldIcon,
 } from '@solar-icons/react';
 
 interface DashboardViewProps {
   onSelectTransaction: (txn: Transaction) => void;
   onNavigateToTransactions: () => void;
   onNavigateToBudgets?: () => void;
+  /** Ouvre l'onglet Épargne de l'écran Budgets. */
+  onNavigateToSavings?: () => void;
   onOpenAddWallet?: () => void;
   onAdjustWallet: (walletId: string) => void;
   onOpenSavingsAction?: () => void;
@@ -34,6 +35,7 @@ export function DashboardView({
   onSelectTransaction,
   onNavigateToTransactions,
   onNavigateToBudgets,
+  onNavigateToSavings,
   onOpenAddWallet,
   onAdjustWallet,
   onOpenSavingsAction,
@@ -165,24 +167,40 @@ export function DashboardView({
         onOpenReports={onOpenReports}
       />
 
-      {/* 2. Hero Section: DISPONIBLE */}
+      {/* 2. Hero : solde réel, puis jauge Disponible / Bloqué */}
       <div className="pt-3 pb-1 space-y-1">
         <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest block">
-          Disponible
+          Solde total
         </span>
-        <div data-testid="available-balance" className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
-          {formatAmount(totalSpendableAvailable)} <span className="text-xl font-bold text-zinc-500">Ar</span>
+        <div data-testid="total-balance" className="text-4xl font-black text-zinc-900 tracking-tight tabular-nums">
+          {formatAmount(totalRealBalance)} <span className="text-xl font-bold text-zinc-500">Ar</span>
         </div>
-        <div className="text-xs text-zinc-500 font-medium tabular-nums flex items-center gap-1.5 flex-wrap">
-          <span>Solde total {formatAmount(totalRealBalance)} Ar</span>
-          {totalVirtualLocked > 0 && (
-            <>
-              <span className="text-zinc-300">•</span>
-              <span className="inline-flex items-center gap-1 text-zinc-500">
-                <LockBoldIcon size={12} className="text-zinc-400 shrink-0" />
-                <span>{formatAmount(totalVirtualLocked)} bloqués en épargne</span>
-              </span>
-            </>
+
+        <div
+          className="w-full h-2 bg-zinc-200/60 rounded-full overflow-hidden flex mt-2"
+          role="img"
+          aria-label={`Disponible ${formatAmount(totalSpendableAvailable)} Ar, bloqué ${formatAmount(totalVirtualLocked)} Ar`}
+        >
+          <div style={{ width: `${totalRealBalance > 0 ? (totalSpendableAvailable / totalRealBalance) * 100 : 0}%` }} className="h-full bg-zinc-900 transition-all duration-500" />
+          <div style={{ width: `${totalRealBalance > 0 ? (totalVirtualLocked / totalRealBalance) * 100 : 0}%` }} className="h-full bg-amber-500 transition-all duration-500" />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 text-xs font-medium tabular-nums pt-1">
+          <span className="inline-flex items-center gap-1.5 text-zinc-600">
+            <span className="w-2 h-2 rounded-full bg-zinc-900 shrink-0" />
+            <span>Disponible <span data-testid="available-balance" className="font-bold text-zinc-900">{formatAmount(totalSpendableAvailable)} Ar</span></span>
+          </span>
+          {totalVirtualLocked > 0 ? (
+            <button
+              type="button"
+              onClick={onNavigateToSavings}
+              className="inline-flex items-center gap-1.5 text-zinc-600 hover:text-zinc-900 cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              <span>Bloqué <span className="font-bold text-zinc-900">{formatAmount(totalVirtualLocked)} Ar</span></span>
+            </button>
+          ) : (
+            <span className="text-zinc-400">Rien de bloqué</span>
           )}
         </div>
       </div>
@@ -195,7 +213,7 @@ export function DashboardView({
 
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
           {spendableWallets.map(w => {
-            const freeBal = w.spendableBalance ?? w.balance;
+            const locked = w.virtualLocked ?? 0;
             const tileStyle = getWalletTileStyle(w.type);
             return (
               <button
@@ -211,8 +229,15 @@ export function DashboardView({
                     {w.name}
                   </span>
                 </div>
-                <div className="text-sm font-black tabular-nums tracking-tight text-zinc-900">
-                  {formatAmount(freeBal)} <span className="text-[10px] font-bold text-zinc-600">Ar</span>
+                <div>
+                  <div className="text-sm font-black tabular-nums tracking-tight text-zinc-900 leading-tight">
+                    {formatAmount(w.balance)} <span className="text-[10px] font-bold text-zinc-600">Ar</span>
+                  </div>
+                  {locked > 0 && (
+                    <div className="text-[10px] font-semibold text-amber-700 tabular-nums leading-tight">
+                      dont {formatAmount(locked)} bloqués
+                    </div>
+                  )}
                 </div>
               </button>
             );

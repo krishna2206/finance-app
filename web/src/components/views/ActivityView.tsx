@@ -39,7 +39,7 @@ interface ActivityViewProps {
 
 /** Journal d'activité : tout ce qui a modifié les données, du plus récent au plus ancien. */
 export function ActivityView({ onBack }: ActivityViewProps) {
-  const wallets = useWalletStore(state => state.wallets);
+  const wallets = useWalletStore(state => state.allWallets);
   const walletList = Object.values(wallets);
 
   const [filter, setFilter] = useState<AuditFilterId>('ALL');

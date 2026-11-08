@@ -13,7 +13,7 @@ interface TransactionRowProps {
 
 export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
   const categories = useBudgetStore(state => state.categories);
-  const wallets = useWalletStore(state => state.wallets);
+  const wallets = useWalletStore(state => state.allWallets);
   const category = categories.find(c => c.id === transaction.categoryId);
 
   // Un transfert entre ses comptes se reconnaît à son type (retrait ou transfert), pas à sa catégorie.

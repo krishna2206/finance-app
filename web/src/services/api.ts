@@ -158,6 +158,8 @@ export const api = {
   deleteWallet: (id: string) => request<{ success: boolean }>('DELETE', `/wallets/${id}`),
   adjustWalletBalance: (id: string, newBalance: number, note?: string) =>
     request<Wallet>('POST', `/wallets/${id}/adjust`, { newBalance, note }),
+  closeWallet: (id: string, note?: string) => request<Wallet>('POST', `/wallets/${id}/close`, { note }),
+  reopenWallet: (id: string) => request<Wallet>('POST', `/wallets/${id}/reopen`),
 
   // Pots d'épargne
   getSavings: () => request<Savings[]>('GET', '/savings'),

@@ -22,7 +22,7 @@ test.describe('Interception SMS en temps réel', () => {
 
     const balances = await api.balances();
     expect(balances[mvolaId]).toBe(200_000);
-    await expect(page.getByTestId('available-balance')).toContainText(ariary(balances[mvolaId] + balances[cashId]));
+    await expect(page.getByTestId('total-balance')).toContainText(ariary(balances[mvolaId] + balances[cashId]));
 
     // Le même SMS reçu deux fois n'est enregistré qu'une fois.
     const duplicate = await api.sendSms(message);
