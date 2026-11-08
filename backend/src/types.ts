@@ -41,6 +41,8 @@ export interface Wallet {
   accountNumber?: string;
   balance: number;
   isSpendable: boolean;
+  /** Horodatage de clôture, absent pour un compte suivi. */
+  closedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

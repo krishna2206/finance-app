@@ -18,6 +18,7 @@ export const walletRepository = {
       accountNumber: r.accountNumber || undefined,
       balance: r.balance,
       isSpendable: Boolean(r.isSpendable),
+      closedAt: r.closedAt ?? undefined,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     }));
@@ -35,6 +36,7 @@ export const walletRepository = {
       accountNumber: row.accountNumber || undefined,
       balance: row.balance,
       isSpendable: Boolean(row.isSpendable),
+      closedAt: row.closedAt ?? undefined,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };
@@ -81,7 +83,12 @@ export const walletRepository = {
   findByAccountNumber(phoneNumber: string): Wallet | null {
     const target = normalizePhoneNumber(phoneNumber);
     if (!target) return null;
-    return this.getAllWallets().find(w => normalizePhoneNumber(w.accountNumber) === target) || null;
+    return this.getAllWallets().find(w => !w.closedAt && normalizePhoneNumber(w.accountNumber) === target) || null;
+  },
+
+  /** Clôture (date) ou réouverture (null) d'un compte. */
+  setClosedAt(id: string, closedAt: number | null): void {
+    getDatabase().update(wallets).set({ closedAt, updatedAt: Date.now() }).where(eq(wallets.id, id)).run();
   },
 
   adjustBalanceDelta(id: string, delta: number): number {

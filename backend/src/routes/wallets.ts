@@ -5,6 +5,7 @@ import { transactionRepository } from '../db/repositories/transactionRepository'
 import { badRequest, conflict, notFound } from '../lib/errors';
 import { formatAriary } from '../lib/format';
 import { auditService } from '../services/auditService';
+import { AuditInput } from '../db/repositories/auditRepository';
 import {
   asObject,
   optionalBoolean,
@@ -108,6 +109,7 @@ walletsRouter.post('/:id/adjust', async (c) => {
   const { before, after } = auditService.track(() => {
     const wallet = walletRepository.getWalletById(id);
     if (!wallet) throw notFound('Compte introuvable');
+    if (wallet.closedAt) throw conflict('Ce compte est clôturé : rouvrez-le avant de corriger son solde');
 
     const locked = savingsRepository.getTotalVirtualLockedForWallet(id);
     if (newBalance < locked) {
@@ -133,6 +135,63 @@ walletsRouter.post('/:id/adjust', async (c) => {
   const updated = before.balance === after.balance ? before : after;
 
   return c.json(withSpendable(updated));
+});
+
+/**
+ * POST /api/wallets/:id/close { note? }
+ * Arrête le suivi d'un compte : il sort des totaux, de la saisie et de la reconnaissance des SMS,
+ * son historique reste. Un solde restant est remis à 0, et cet écart est noté au journal avec le motif.
+ */
+walletsRouter.post('/:id/close', async (c) => {
+  const id = c.req.param('id');
+  const body = asObject(await c.req.json().catch(() => ({})));
+  const note = optionalString(body.note, 'note');
+
+  const closed = auditService.track(() => {
+    const wallet = walletRepository.getWalletById(id);
+    if (!wallet) throw notFound('Compte introuvable');
+    if (wallet.closedAt) throw conflict('Ce compte est déjà clôturé');
+    if (savingsRepository.getAllSavings().some(s => s.walletId === id && s.balance > 0)) {
+      throw conflict('Débloquez d’abord l’épargne rattachée à ce compte');
+    }
+    if (!walletRepository.getAllWallets().some(w => w.id !== id && !w.closedAt)) {
+      throw conflict('Il faut garder au moins un compte suivi');
+    }
+    if (wallet.balance !== 0) walletRepository.updateBalance(id, 0);
+    walletRepository.setClosedAt(id, Date.now());
+    return { before: wallet, after: walletRepository.getWalletById(id)! };
+  }, ({ before, after }) => {
+    const events: AuditInput[] = [];
+    if (before.balance !== 0) {
+      events.push({
+        domain: 'BALANCE', action: 'BALANCE_ADJUSTED', entityType: 'wallet', entityId: id,
+        summary: `Solde ${before.name} remis à 0 à la clôture : ${formatAriary(before.balance)} → 0 Ar (écart -${formatAriary(before.balance)})`,
+        before: { balance: before.balance }, after: { balance: 0 }, drift: -before.balance, note: note ?? null,
+      });
+    }
+    events.push({
+      domain: 'WALLET', action: 'WALLET_CLOSED', entityType: 'wallet', entityId: id,
+      summary: `Compte clôturé : ${after.name}`, before, after, note: note ?? null, walletChanges: [],
+    });
+    return events;
+  });
+  return c.json(withSpendable(closed.after));
+});
+
+/** POST /api/wallets/:id/reopen : reprend le suivi d'un compte clôturé (solde à 0, à corriger ensuite). */
+walletsRouter.post('/:id/reopen', (c) => {
+  const id = c.req.param('id');
+  const reopened = auditService.track(() => {
+    const wallet = walletRepository.getWalletById(id);
+    if (!wallet) throw notFound('Compte introuvable');
+    if (!wallet.closedAt) throw conflict('Ce compte n’est pas clôturé');
+    walletRepository.setClosedAt(id, null);
+    return walletRepository.getWalletById(id)!;
+  }, (w) => ({
+    domain: 'WALLET', action: 'WALLET_REOPENED', entityType: 'wallet', entityId: id,
+    summary: `Compte rouvert : ${w.name}`, after: w, walletChanges: [],
+  }));
+  return c.json(withSpendable(reopened));
 });
 
 walletsRouter.delete('/:id', (c) => {

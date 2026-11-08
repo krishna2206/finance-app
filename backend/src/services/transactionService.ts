@@ -51,9 +51,15 @@ function requireCategoryForFlow(categoryId: string, flow: TransactionFlow): stri
   return category.id;
 }
 
-function requireWallet(walletId: unknown, field: string): string {
+/**
+ * Compte d'une opération. Un compte clôturé n'est accepté que s'il était déjà celui de l'opération
+ * modifiée (`keepId`) : on peut corriger l'historique, pas y ajouter d'opérations.
+ */
+function requireWallet(walletId: unknown, field: string, keepId?: string | null): string {
   const id = requireString(walletId, field);
-  if (!walletRepository.getWalletById(id)) throw badRequest(`${field} : compte introuvable`);
+  const wallet = walletRepository.getWalletById(id);
+  if (!wallet) throw badRequest(`${field} : compte introuvable`);
+  if (wallet.closedAt && id !== keepId) throw badRequest(`${field} : le compte ${wallet.name} est clôturé`);
   return id;
 }
 
@@ -121,12 +127,12 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
   const flow = requireEnum(pick('flow'), FLOWS, 'flow');
   const allowedOperations: readonly OperationType[] = flow === 'DEBIT' ? DEBIT_OPERATIONS : CREDIT_OPERATIONS;
 
-  const walletId = requireWallet(pick('walletId'), 'walletId');
+  const walletId = requireWallet(pick('walletId'), 'walletId', existing?.walletId);
   // Un changement de sens retire le compte de destination, sauf s'il est redonné.
   const rawDestination = 'destinationWalletId' in body
     ? body.destinationWalletId
     : flow === 'DEBIT' ? existing?.destinationWalletId : undefined;
-  const destinationWalletId = rawDestination ? requireWallet(rawDestination, 'destinationWalletId') : undefined;
+  const destinationWalletId = rawDestination ? requireWallet(rawDestination, 'destinationWalletId', existing?.destinationWalletId) : undefined;
 
   // Type d'opération : celui demandé ; sinon l'actuel s'il reste cohérent ; sinon celui par défaut.
   let rawOperation = has(body, 'operationType') ? body.operationType : undefined;
@@ -210,7 +216,7 @@ function buildSavingsReplacement(body: Body, existing: Transaction): Transaction
   let destinationWalletId: string | undefined;
 
   if (existing.operationType === 'SAVINGS_DEPOSIT') {
-    walletId = has(body, 'walletId') ? requireWallet(body.walletId, 'walletId') : existing.walletId;
+    walletId = has(body, 'walletId') ? requireWallet(body.walletId, 'walletId', existing.walletId) : existing.walletId;
     destinationWalletId = pot.mode === 'VIRTUAL_LOCK' && walletId !== pot.walletId ? pot.walletId : undefined;
     const available = ledgerService.getSpendableBalance(walletId);
     if (amount > available) {
@@ -220,7 +226,7 @@ function buildSavingsReplacement(body: Body, existing: Transaction): Transaction
   } else {
     walletId = pot.walletId;
     const destination = 'destinationWalletId' in body
-      ? (body.destinationWalletId ? requireWallet(body.destinationWalletId, 'destinationWalletId') : pot.walletId)
+      ? (body.destinationWalletId ? requireWallet(body.destinationWalletId, 'destinationWalletId', existing.destinationWalletId) : pot.walletId)
       : existing.destinationWalletId ?? pot.walletId;
     destinationWalletId = destination !== pot.walletId ? destination : undefined;
     const available = goal ? goal.currentAmount : savingsService.getUnallocatedBalance(pot);

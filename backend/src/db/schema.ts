@@ -11,6 +11,8 @@ export const wallets = sqliteTable('wallets', {
   accountNumber: text('account_number'),
   balance: integer('balance').notNull().default(0),
   isSpendable: integer('is_spendable').notNull().default(1),
+  // Compte clôturé : plus suivi (hors totaux, saisie et SMS), historique conservé, réouvrable.
+  closedAt: integer('closed_at'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
 });

@@ -53,6 +53,7 @@ savingsRouter.post('/', async (c) => {
   const created = auditService.track(() => {
     const wallet = walletRepository.getWalletById(walletId);
     if (!wallet) throw badRequest('Compte introuvable');
+    if (wallet.closedAt) throw conflict(`Le compte ${wallet.name} est clôturé`);
 
     // Les espèces ne peuvent être que « bloquées » virtuellement.
     const mode: SavingsMode = wallet.type === 'CASH'

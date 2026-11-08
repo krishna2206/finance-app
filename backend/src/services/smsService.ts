@@ -5,7 +5,7 @@ import { budgetService } from './budgetService';
 import { withTransaction } from '../db/index';
 import { walletRepository } from '../db/repositories/walletRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
-import { HttpError, badRequest } from '../lib/errors';
+import { HttpError, badRequest, conflict } from '../lib/errors';
 import { asObject, optionalString } from '../lib/validation';
 import { Budget, Transaction, Wallet } from '../types';
 import { auditService } from './auditService';
@@ -38,8 +38,12 @@ function parseReceivedAt(value: unknown): string | undefined {
 
 /** Compte opérateur de l'SMS : uniquement un compte du même type, créé s'il n'existe pas. */
 function resolveSourceWallet(parsed: ParsedSMSResult): Wallet {
-  const existing = walletRepository.getAllWallets().find(w => w.type === parsed.sourceWalletType);
+  const sameType = walletRepository.getAllWallets().filter(w => w.type === parsed.sourceWalletType);
+  const existing = sameType.find(w => !w.closedAt);
   if (existing) return existing;
+  if (sameType.length) {
+    throw conflict(`Le compte ${sameType[0].name} est clôturé : rouvrez-le dans Paramètres pour enregistrer ses SMS`);
+  }
   return walletRepository.createWallet({
     name: DEFAULT_WALLET_NAMES[parsed.sourceWalletType] || parsed.sourceWalletType,
     type: parsed.sourceWalletType,
@@ -49,7 +53,7 @@ function resolveSourceWallet(parsed: ParsedSMSResult): Wallet {
 }
 
 function resolveCashWallet(): Wallet {
-  return walletRepository.getAllWallets().find(w => w.type === 'CASH')
+  return walletRepository.getAllWallets().find(w => w.type === 'CASH' && !w.closedAt)
     || walletRepository.createWallet({ name: 'Espèces', type: 'CASH', balance: 0, isSpendable: true });
 }
 
