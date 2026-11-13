@@ -1,5 +1,5 @@
-import { MOBILE_MONEY_OPERATORS, MobileMoneyOperator, TRANSFER_CATEGORY_ID, isBudgetable, isSavingsMovement } from '@finance/shared';
-import { TransactionReplacement } from '../db/repositories/transactionRepository';
+import { FEES_CATEGORY_ID, MOBILE_MONEY_OPERATORS, MobileMoneyOperator, TRANSFER_CATEGORY_ID, isBudgetable, isSavingsMovement } from '@finance/shared';
+import { ItemInput, TransactionReplacement } from '../db/repositories/transactionRepository';
 import { savingsRepository } from '../db/repositories/savingsRepository';
 import { savingsGoalRepository } from '../db/repositories/savingsGoalRepository';
 import { savingsService } from './savingsService';
@@ -74,23 +74,41 @@ function parseLocation(value: unknown): TransactionLocation | undefined {
   return { placeName: optionalString(loc.placeName, 'placeName'), latitude: lat, longitude: lng };
 }
 
-function parseItems(value: unknown): TransactionItem[] | undefined {
-  if (value === undefined || value === null) return undefined;
+interface ParsedItem {
+  name: string;
+  quantity: number;
+  unitPrice?: number;
+  totalPrice: number;
+  unit?: string;
+  categoryId: string;
+  requestedBudgetId?: string;
+}
+
+/**
+ * Lignes d'une opération ventilée : libellé, quantité (1 par défaut), prix unitaire ou montant, catégorie de dépense.
+ * Avec un prix unitaire, le montant de la ligne est quantité × prix unitaire (arrondi à l'ariary).
+ */
+function parseItems(value: unknown): ParsedItem[] {
   if (!Array.isArray(value)) throw badRequest('items doit être une liste');
   return value.map((raw, i) => {
     const item = asObject(raw);
-    const quantity = item.quantity === undefined ? 1 : Number(item.quantity);
+    const quantity = item.quantity === undefined || item.quantity === null ? 1 : Number(item.quantity);
     if (!Number.isFinite(quantity) || quantity <= 0) throw badRequest(`items[${i}].quantity invalide`);
+    const unitPrice = item.unitPrice === undefined || item.unitPrice === null
+      ? undefined
+      : requirePositiveAmount(item.unitPrice, `items[${i}].unitPrice`);
+    const totalPrice = unitPrice !== undefined
+      ? Math.round(quantity * unitPrice)
+      : requirePositiveAmount(item.totalPrice ?? item.amount, `items[${i}].totalPrice`);
+    if (totalPrice <= 0) throw badRequest(`items[${i}] : montant invalide`);
     return {
-      id: '',
-      transactionId: '',
-      createdAt: 0,
       name: requireString(item.name, `items[${i}].name`),
       quantity,
-      unitPrice: item.unitPrice === undefined ? undefined : requirePositiveAmount(item.unitPrice, `items[${i}].unitPrice`),
-      totalPrice: requirePositiveAmount(item.totalPrice, `items[${i}].totalPrice`),
+      unitPrice,
+      totalPrice,
       unit: optionalString(item.unit, `items[${i}].unit`),
-      categoryId: optionalString(item.categoryId, `items[${i}].categoryId`),
+      categoryId: requireCategoryForFlow(requireString(item.categoryId, `items[${i}].categoryId`), 'DEBIT'),
+      requestedBudgetId: optionalString(item.budgetId, `items[${i}].budgetId`),
     };
   });
 }
@@ -106,6 +124,8 @@ interface ManualEntry {
   destinationWalletId?: string;
   categoryId: string;
   budgetId?: string;
+  feeBudgetId: string | null;
+  items: ItemInput[];
   amount: number;
   feeAmount: number;
   feeRefundAmount: number;
@@ -150,8 +170,25 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
     throw badRequest('Un retrait doit préciser le compte qui reçoit les espèces');
   }
 
-  const amount = requirePositiveAmount(pick('amount'), 'amount');
   const isDebit = flow === 'DEBIT';
+  // Opération ventilée : réservée aux dépenses (ni entrée, ni transfert). Lignes absentes du corps : celles de l'opération.
+  const canSplit = isDebit && !destinationWalletId;
+  const rawItems = 'items' in body
+    ? (body.items === null ? [] : parseItems(body.items))
+    : canSplit && existing?.items?.length
+      ? existing.items.map(it => ({
+        name: it.name, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.totalPrice, unit: it.unit,
+        categoryId: it.categoryId!, requestedBudgetId: it.budgetId,
+      }))
+      : [];
+  if (rawItems.length && !canSplit) throw badRequest('Seule une dépense peut être détaillée en articles');
+  const isSplit = rawItems.length > 0;
+  const itemsTotal = rawItems.reduce((sum, it) => sum + it.totalPrice, 0);
+  // Une opération reçue par SMS garde le montant annoncé par l'opérateur.
+  if (isSplit && existing?.source === 'SMS_AUTO' && itemsTotal !== existing.amount) {
+    throw badRequest(`Le total des articles (${itemsTotal} Ar) doit être égal au montant du SMS (${existing.amount} Ar)`);
+  }
+  const amount = isSplit ? itemsTotal : requirePositiveAmount(pick('amount'), 'amount');
   const feeAmount = isDebit ? optionalNonNegativeAmount(pick('feeAmount'), 'feeAmount', 0) : 0;
   // Part des frais remboursée (App MVola) et part payée pour le retrait du destinataire : jamais plus que les frais.
   const feeRefundAmount = isDebit ? optionalNonNegativeAmount(pick('feeRefundAmount'), 'feeRefundAmount', 0) : 0;
@@ -164,19 +201,39 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
   const counterpartyOperator = isDebit && operationType === 'TRANSFER_P2P' && !destinationWalletId
     ? optionalEnum(pick('counterpartyOperator') ?? undefined, MOBILE_MONEY_OPERATORS, 'counterpartyOperator') ?? null
     : null;
+  // Opération ventilée : la catégorie affichée est celle de la plus grosse ligne ; chaque ligne a son enveloppe,
+  // et les frais vont dans l'enveloppe des frais.
+  const largest = isSplit ? [...rawItems].sort((x, y) => y.totalPrice - x.totalPrice)[0] : undefined;
   // Un transfert entre ses comptes a toujours la catégorie des frais : seuls ses frais sont une dépense.
   const categoryId = destinationWalletId
     ? TRANSFER_CATEGORY_ID
-    : requireCategoryForFlow(requireString(pick('categoryId'), 'categoryId'), flow);
+    : largest
+      ? largest.categoryId
+      : requireCategoryForFlow(requireString(pick('categoryId'), 'categoryId'), flow);
 
-  // Enveloppe : celle demandée ; sinon l'actuelle si elle couvre toujours la catégorie ; sinon la règle habituelle.
   const entry = { flow, operationType, categoryId };
-  let requestedBudget = has(body, 'budgetId') ? optionalString(body.budgetId, 'budgetId') : undefined;
-  if (!requestedBudget && existing?.budgetId && isBudgetable(entry)
-    && budgetService.getMatchingBudgets(categoryId).some(b => b.id === existing.budgetId)) {
-    requestedBudget = existing.budgetId;
+  let budgetId: string | undefined;
+  let feeBudgetId: string | null = null;
+  let items: ItemInput[] = [];
+  if (isSplit) {
+    items = rawItems.map(it => ({
+      name: it.name, quantity: it.quantity, unitPrice: it.unitPrice, totalPrice: it.totalPrice, unit: it.unit,
+      categoryId: it.categoryId,
+      budgetId: budgetService.resolveBudgetId({ flow, operationType, categoryId: it.categoryId },
+        it.requestedBudgetId && budgetService.getMatchingBudgets(it.categoryId).some(b => b.id === it.requestedBudgetId)
+          ? it.requestedBudgetId
+          : undefined),
+    }));
+    feeBudgetId = budgetService.resolveBudgetId({ flow, operationType, categoryId: FEES_CATEGORY_ID }) ?? null;
+  } else {
+    // Enveloppe : celle demandée ; sinon l'actuelle si elle couvre toujours la catégorie ; sinon la règle habituelle.
+    let requestedBudget = has(body, 'budgetId') ? optionalString(body.budgetId, 'budgetId') : undefined;
+    if (!requestedBudget && existing?.budgetId && isBudgetable(entry)
+      && budgetService.getMatchingBudgets(categoryId).some(b => b.id === existing.budgetId)) {
+      requestedBudget = existing.budgetId;
+    }
+    budgetId = budgetService.resolveBudgetId(entry, requestedBudget);
   }
-  const budgetId = budgetService.resolveBudgetId(entry, requestedBudget);
 
   const title = has(body, 'title')
     ? requireString(body.title, 'title')
@@ -185,7 +242,7 @@ function parseManualEntry(body: Body, existing?: Transaction): ManualEntry {
   const note = has(body, 'note') ? optionalString(body.note, 'note') ?? null : existing?.note;
 
   return {
-    flow, operationType, walletId, destinationWalletId, categoryId, budgetId, amount, feeAmount,
+    flow, operationType, walletId, destinationWalletId, categoryId, budgetId, feeBudgetId, items, amount, feeAmount,
     feeRefundAmount, withdrawalFeeCovered, counterpartyOperator,
     totalAmount: amount + feeAmount - feeRefundAmount,
     title, date, note,
@@ -264,13 +321,13 @@ export const transactionService = {
 
     return ledgerService.record({
       ...entry,
+      feeBudgetId: entry.feeBudgetId ?? undefined,
       counterpartyOperator: entry.counterpartyOperator ?? undefined,
       note: entry.note ?? undefined,
       recipient: optionalString(body.recipient, 'recipient'),
       sender: optionalString(body.sender, 'sender'),
       source: 'MANUAL',
       location: parseLocation(body.location),
-      items: parseItems(body.items),
     });
   },
 

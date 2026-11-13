@@ -27,6 +27,10 @@ export function transactionSnapshot(t: Transaction) {
     withdrawalFeeCovered: t.withdrawalFeeCovered ?? 0,
     counterpartyOperator: t.counterpartyOperator ?? null,
     totalAmount: t.totalAmount,
+    items: (t.items ?? []).map(it => ({
+      name: it.name, quantity: it.quantity, unitPrice: it.unitPrice ?? null, totalPrice: it.totalPrice,
+      categoryId: it.categoryId ?? null, budgetId: it.budgetId ?? null,
+    })),
     title: t.title,
     date: t.date,
     note: t.note ?? null,
@@ -88,6 +92,11 @@ export function describeChanges(before: TransactionSnapshot, after: TransactionS
   if (before.budgetId !== after.budgetId) parts.push(`enveloppe ${budgetName(before.budgetId)} → ${budgetName(after.budgetId)}`);
   if (before.title !== after.title) parts.push(`titre « ${before.title} » → « ${after.title} »`);
   if ((before.note ?? '') !== (after.note ?? '')) parts.push('note');
+  if (JSON.stringify(before.items) !== JSON.stringify(after.items)) {
+    parts.push(after.items.length
+      ? `articles : ${after.items.map(it => `${it.name} ${formatAriary(it.totalPrice)} (${categoryName(it.categoryId)})`).join(', ')}`
+      : 'détail en articles retiré');
+  }
   return parts.join(' ; ');
 }
 

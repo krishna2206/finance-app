@@ -105,6 +105,8 @@ export const transactions = sqliteTable('transactions', {
   goalId: text('goal_id').references(() => savingsGoals.id, { onDelete: 'set null' }),
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'restrict' }),
   budgetId: text('budget_id').references(() => budgets.id, { onDelete: 'set null' }),
+  // Opération ventilée : enveloppe des frais (catégorie Frais bancaires & Mobile Money).
+  feeBudgetId: text('fee_budget_id').references(() => budgets.id, { onDelete: 'set null' }),
   amount: integer('amount').notNull(),
   feeAmount: integer('fee_amount').notNull().default(0), // Frais bruts
   feeRefundAmount: integer('fee_refund_amount').notNull().default(0), // Part des frais remboursée (App MVola)
@@ -135,6 +137,8 @@ export const transactionItems = sqliteTable('transaction_items', {
   id: text('id').primaryKey(),
   transactionId: text('transaction_id').notNull().references(() => transactions.id, { onDelete: 'cascade' }),
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
+  // Enveloppe de la ligne d'une opération ventilée (chaque ligne compte dans l'enveloppe de sa catégorie).
+  budgetId: text('budget_id').references(() => budgets.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   quantity: real('quantity').notNull().default(1),
   unitPrice: integer('unit_price'),

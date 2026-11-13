@@ -49,6 +49,44 @@ export function getSpendingAmount(entry: LedgerEntry): number {
   return entry.amount + getNetFee(entry);
 }
 
+/** Ligne d'une opération ventilée, vue par les règles comptables. */
+export interface LedgerItem {
+  categoryId?: string | null;
+  budgetId?: string | null;
+  totalPrice: number;
+}
+
+export interface SpendingAllocation {
+  categoryId: string | null;
+  budgetId: string | null;
+  amount: number;
+}
+
+/** Catégorie des frais d'une opération ventilée. */
+export const FEES_CATEGORY_ID = 'cat_fees_mobile_money';
+
+/**
+ * Répartition du dépensé d'une opération entre catégories et enveloppes.
+ * - Opération simple : une seule part, sa catégorie et son enveloppe.
+ * - Opération ventilée (articles) : une part par ligne, plus les frais nets dans la catégorie des frais.
+ * La somme des parts est toujours égale à getSpendingAmount().
+ */
+export function spendingAllocations(
+  entry: LedgerEntry & { categoryId?: string | null; budgetId?: string | null; feeBudgetId?: string | null; items?: LedgerItem[] | null },
+): SpendingAllocation[] {
+  const total = getSpendingAmount(entry);
+  if (!total) return [];
+  if (!entry.items?.length || isInternalTransfer(entry)) {
+    return [{ categoryId: entry.categoryId ?? null, budgetId: entry.budgetId ?? null, amount: total }];
+  }
+  const parts: SpendingAllocation[] = entry.items.map(it => ({
+    categoryId: it.categoryId ?? null, budgetId: it.budgetId ?? null, amount: it.totalPrice,
+  }));
+  const fee = getNetFee(entry);
+  if (fee > 0) parts.push({ categoryId: FEES_CATEGORY_ID, budgetId: entry.feeBudgetId ?? null, amount: fee });
+  return parts;
+}
+
 /** Montant réellement entré dans le patrimoine de l'utilisateur. */
 export function getIncomeAmount(entry: LedgerEntry): number {
   if (entry.flow !== 'CREDIT') return 0;

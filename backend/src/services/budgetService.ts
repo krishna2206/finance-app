@@ -1,4 +1,4 @@
-import { isBudgetable } from '@finance/shared';
+import { FEES_CATEGORY_ID, isBudgetable } from '@finance/shared';
 import { BudgetLimitEntry, budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { badRequest } from '../lib/errors';
@@ -66,14 +66,35 @@ export const budgetService = {
   reassignCurrentPeriod(): Array<{ transactionId: string; from: string | null; to: string | null }> {
     const allBudgets = budgetRepository.getAllBudgets();
     const changes: Array<{ transactionId: string; from: string | null; to: string | null }> = [];
+    /** Enveloppe à garder si elle couvre encore la catégorie, sinon la première qui la couvre (ou aucune). */
+    const realign = (categoryId: string, current: string | null): string | null => {
+      const matches = allBudgets.filter(b => b.categoryIds.includes(categoryId));
+      if (current && matches.some(b => b.id === current)) return current;
+      return matches[0]?.id ?? null;
+    };
 
     for (const t of transactionRepository.getTransactionsForPeriod(currentPeriod())) {
       if (!isBudgetable(t) || !t.categoryId) continue;
-      const matches = allBudgets.filter(b => b.categoryIds.includes(t.categoryId!));
-      const stillValid = t.budgetId && matches.some(b => b.id === t.budgetId);
-      if (stillValid) continue;
 
-      const nextBudgetId = matches[0]?.id ?? null;
+      if (t.items?.length && !t.destinationWalletId) {
+        // Opération ventilée : chaque ligne, puis les frais.
+        for (const it of t.items) {
+          if (!it.categoryId) continue;
+          const next = realign(it.categoryId, it.budgetId ?? null);
+          if ((it.budgetId ?? null) !== next) {
+            transactionRepository.setItemBudget(it.id, next);
+            changes.push({ transactionId: t.id, from: it.budgetId ?? null, to: next });
+          }
+        }
+        const nextFee = realign(FEES_CATEGORY_ID, t.feeBudgetId ?? null);
+        if ((t.feeBudgetId ?? null) !== nextFee) {
+          transactionRepository.setFeeBudget(t.id, nextFee);
+          changes.push({ transactionId: t.id, from: t.feeBudgetId ?? null, to: nextFee });
+        }
+        continue;
+      }
+
+      const nextBudgetId = realign(t.categoryId, t.budgetId ?? null);
       if ((t.budgetId ?? null) !== nextBudgetId) {
         transactionRepository.updateTransaction(t.id, { budgetId: nextBudgetId });
         changes.push({ transactionId: t.id, from: t.budgetId ?? null, to: nextBudgetId });

@@ -1,4 +1,4 @@
-import { getIncomeAmount, getSpendingAmount } from '@finance/shared';
+import { getIncomeAmount, getSpendingAmount, spendingAllocations } from '@finance/shared';
 import { budgetRepository } from '../db/repositories/budgetRepository';
 import { transactionRepository } from '../db/repositories/transactionRepository';
 import { budgetService } from './budgetService';
@@ -16,8 +16,10 @@ export const statsService = {
 
     const spentByBudget = new Map<string, number>();
     for (const t of monthTransactions) {
-      if (!t.budgetId) continue;
-      spentByBudget.set(t.budgetId, (spentByBudget.get(t.budgetId) || 0) + getSpendingAmount(t));
+      for (const part of spendingAllocations(t)) {
+        if (!part.budgetId) continue;
+        spentByBudget.set(part.budgetId, (spentByBudget.get(part.budgetId) || 0) + part.amount);
+      }
     }
 
     // Enveloppes du mois (archivées comprises si elles existaient alors), avec le plafond de ce mois-là.

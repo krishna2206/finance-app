@@ -1,4 +1,4 @@
-import { LedgerEntry, getSpendingAmount } from './ledger';
+import { LedgerEntry, LedgerItem, getSpendingAmount, spendingAllocations } from './ledger';
 
 /**
  * Comparaison du dépensé avec le mois précédent, à date égale : du 1er au même jour du mois.
@@ -8,6 +8,8 @@ import { LedgerEntry, getSpendingAmount } from './ledger';
 export interface DatedLedgerEntry extends LedgerEntry {
   date: string;
   budgetId?: string | null;
+  feeBudgetId?: string | null;
+  items?: LedgerItem[] | null;
 }
 
 export interface LocalDay {
@@ -43,7 +45,9 @@ export function spendingUntilDay(entries: DatedLedgerEntry[], period: string, la
     const spent = getSpendingAmount(e);
     if (!spent) continue;
     result.total += spent;
-    if (e.budgetId) result.byBudget[e.budgetId] = (result.byBudget[e.budgetId] ?? 0) + spent;
+    for (const part of spendingAllocations(e)) {
+      if (part.budgetId) result.byBudget[part.budgetId] = (result.byBudget[part.budgetId] ?? 0) + part.amount;
+    }
   }
   return result;
 }

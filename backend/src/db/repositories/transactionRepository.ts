@@ -7,14 +7,26 @@ import { periodBounds } from '../../lib/time';
 type TransactionRow = typeof transactions.$inferSelect;
 type ItemRow = typeof transactionItems.$inferSelect;
 
-export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'feeRefundAmount' | 'withdrawalFeeCovered'>
-  & Partial<Pick<Transaction, 'feeRefundAmount' | 'withdrawalFeeCovered'>>;
+export type NewTransaction = Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'feeRefundAmount' | 'withdrawalFeeCovered' | 'items'>
+  & Partial<Pick<Transaction, 'feeRefundAmount' | 'withdrawalFeeCovered'>>
+  & { items?: ItemInput[] };
 
 export interface TransactionUpdate {
   categoryId?: string;
   budgetId?: string | null;
   title?: string;
   note?: string | null;
+}
+
+/** Ligne d'une opération ventilée, prête à l'écriture. */
+export interface ItemInput {
+  name: string;
+  quantity: number;
+  unitPrice?: number;
+  totalPrice: number;
+  categoryId?: string;
+  budgetId?: string;
+  unit?: string;
 }
 
 /** Champs remplacés lors d'une modification complète. Origine, référence opérateur, articles et lieu sont conservés. */
@@ -24,6 +36,9 @@ export type TransactionReplacement = Pick<
   | 'totalAmount' | 'title' | 'date'
 > & {
   counterpartyOperator?: MobileMoneyOperator | null;
+  feeBudgetId?: string | null;
+  /** Lignes d'une opération ventilée : absent = inchangées, [] = plus de ventilation. */
+  items?: ItemInput[];
   destinationWalletId?: string | null;
   categoryId?: string | null;
   budgetId?: string | null;
@@ -35,6 +50,7 @@ function mapItem(it: ItemRow): TransactionItem {
     id: it.id,
     transactionId: it.transactionId,
     categoryId: it.categoryId || undefined,
+    budgetId: it.budgetId || undefined,
     name: it.name,
     quantity: it.quantity,
     unitPrice: it.unitPrice ?? undefined,
@@ -64,6 +80,7 @@ function mapRow(row: TransactionRow, items: TransactionItem[]): Transaction {
     goalId: row.goalId || undefined,
     categoryId: row.categoryId || undefined,
     budgetId: row.budgetId || undefined,
+    feeBudgetId: row.feeBudgetId || undefined,
     amount: row.amount,
     feeAmount: row.feeAmount,
     feeRefundAmount: row.feeRefundAmount,
@@ -157,16 +174,20 @@ export const transactionRepository = {
     return row?.n ?? 0;
   },
 
+  /** Opérations, lignes ventilées et frais rattachés à une enveloppe. */
   countByBudget(budgetId: string): number {
     const db = getDatabase();
-    const row = db.select({ n: count() }).from(transactions).where(eq(transactions.budgetId, budgetId)).get();
-    return row?.n ?? 0;
+    const ops = db.select({ n: count() }).from(transactions)
+      .where(or(eq(transactions.budgetId, budgetId), eq(transactions.feeBudgetId, budgetId))).get()?.n ?? 0;
+    const items = db.select({ n: count() }).from(transactionItems).where(eq(transactionItems.budgetId, budgetId)).get()?.n ?? 0;
+    return ops + items;
   },
 
   countByCategory(categoryId: string): number {
     const db = getDatabase();
     const row = db.select({ n: count() }).from(transactions).where(eq(transactions.categoryId, categoryId)).get();
-    return row?.n ?? 0;
+    const items = db.select({ n: count() }).from(transactionItems).where(eq(transactionItems.categoryId, categoryId)).get();
+    return (row?.n ?? 0) + (items?.n ?? 0);
   },
 
   countAll(): number {
@@ -189,6 +210,7 @@ export const transactionRepository = {
       goalId: txn.goalId || null,
       categoryId: txn.categoryId || null,
       budgetId: txn.budgetId || null,
+      feeBudgetId: txn.feeBudgetId || null,
       amount: txn.amount,
       feeAmount: txn.feeAmount,
       feeRefundAmount: txn.feeRefundAmount ?? 0,
@@ -209,11 +231,18 @@ export const transactionRepository = {
       updatedAt: now,
     }).run();
 
-    for (const item of txn.items || []) {
+    this.insertItems(id, txn.items || [], now);
+    return this.getTransactionById(id)!;
+  },
+
+  insertItems(transactionId: string, items: ItemInput[], now = Date.now()): void {
+    const db = getDatabase();
+    for (const item of items) {
       db.insert(transactionItems).values({
         id: crypto.randomUUID(),
-        transactionId: id,
+        transactionId,
         categoryId: item.categoryId || null,
+        budgetId: item.budgetId || null,
         name: item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice ?? null,
@@ -222,8 +251,14 @@ export const transactionRepository = {
         createdAt: now,
       }).run();
     }
+  },
 
-    return this.getTransactionById(id)!;
+  setItemBudget(itemId: string, budgetId: string | null): void {
+    getDatabase().update(transactionItems).set({ budgetId }).where(eq(transactionItems.id, itemId)).run();
+  },
+
+  setFeeBudget(transactionId: string, feeBudgetId: string | null): void {
+    getDatabase().update(transactions).set({ feeBudgetId }).where(eq(transactions.id, transactionId)).run();
   },
 
   updateTransaction(id: string, updates: TransactionUpdate): Transaction | null {
@@ -250,6 +285,7 @@ export const transactionRepository = {
       destinationWalletId: next.destinationWalletId ?? null,
       categoryId: next.categoryId ?? null,
       budgetId: next.budgetId ?? null,
+      ...(next.feeBudgetId !== undefined ? { feeBudgetId: next.feeBudgetId } : {}),
       amount: next.amount,
       feeAmount: next.feeAmount,
       feeRefundAmount: next.feeRefundAmount,
@@ -261,6 +297,10 @@ export const transactionRepository = {
       note: next.note ?? null,
       updatedAt: Date.now(),
     }).where(eq(transactions.id, id)).run();
+    if (next.items !== undefined) {
+      db.delete(transactionItems).where(eq(transactionItems.transactionId, id)).run();
+      this.insertItems(id, next.items);
+    }
     return this.getTransactionById(id);
   },
 
