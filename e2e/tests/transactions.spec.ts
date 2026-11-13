@@ -196,8 +196,10 @@ test.describe('Dépense détaillée en articles', () => {
   test('un ticket en 3 articles : un seul débit, chaque article dans son enveloppe', async ({ page, api }) => {
     const mvolaId = await api.walletIdByType('MVOLA');
     const before = (await api.balances())[mvolaId];
-    const food = await api.createBudget('Nourriture E2E', ['cat_food_groceries'], 100_000);
     const home = await api.createBudget('Maison E2E', ['cat_home_hygiene'], 50_000);
+    type Report = { budgets: Array<{ budgetId: string; spent: number }> };
+    const spentIn = (r: Report, id?: string) => r.budgets.find(b => b.budgetId === id)?.spent ?? 0;
+    const reportBefore = await api.get<Report>('/stats/monthly-savings');
 
     await page.goto('/');
     await openQuickAdd(page);
@@ -228,15 +230,19 @@ test.describe('Dépense détaillée en articles', () => {
     expect(txn.items![0]).toMatchObject({ quantity: 2, unitPrice: 1_480, totalPrice: 2_960 });
     expect((await api.balances())[mvolaId]).toBe(before - 36_470);
 
-    const report = await api.get<{ budgets: Array<{ budgetId: string; spent: number }> }>('/stats/monthly-savings');
-    expect(report.budgets.find(b => b.budgetId === food.id)?.spent).toBe(27_750);
-    expect(report.budgets.find(b => b.budgetId === home.id)?.spent).toBe(8_720);
+    // Chaque ligne compte dans l'enveloppe de sa catégorie (la plus ancienne qui la couvre).
+    const report = await api.get<Report>('/stats/monthly-savings');
+    const foodBudget = txn.items![0].budgetId;
+    expect(foodBudget).toBeTruthy();
+    expect(txn.items![1].budgetId).toBe(foodBudget);
+    expect(txn.items![2].budgetId).toBe(home.id);
+    expect(spentIn(report, foodBudget) - spentIn(reportBefore, foodBudget)).toBe(27_750);
+    expect(spentIn(report, home.id) - spentIn(reportBefore, home.id)).toBe(8_720);
 
     await page.getByText('Score E2E').first().click();
     await expect(page.getByText('Articles (3)')).toBeVisible();
 
     await api.delete(`/transactions/${txn.id}`);
-    await api.delete(`/budgets/${food.id}`);
     await api.delete(`/budgets/${home.id}`);
   });
 });
