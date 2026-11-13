@@ -15,7 +15,7 @@ export function PillGroup<T extends string>({ label, options, value, onChange }:
   return (
     <div className="px-4 py-2.5 space-y-1.5">
       <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">{label}</span>
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5" role="group" aria-label={label}>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
         {options.map(option => {
           const isSelected = option.value === value;
           return (

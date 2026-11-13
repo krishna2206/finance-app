@@ -54,6 +54,7 @@ import {
   ArrowRightUpLinearIcon,
   ArrowLeftDownLinearIcon,
   TransferHorizontalLinearIcon,
+  ListCheckLinearIcon,
 } from '@solar-icons/react';
 
 export type QuickAddMode = EntryMode;
@@ -1084,9 +1085,18 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                   <button
                     type="button"
                     onClick={startSplit}
-                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer"
+                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition-colors cursor-pointer text-left"
                   >
-                    Détailler en articles
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="w-6 h-6 rounded-lg bg-zinc-900 text-white flex items-center justify-center shadow-2xs shrink-0">
+                        <ListCheckLinearIcon size={14} />
+                      </div>
+                      <span className="text-xs font-bold text-zinc-900">Détailler en articles</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-1 text-xs text-zinc-500 font-semibold min-w-0 flex-1 pl-3">
+                      <span className="truncate text-right">Plusieurs catégories</span>
+                      <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
+                    </div>
                   </button>
                 )}
 
