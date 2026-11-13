@@ -25,6 +25,7 @@ export interface Transaction {
   feeRefundAmount: number;
   withdrawalFeeCovered: number;
   counterpartyOperator?: string;
+  items?: Array<{ name: string; quantity: number; unitPrice?: number; totalPrice: number; categoryId?: string; budgetId?: string }>;
   totalAmount: number;
   date: string;
 }

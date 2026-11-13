@@ -83,6 +83,16 @@ async function request<T>(method: string, path: string, body?: unknown, tokenOve
   return data as T;
 }
 
+/** Ligne d'une opération ventilée : montant = quantité × prix unitaire (ou montant direct). */
+export interface TransactionItemInput {
+  name: string;
+  quantity?: number;
+  unitPrice?: number;
+  totalPrice?: number;
+  categoryId: string;
+  budgetId?: string;
+}
+
 export interface NewTransactionInput {
   flow: TransactionFlow;
   operationType: OperationType;
@@ -95,6 +105,7 @@ export interface NewTransactionInput {
   feeRefundAmount?: number;
   withdrawalFeeCovered?: number;
   counterpartyOperator?: MobileMoneyOperator;
+  items?: TransactionItemInput[];
   title?: string;
   date?: string;
   note?: string;
@@ -111,6 +122,8 @@ export interface TransactionPatch {
   feeRefundAmount?: number;
   withdrawalFeeCovered?: number;
   counterpartyOperator?: MobileMoneyOperator | null;
+  /** Lignes d'une opération ventilée ; [] retire le détail. */
+  items?: TransactionItemInput[];
   categoryId?: string;
   budgetId?: string | null;
   title?: string;

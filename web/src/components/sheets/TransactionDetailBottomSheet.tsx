@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { OPERATOR_LABELS, isBudgetable, isInternalTransfer, isSavingsMovement } from '@finance/shared';
-import { groupCategories } from '../../utils/categories';
+import { groupCategories, splitCategoriesLabel } from '../../utils/categories';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Transaction, Category, Budget } from '../../types/models';
 import { useBudgetStore } from '../../stores/useBudgetStore';
@@ -58,6 +58,9 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
   const isSavings = isSavingsMovement(transaction);
   // La catégorie d'un transfert entre ses comptes est imposée (frais) : elle ne se change pas.
   const isTransfer = !isSavings && isInternalTransfer(transaction);
+  // Opération détaillée en articles : chaque ligne a sa catégorie, modifiable avec le bouton crayon.
+  const isSplit = Boolean(transaction.items?.length) && !isTransfer && !isSavings;
+  const lockedCategory = isTransfer || isSplit;
   // Enveloppes possibles : uniquement celles qui couvrent la catégorie (pas d'option « hors budget »).
   const matchingBudgets = isBudgetable(transaction)
     ? budgets.filter(b => transaction.categoryId && b.categoryIds.includes(transaction.categoryId))
@@ -213,9 +216,9 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
               {/* Catégorie (les mouvements d'épargne n'en ont pas) */}
               {!isSavings && (
                 <div
-                  onClick={isTransfer ? undefined : () => setIsSelectingCategory(true)}
+                  onClick={lockedCategory ? undefined : () => setIsSelectingCategory(true)}
                   className={`p-3.5 flex items-center justify-between transition-colors select-none ${
-                    isTransfer ? '' : 'hover:bg-zinc-50 active:bg-zinc-100 cursor-pointer'
+                    lockedCategory ? '' : 'hover:bg-zinc-50 active:bg-zinc-100 cursor-pointer'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 text-zinc-600 text-xs font-medium">
@@ -228,8 +231,8 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
                     <span>Catégorie</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900">
-                    <span>{category?.name || 'Divers'}</span>
-                    {!isTransfer && <PenNewSquareLinearIcon size={14} className="text-zinc-400" />}
+                    <span>{isSplit ? splitCategoriesLabel(transaction, categories) : category?.name || 'Divers'}</span>
+                    {!lockedCategory && <PenNewSquareLinearIcon size={14} className="text-zinc-400" />}
                   </div>
                 </div>
               )}
@@ -300,11 +303,16 @@ export function TransactionDetailBottomSheet({ transaction: selected, onClose, o
                   <div className="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
                     <Bag2LinearIcon size={14} />
                   </div>
-                  <span>Articles du Ticket ({transaction.items.length})</span>
+                  <span>Articles ({transaction.items.length})</span>
                 </div>
 
                 {transaction.items.map((item, idx) => (
-                  <TransactionItemRow key={idx} item={item} />
+                  <TransactionItemRow
+                    key={idx}
+                    item={item}
+                    categoryName={categories.find(c => c.id === item.categoryId)?.name}
+                    budgetName={budgets.find(b => b.id === item.budgetId)?.name}
+                  />
                 ))}
               </InsetGroupedCard>
             )}

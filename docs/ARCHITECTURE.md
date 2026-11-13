@@ -185,8 +185,8 @@ Toutes les routes sont préfixées par `/api` et demandent le jeton. Les corps s
 |---|---|---|
 | GET | `/transactions` | Toutes les opérations, les plus récentes d'abord. Options : `?month=YYYY-MM`, `?limit=N` |
 | GET | `/transactions/:id` | Une opération |
-| POST | `/transactions` | Saisie manuelle : `flow`, `operationType`, `walletId`, `destinationWalletId`, `categoryId`, `budgetId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `title`, `date`, `note`, `location`, `items` |
-| PUT | `/transactions/:id` | Modification complète : `flow`, `operationType`, `walletId`, `destinationWalletId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `categoryId`, `budgetId`, `title`, `date`, `note`. Les champs absents gardent leur valeur, `null` vide un champ facultatif. Pour l'épargne : `amount`, `walletId` (versement), `destinationWalletId` (déblocage), `date`, `title`, `note` |
+| POST | `/transactions` | Saisie manuelle : `flow`, `operationType`, `walletId`, `destinationWalletId`, `categoryId`, `budgetId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `items` (lignes : `name`, `quantity`, `unitPrice` ou `totalPrice`, `categoryId`, `budgetId` ; le montant devient leur somme), `title`, `date`, `note`, `location`, `items` |
+| PUT | `/transactions/:id` | Modification complète : `flow`, `operationType`, `walletId`, `destinationWalletId`, `amount`, `feeAmount`, `feeRefundAmount`, `withdrawalFeeCovered`, `counterpartyOperator`, `items` (`[]` retire le détail), `categoryId`, `budgetId`, `title`, `date`, `note`. Les champs absents gardent leur valeur, `null` vide un champ facultatif. Pour l'épargne : `amount`, `walletId` (versement), `destinationWalletId` (déblocage), `date`, `title`, `note` |
 | DELETE | `/transactions/:id` | Suppression, avec annulation des effets |
 
 ### Catégories et enveloppes

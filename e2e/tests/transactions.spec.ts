@@ -191,3 +191,52 @@ test.describe('Catégories', () => {
     await api.delete(`/transactions/${transfer.id}`);
   });
 });
+
+test.describe('Dépense détaillée en articles', () => {
+  test('un ticket en 3 articles : un seul débit, chaque article dans son enveloppe', async ({ page, api }) => {
+    const mvolaId = await api.walletIdByType('MVOLA');
+    const before = (await api.balances())[mvolaId];
+    const food = await api.createBudget('Nourriture E2E', ['cat_food_groceries'], 100_000);
+    const home = await api.createBudget('Maison E2E', ['cat_home_hygiene'], 50_000);
+
+    await page.goto('/');
+    await openQuickAdd(page);
+    await page.getByRole('button', { name: 'Dépense', exact: true }).click();
+    await pick(page, /Moyen de paiement/, /MVola/);
+    await page.getByPlaceholder('Ex: Marché Anosibe, Déjeuner, Essence...').fill('Score E2E');
+    await page.getByRole('button', { name: 'Détailler en articles' }).click();
+
+    const fillLine = async (i: number, name: string, qty: string, price: string, category: RegExp) => {
+      await page.getByLabel(`Article ${i}`, { exact: true }).fill(name);
+      await page.getByLabel(`Quantité ${i}`).fill(qty);
+      await page.getByLabel(`Prix unitaire ${i}`).fill(price);
+      await page.getByTitle(`Catégorie de l'article ${i}`).click();
+      await page.getByRole('button', { name: category }).last().click();
+    };
+    await fillLine(1, 'Café noir', '2', '1480', /^Courses$/);
+    await fillLine(2, 'Lait 500 g', '', '24790', /^Courses$/);
+    await page.getByRole('button', { name: '+ Ajouter un article' }).click();
+    await fillLine(3, 'Softy', '', '8720', /^Maison & hygiène$/);
+
+    await expect(page.getByLabel('Montant')).toHaveValue('36470');
+    await page.getByRole('button', { name: /Enregistrer Dépense/ }).click();
+
+    await expect.poll(async () => (await api.transactions()).some(t => t.title === 'Score E2E')).toBe(true);
+    const txn = (await api.transactions()).find(t => t.title === 'Score E2E')!;
+    expect(txn.amount).toBe(36_470);
+    expect(txn.items).toHaveLength(3);
+    expect(txn.items![0]).toMatchObject({ quantity: 2, unitPrice: 1_480, totalPrice: 2_960 });
+    expect((await api.balances())[mvolaId]).toBe(before - 36_470);
+
+    const report = await api.get<{ budgets: Array<{ budgetId: string; spent: number }> }>('/stats/monthly-savings');
+    expect(report.budgets.find(b => b.budgetId === food.id)?.spent).toBe(27_750);
+    expect(report.budgets.find(b => b.budgetId === home.id)?.spent).toBe(8_720);
+
+    await page.getByText('Score E2E').first().click();
+    await expect(page.getByText('Articles (3)')).toBeVisible();
+
+    await api.delete(`/transactions/${txn.id}`);
+    await api.delete(`/budgets/${food.id}`);
+    await api.delete(`/budgets/${home.id}`);
+  });
+});

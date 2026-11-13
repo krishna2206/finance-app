@@ -113,6 +113,20 @@ Quand une grille tarifaire s'applique (envoi Mobile Money, transfert, retrait), 
 
 Quand la catégorie choisie est couverte par plusieurs enveloppes, des pastilles « Financer depuis l'enveloppe » apparaissent, avec la première enveloppe présélectionnée.
 
+### Dépense détaillée en articles
+
+Un ticket de supermarché est un seul paiement, mais ses articles relèvent de plusieurs catégories. En mode Dépense, « Détailler en articles » découpe l'opération en lignes :
+
+- chaque ligne a un libellé, une quantité (1 par défaut), un prix unitaire et une catégorie de dépense ; son montant est quantité × prix unitaire ;
+- le montant de l'opération est la somme des lignes, calculée automatiquement ; le compte n'est débité qu'une fois ;
+- les frais (envoi, carte Visa) sont comptés une seule fois, dans l'enveloppe **Frais Mobile Money** ;
+- chaque ligne compte dans l'enveloppe de sa catégorie : écran Budgets, bilans, comparaison avec le mois précédent, clôture des mois ;
+- l'opération prend la catégorie de sa plus grosse ligne (icône), et l'historique affiche les catégories des lignes (« Courses, Maison & hygiène » ou « 3 catégories ») ;
+- « Annuler le détail » revient à une seule catégorie, celle de la plus grosse ligne ;
+- réservé aux dépenses (ni entrée, ni transfert, ni épargne).
+
+Une opération existante, y compris reçue par SMS, se détaille depuis sa fiche (bouton crayon). Pour une opération reçue par SMS, le total des lignes doit rester égal au montant annoncé par l'opérateur. La fiche détail liste les articles avec leur catégorie et leur enveloppe ; chaque changement de lignes est noté dans le journal.
+
 ### Fiche détail
 
 Toucher une opération ouvre sa fiche détail. On y trouve :
@@ -497,7 +511,7 @@ MyFinance est une application web progressive (PWA). Sur Android, Chrome propose
 
 Ces fonctionnalités sont prévues, mais pas encore construites :
 
-- **Lecture des tickets de caisse** : photo d'un ticket, extraction des articles par IA, puis rapprochement avec le paiement correspondant. Le modèle de données est prêt : table `transaction_items`.
+- **Lecture des tickets de caisse** : photo d'un ticket, extraction des articles par IA, puis rapprochement avec le paiement correspondant. La saisie des articles existe déjà (dépense détaillée en articles) : il resterait la lecture automatique.
 - **Saisie vocale** : dicter une dépense en français ou en malgache.
 - **Assistant IA** : analyses et conseils à partir de l'historique, via la clé Gemini.
 - **Modification d'un compte** : changer le nom ou le numéro d'un compte existant.

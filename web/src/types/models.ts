@@ -121,6 +121,8 @@ export interface TransactionItem {
   id: string;                      // UUID v4
   transactionId: string;
   categoryId?: string;
+  /** Enveloppe de la ligne (opération ventilée). */
+  budgetId?: string;
   name: string;
   quantity: number;
   unitPrice?: number;
@@ -147,6 +149,8 @@ export interface Transaction {
   budgetId?: string;
   amount: number;
   feeAmount: number;
+  /** Opération ventilée : enveloppe des frais. */
+  feeBudgetId?: string;
   /** Part des frais remboursée (App MVola). */
   feeRefundAmount: number;
   /** Part des frais payée pour le retrait du destinataire (envoi à un tiers). */

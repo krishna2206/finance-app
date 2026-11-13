@@ -1,6 +1,6 @@
 import { useToastStore } from './useToastStore';
 import { create } from 'zustand';
-import { getSpendingAmount } from '@finance/shared';
+import { spendingAllocations } from '@finance/shared';
 import { Category, Budget, Transaction } from '../types/models';
 import { api, BudgetInput } from '../services/api';
 import { useTransactionStore } from './useTransactionStore';
@@ -121,8 +121,10 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     for (const b of get().budgets) map[b.id] = 0;
 
     for (const t of transactions) {
-      if (!t.budgetId || map[t.budgetId] === undefined || !isInCurrentMonth(t.date)) continue;
-      map[t.budgetId] += getSpendingAmount(t);
+      if (!isInCurrentMonth(t.date)) continue;
+      for (const part of spendingAllocations(t)) {
+        if (part.budgetId && map[part.budgetId] !== undefined) map[part.budgetId] += part.amount;
+      }
     }
     return map;
   },

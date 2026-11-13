@@ -1,5 +1,5 @@
 import { CATEGORY_GROUPS, CategoryGroup, CategoryType } from '@finance/shared';
-import type { Category } from '../types/models';
+import type { Category, Transaction } from '../types/models';
 
 export interface CategorySection {
   group: CategoryGroup;
@@ -17,4 +17,10 @@ export function groupCategories(categories: Category[], type?: CategoryType): Ca
       categories: categories.filter(c => (c.group ?? (c.type === 'INCOME' ? 'INCOME' : 'DAILY')) === g.id && (!type || c.type === type)),
     }))
     .filter(section => section.categories.length > 0);
+}
+
+/** « Courses, Maison & hygiène » pour une opération détaillée en articles. */
+export function splitCategoriesLabel(t: Transaction, categories: Category[]): string {
+  const names = [...new Set((t.items ?? []).map(it => categories.find(c => c.id === it.categoryId)?.name).filter(Boolean))];
+  return names.length > 2 ? `${names.length} catégories` : names.join(', ');
 }

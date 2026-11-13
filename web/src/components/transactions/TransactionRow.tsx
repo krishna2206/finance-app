@@ -5,6 +5,7 @@ import { formatSignedAmount, formatAmount, formatWalletName } from '../../utils/
 import { CategoryIcon } from '../common/CategoryIcon';
 import { getNetFee, isInternalTransfer, isSavingsMovement } from '@finance/shared';
 import { Bag2LinearIcon } from '@solar-icons/react';
+import { splitCategoriesLabel } from '../../utils/categories';
 
 interface TransactionRowProps {
   transaction: Transaction;
@@ -29,7 +30,11 @@ export function TransactionRow({ transaction, onClick }: TransactionRowProps) {
     ? 'Retrait'
     : transferKind === 'TRANSFER'
       ? 'Transfert entre comptes'
-      : isSavingsMovement(transaction) ? 'Épargne' : category?.name || 'Catégorie';
+      : isSavingsMovement(transaction)
+        ? 'Épargne'
+        : transaction.items?.length
+          ? splitCategoriesLabel(transaction, categories) || category?.name || 'Catégorie'
+          : category?.name || 'Catégorie';
 
   const isDebit = transaction.flow === 'DEBIT';
   const hasItems = transaction.items && transaction.items.length > 0;

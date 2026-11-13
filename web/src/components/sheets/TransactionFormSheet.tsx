@@ -26,7 +26,7 @@ import {
 } from '../../utils/mobileMoneyEntry';
 import { groupCategories } from '../../utils/categories';
 import { Transaction } from '../../types/models';
-import { TransactionPatch } from '../../services/api';
+import { TransactionItemInput, TransactionPatch } from '../../services/api';
 import { showErrorToast } from '../../utils/errors';
 import {
   EntryMode,
@@ -57,6 +57,22 @@ import {
 } from '@solar-icons/react';
 
 export type QuickAddMode = EntryMode;
+
+/** Ligne d'une dépense détaillée en articles (saisie). Montant = quantité (1 par défaut) × prix unitaire. */
+interface EntryLine {
+  key: string;
+  name: string;
+  quantity: string;
+  unitPrice: string;
+  categoryId: string;
+}
+
+const parseQuantity = (q: string) => {
+  const n = Number(q.replace(',', '.'));
+  return q.trim() === '' ? 1 : Number.isFinite(n) && n > 0 ? n : 0;
+};
+const lineTotal = (l: EntryLine) => Math.round(parseQuantity(l.quantity) * (parseInt(l.unitPrice, 10) || 0));
+const newLineKey = () => Math.random().toString(36).slice(2);
 
 interface TransactionFormSheetProps {
   isOpen: boolean;
@@ -134,11 +150,14 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
   const getMatchingBudgetsForCategory = useBudgetStore(state => state.getMatchingBudgetsForCategory);
 
   // Stacked picker sheets state
-  const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'DATE' | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'LINE_CATEGORY' | 'DATE' | null>(null);
+  // Dépense détaillée en articles : null quand elle n'a qu'une catégorie.
+  const [lines, setLines] = useState<EntryLine[] | null>(null);
+  const [lineKeyForPicker, setLineKeyForPicker] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const openPicker = (target: 'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'DATE') => {
+  const openPicker = (target: 'SOURCE_WALLET' | 'DEST_WALLET' | 'CATEGORY' | 'LINE_CATEGORY' | 'DATE') => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
@@ -207,6 +226,15 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
         : modeOfTransaction(t);
       setMode(tMode);
       setAmount(String(t.amount));
+      setLines(t.items?.length && !isSavingsMovement(t)
+        ? t.items.map(it => ({
+          key: newLineKey(),
+          name: it.name,
+          quantity: it.unitPrice !== undefined && it.quantity !== 1 ? String(it.quantity) : '',
+          unitPrice: String(it.unitPrice ?? it.totalPrice),
+          categoryId: it.categoryId ?? '',
+        }))
+        : null);
       setTitle(t.title);
       setNote(t.note ?? '');
       setFeeInput(String(t.feeAmount));
@@ -234,6 +262,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
 
     setMode(loaded.lastMode);
     setCategoryByMode({});
+    setLines(null);
     applyWalletPrefs(loaded.lastMode, loaded);
     setFeeTouched(false);
     setRefundTouched(false);
@@ -282,7 +311,38 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
     return availableDestWallets[0] || allWallets.find(w => w.id !== selectedSourceWallet.id) || { id: 'w-dest', name: 'Compte', type: 'CASH' as const, balance: 0, isSpendable: true, createdAt: 0, updatedAt: 0 };
   }, [walletsById, destinationWalletId, mode, sourceWalletId, availableDestWallets, allWallets, selectedSourceWallet]);
 
-  const numericAmount = parseInt(amount.replace(/\s/g, ''), 10) || 0;
+  // Détail en articles : réservé aux dépenses ; le montant est alors la somme des lignes.
+  const isSplit = Boolean(lines) && mode === 'EXPENSE' && !isSavingsEdit;
+  const linesTotal = (lines ?? []).reduce((sum, l) => sum + lineTotal(l), 0);
+  const isLinesValid = !isSplit || (lines!.length > 0 && lines!.every(l => lineTotal(l) > 0 && l.categoryId));
+  const numericAmount = isSplit ? linesTotal : parseInt(amount.replace(/\s/g, ''), 10) || 0;
+
+  const updateLine = (key: string, patchLine: Partial<EntryLine>) =>
+    setLines(prev => prev && prev.map(l => (l.key === key ? { ...l, ...patchLine } : l)));
+
+  const startSplit = () => {
+    setLines([
+      { key: newLineKey(), name: title.trim(), quantity: '', unitPrice: amount, categoryId: activeCategoryId },
+      { key: newLineKey(), name: '', quantity: '', unitPrice: '', categoryId: activeCategoryId },
+    ]);
+  };
+
+  /** Retour à une seule catégorie : celle de la plus grosse ligne, pour le total des lignes. */
+  const cancelSplit = () => {
+    if (lines?.length) {
+      const largest = [...lines].sort((x, y) => lineTotal(y) - lineTotal(x))[0];
+      if (largest.categoryId) setCategoryByMode(prev => ({ ...prev, EXPENSE: largest.categoryId }));
+      setAmount(linesTotal > 0 ? String(linesTotal) : amount);
+    }
+    setLines(null);
+  };
+
+  const itemsPayload = (): TransactionItemInput[] => (lines ?? []).map(l => ({
+    name: l.name.trim() || 'Article',
+    quantity: parseQuantity(l.quantity),
+    unitPrice: parseInt(l.unitPrice, 10) || 0,
+    categoryId: l.categoryId,
+  }));
 
   const sourceType = selectedSourceWallet.type;
   const destType = selectedDestWallet.type;
@@ -372,8 +432,9 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
         feeRefundAmount,
         withdrawalFeeCovered,
         counterpartyOperator: paymentType === 'SEND' && sourceOperator ? recipientOperator : null,
-        categoryId: activeCategoryId,
-        budgetId: selectedBudgetId ?? null,
+        ...(isSplit
+          ? { items: itemsPayload() }
+          : { categoryId: activeCategoryId, budgetId: selectedBudgetId ?? null, ...(t.items?.length ? { items: [] } : {}) }),
       };
     }
     if (mode === 'INCOME') {
@@ -430,7 +491,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
       const dateIso = effectiveDate.toISOString();
 
       if (mode === 'EXPENSE') {
-        if (!selectedCategory) return;
+        if (!selectedCategory && !isSplit) return;
         await addTransaction({
           flow: 'DEBIT',
           operationType: operationTypeForPayment(paymentType, Boolean(sourceOperator)),
@@ -440,9 +501,10 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
           feeRefundAmount,
           withdrawalFeeCovered,
           counterpartyOperator: paymentType === 'SEND' && sourceOperator ? recipientOperator : undefined,
-          title: title.trim() || selectedCategory.name,
-          categoryId: selectedCategory.id,
-          budgetId: selectedBudgetId,
+          title: title.trim() || (isSplit ? 'Achats' : selectedCategory!.name),
+          categoryId: isSplit ? lines![0].categoryId : selectedCategory!.id,
+          budgetId: isSplit ? undefined : selectedBudgetId,
+          items: isSplit ? itemsPayload() : undefined,
           date: dateIso,
           note: note.trim() || undefined,
         });
@@ -501,6 +563,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
       rememberEntryDate(effectiveDate, isCustomDate);
 
       setAmount('');
+      setLines(null);
       setTitle('');
       setNote('');
       onClose();
@@ -636,6 +699,8 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">
                   {isSavingsEdit
                     ? (isDepositEdit ? 'Montant versé' : 'Montant débloqué')
+                    : isSplit
+                    ? 'Total des articles'
                     : mode === 'EXPENSE'
                     ? 'Montant de la Dépense'
                     : mode === 'INCOME'
@@ -648,11 +713,13 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                     ref={inputRef}
                     autoFocus
                     aria-label="Montant"
+                    readOnly={isSplit}
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    value={amount}
+                    value={isSplit ? String(numericAmount) : amount}
                     onChange={(e) => {
+                      if (isSplit) return;
                       const val = e.target.value.replace(/\D/g, '');
                       if (val.length <= 10) setAmount(val);
                     }}
@@ -670,7 +737,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                       {numericAmount > 0 ? formatAmount(numericAmount) : '0'}
                     </span>
 
-                    {isFocused && (
+                    {isFocused && !isSplit && (
                       <motion.div
                         animate={{ opacity: [1, 0.15, 1] }}
                         transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
@@ -893,8 +960,102 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                   </div>
                 )}
 
+                {/* 4 bis. Dépense détaillée en articles : une ligne par article, chacune avec sa catégorie */}
+                {isSplit && (
+                  <div className="px-4 py-3 space-y-2.5" data-testid="split-lines">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                        Articles ({lines!.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={cancelSplit}
+                        className="text-[11px] font-bold text-zinc-500 hover:text-zinc-900 cursor-pointer"
+                      >
+                        Annuler le détail
+                      </button>
+                    </div>
+                    {lines!.map((l, index) => {
+                      const cat = categories.find(c => c.id === l.categoryId);
+                      return (
+                        <div key={l.key} className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-2.5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              aria-label={`Article ${index + 1}`}
+                              value={l.name}
+                              onChange={(e) => updateLine(l.key, { name: e.target.value })}
+                              placeholder="Ex: Lait 500 g"
+                              className="flex-1 min-w-0 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-900 focus:outline-none focus:border-zinc-900"
+                            />
+                            {lines!.length > 1 && (
+                              <button
+                                type="button"
+                                title={`Retirer l'article ${index + 1}`}
+                                onClick={() => setLines(prev => prev && prev.filter(x => x.key !== l.key))}
+                                className="w-7 h-7 rounded-lg hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 flex items-center justify-center cursor-pointer shrink-0"
+                              >
+                                <CloseLinearIcon size={14} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              aria-label={`Quantité ${index + 1}`}
+                              value={l.quantity}
+                              onChange={(e) => updateLine(l.key, { quantity: e.target.value.replace(/[^\d.,]/g, '').slice(0, 6) })}
+                              placeholder="1"
+                              className="w-12 bg-white border border-zinc-200 rounded-lg px-2 py-1.5 font-bold text-zinc-900 text-center tabular-nums focus:outline-none focus:border-zinc-900"
+                            />
+                            <span className="text-zinc-400 font-semibold">×</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              aria-label={`Prix unitaire ${index + 1}`}
+                              value={l.unitPrice}
+                              onChange={(e) => updateLine(l.key, { unitPrice: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                              placeholder="Prix"
+                              className="w-20 bg-white border border-zinc-200 rounded-lg px-2 py-1.5 font-bold text-zinc-900 text-right tabular-nums focus:outline-none focus:border-zinc-900"
+                            />
+                            <span className="text-zinc-500 font-bold tabular-nums ml-auto">= {formatCurrency(lineTotal(l))}</span>
+                          </div>
+                          <button
+                            type="button"
+                            title={`Catégorie de l'article ${index + 1}`}
+                            onClick={() => { setLineKeyForPicker(l.key); openPicker('LINE_CATEGORY'); }}
+                            className="w-full flex items-center justify-between gap-2 text-xs cursor-pointer"
+                          >
+                            <span className="flex items-center gap-2 min-w-0">
+                              <span
+                                style={{ backgroundColor: cat?.color || '#A1A1AA' }}
+                                className="w-5 h-5 rounded-md flex items-center justify-center text-white shrink-0"
+                              >
+                                <CategoryIcon name={cat?.icon || cat?.name} weight="Bold" size={12} />
+                              </span>
+                              <span className="font-semibold text-zinc-700 truncate">{cat?.name || 'Choisir une catégorie'}</span>
+                            </span>
+                            <AltArrowRightLinearIcon size={14} className="text-zinc-400 shrink-0" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setLines(prev => [...(prev ?? []), {
+                        key: newLineKey(), name: '', quantity: '', unitPrice: '',
+                        categoryId: prev?.[prev.length - 1]?.categoryId ?? activeCategoryId,
+                      }])}
+                      className="w-full py-2 rounded-xl border border-dashed border-zinc-300 text-xs font-bold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+                    >
+                      + Ajouter un article
+                    </button>
+                  </div>
+                )}
+
                 {/* 4. Catégorie Row */}
-                {mode !== 'TRANSFER' && !isSavingsEdit && (
+                {mode !== 'TRANSFER' && !isSavingsEdit && !isSplit && (
                   <button
                     type="button"
                     onClick={() => openPicker('CATEGORY')}
@@ -919,7 +1080,17 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                 )}
 
                 {/* 4.1 Conditional Envelope Pill Selector (Rendered ONLY when category is in 2+ budgets) */}
-                {mode === 'EXPENSE' && !isSavingsEdit && matchingBudgets.length > 1 && (
+                {mode === 'EXPENSE' && !isSavingsEdit && !isSplit && (
+                  <button
+                    type="button"
+                    onClick={startSplit}
+                    className="w-full px-4 py-2.5 text-left text-xs font-bold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer"
+                  >
+                    Détailler en articles
+                  </button>
+                )}
+
+                {mode === 'EXPENSE' && !isSavingsEdit && !isSplit && matchingBudgets.length > 1 && (
                   <div className="px-4 py-2.5 bg-zinc-50/50 space-y-1.5 border-t border-zinc-100">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
                       Financer depuis l'enveloppe
@@ -1011,7 +1182,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer || (mode !== 'TRANSFER' && !isSavingsEdit && !selectedCategory)}
+                disabled={numericAmount <= 0 || isSubmitting || isInvalidTransfer || !isLinesValid || (mode !== 'TRANSFER' && !isSavingsEdit && !isSplit && !selectedCategory)}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-2xl shadow-md text-xs tracking-wider uppercase transition-all cursor-pointer mt-1"
               >
                 {isSubmitting
@@ -1043,7 +1214,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                 {/* Header */}
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="text-sm font-bold text-zinc-900 tracking-tight">
-                    {pickerTarget === 'CATEGORY'
+                    {pickerTarget === 'CATEGORY' || pickerTarget === 'LINE_CATEGORY'
                       ? 'Choisir une catégorie'
                       : pickerTarget === 'SOURCE_WALLET'
                         ? 'Choisir le compte source'
@@ -1118,7 +1289,7 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                 )}
 
                 {/* Category Picker */}
-                {pickerTarget === 'CATEGORY' && (
+                {(pickerTarget === 'CATEGORY' || pickerTarget === 'LINE_CATEGORY') && (
                   <div className="max-h-[55vh] overflow-y-auto pr-1 space-y-3">
                     {groupCategories(mode === 'INCOME' ? incomeCategories : expenseCategories).map(section => (
                     <div key={section.group}>
@@ -1129,13 +1300,18 @@ export function TransactionFormSheet({ isOpen, onClose, transaction }: Transacti
                       )}
                       <div className="grid grid-cols-2 gap-2">
                     {section.categories.map(cat => {
-                      const isSelected = activeCategoryId === cat.id;
+                      const lineCategory = lines?.find(l => l.key === lineKeyForPicker)?.categoryId;
+                      const isSelected = (pickerTarget === 'LINE_CATEGORY' ? lineCategory : activeCategoryId) === cat.id;
                       return (
                         <button
                           type="button"
                           key={cat.id}
                           onClick={() => {
-                            if (mode !== 'TRANSFER') setCategoryByMode(prev => ({ ...prev, [mode]: cat.id }));
+                            if (pickerTarget === 'LINE_CATEGORY') {
+                              if (lineKeyForPicker) updateLine(lineKeyForPicker, { categoryId: cat.id });
+                            } else if (mode !== 'TRANSFER') {
+                              setCategoryByMode(prev => ({ ...prev, [mode]: cat.id }));
+                            }
                             setPickerTarget(null);
                           }}
                           className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition-all cursor-pointer min-h-[56px] ${

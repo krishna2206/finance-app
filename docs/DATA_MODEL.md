@@ -80,6 +80,7 @@ erDiagram
         text category_id FK
         text budget_id FK
         integer amount
+        text fee_budget_id
         integer fee_amount
         integer fee_refund_amount
         integer withdrawal_fee_covered
@@ -214,6 +215,7 @@ Un index unique porte sur `(budget_id, category_id)`. Une même catégorie peut 
 | `budget_id` | text | vers `budgets.id`, **mise à null** | Enveloppe consommée |
 | `amount` | integer | non nul | Montant principal, strictement positif |
 | `fee_amount` | integer | non nul, défaut 0 | Frais bruts (débits uniquement) |
+| `fee_budget_id` | text | vers `budgets.id` | Opération ventilée : enveloppe de ses frais (catégorie des frais) |
 | `fee_refund_amount` | integer | non nul, défaut 0 | Part des frais remboursée (App MVola), au plus `fee_amount` |
 | `withdrawal_fee_covered` | integer | non nul, défaut 0 | Envoi à un tiers : part des frais payée pour le retrait du destinataire, au plus `fee_amount` |
 | `counterparty_operator` | text | | Envoi à un tiers : opérateur du destinataire (`MVOLA`, `ORANGE_MONEY`, `AIRTEL_MONEY`) |
@@ -229,17 +231,20 @@ Un index unique porte sur `(budget_id, category_id)`. Une même catégorie peut 
 
 Index : `date`, `wallet_id`, `budget_id`, et l'index unique sur `external_ref`.
 
-### `transaction_items` : articles d'un ticket
+### `transaction_items` : lignes d'une dépense détaillée en articles
+
+Une opération avec des lignes est « ventilée » : son `amount` est la somme des `total_price`, chaque ligne compte dans son enveloppe, et ses frais nets dans `fee_budget_id`. Son `category_id` est celui de la plus grosse ligne et son `budget_id` est vide.
 
 | Colonne | Type | Contraintes |
 |---|---|---|
 | `id` | text | clé primaire |
 | `transaction_id` | text | non nul, vers `transactions.id`, suppression en **cascade** |
-| `category_id` | text | vers `categories.id`, mise à null |
+| `category_id` | text | vers `categories.id`, mise à null. Catégorie de dépense de la ligne |
+| `budget_id` | text | vers `budgets.id`. Enveloppe de la ligne, réaffectée comme celle d'une opération (migration `0006_split_items`) |
 | `name` | text | non nul |
 | `quantity` | real | non nul, défaut 1 |
 | `unit_price` | integer | |
-| `total_price` | integer | non nul |
+| `total_price` | integer | non nul. `quantity × unit_price` arrondi quand un prix unitaire est donné |
 | `unit` | text | |
 | `created_at` | integer | non nul |
 
@@ -324,6 +329,7 @@ Si un effet ferait passer un pot ou un objectif en négatif, ou sous le total r�
 - Une opération non-épargne a toujours une catégorie, dont le type correspond à son sens. Un transfert entre ses comptes a toujours `cat_fees_mobile_money`.
 - `total_amount = amount + fee_amount - fee_refund_amount`, avec `fee_refund_amount ≤ fee_amount` et `withdrawal_fee_covered ≤ fee_amount`. Les montants sont des entiers, et `amount > 0`.
 - Les frais comptés comme dépense sont toujours les frais nets (`fee_amount - fee_refund_amount`).
+- La répartition du dépensé entre enveloppes passe par `spendingAllocations()` (`shared/src/ledger.ts`) : une part par opération simple, ou une part par ligne plus les frais pour une opération ventilée ; la somme des parts égale toujours le dépensé de l'opération.
 - `budget_id`, s'il est renseigné, désigne une enveloppe qui couvre la catégorie de l'opération : c'est vérifié à l'écriture, et réaligné quand les enveloppes du mois changent.
 - Un SMS (référence opérateur) n'est enregistré qu'une fois.
 - La somme des `current_amount` des objectifs d'un pot ne dépasse jamais le solde du pot.
